@@ -445,13 +445,34 @@ def delete_user(id):
     flash('User deleted successfully!', 'success')
     return redirect(url_for('users'))
 
+# Reports
 @app.route('/reports/attendance')
 @login_required
 def attendance_report():
-    selected_date = request.args.get('date', date.today().isoformat())
+    today_param = request.args.get('today', '')
+    date_from = request.args.get('date_from', '')
+    date_to = request.args.get('date_to', '')
     school_id = request.args.get('school_id', '')
     
-    query = Attendance.query.filter_by(date=datetime.strptime(selected_date, '%Y-%m-%d').date())
+    today = date.today()
+    
+    if today_param == '1':
+        date_from = today.isoformat()
+        date_to = today.isoformat()
+    
+    if not date_from:
+        date_from = today.isoformat()
+    if not date_to:
+        date_to = today.isoformat()
+    
+    try:
+        start_date = datetime.strptime(date_from, '%Y-%m-%d').date()
+        end_date = datetime.strptime(date_to, '%Y-%m-%d').date()
+    except:
+        start_date = today
+        end_date = today
+    
+    query = Attendance.query.filter(Attendance.date >= start_date, Attendance.date <= end_date)
     
     if school_id:
         staff_ids = [s.id for s in Staff.query.filter_by(school_id=school_id).all()]
@@ -460,18 +481,39 @@ def attendance_report():
         staff_ids = [s.id for s in Staff.query.filter_by(school_id=current_user.school_id).all()]
         query = query.filter(Attendance.staff_id.in_(staff_ids)) if staff_ids else query.filter(False)
     
-    attendance = query.all()
+    attendance = query.order_by(Attendance.date.desc()).all()
     schools = School.query.all() if current_user.role in ['super_admin', 'hr_viewer', 'ceo_viewer'] else []
     
-    return render_template('attendance_report.html', attendance=attendance, schools=schools, selected_date=selected_date, school_id=school_id)
+    return render_template('attendance_report.html', 
+                         attendance=attendance, 
+                         schools=schools, 
+                         date_from=date_from,
+                         date_to=date_to,
+                         school_id=school_id,
+                         today=today.isoformat())
 
 @app.route('/reports/attendance/download')
 @login_required
 def download_attendance():
-    selected_date = request.args.get('date', date.today().isoformat())
+    date_from = request.args.get('date_from', '')
+    date_to = request.args.get('date_to', '')
     school_id = request.args.get('school_id', '')
     
-    query = Attendance.query.filter_by(date=datetime.strptime(selected_date, '%Y-%m-%d').date())
+    today = date.today()
+    
+    if not date_from:
+        date_from = today.isoformat()
+    if not date_to:
+        date_to = today.isoformat()
+    
+    try:
+        start_date = datetime.strptime(date_from, '%Y-%m-%d').date()
+        end_date = datetime.strptime(date_to, '%Y-%m-%d').date()
+    except:
+        start_date = today
+        end_date = today
+    
+    query = Attendance.query.filter(Attendance.date >= start_date, Attendance.date <= end_date)
     
     if school_id:
         staff_ids = [s.id for s in Staff.query.filter_by(school_id=school_id).all()]
@@ -480,14 +522,15 @@ def download_attendance():
         staff_ids = [s.id for s in Staff.query.filter_by(school_id=current_user.school_id).all()]
         query = query.filter(Attendance.staff_id.in_(staff_ids)) if staff_ids else query.filter(False)
     
-    attendance = query.all()
+    attendance = query.order_by(Attendance.date.desc()).all()
     
     output = io.StringIO()
     writer = csv.writer(output)
-    writer.writerow(['Staff ID', 'Name', 'School', 'Department', 'Sign In', 'Sign Out', 'Status', 'Late Minutes'])
+    writer.writerow(['Date', 'Staff ID', 'Name', 'School', 'Department', 'Sign In', 'Sign Out', 'Status', 'Late Minutes', 'Overtime Minutes'])
     
     for a in attendance:
         writer.writerow([
+            a.date.strftime('%d/%m/%Y'),
             a.staff.staff_id,
             a.staff.name,
             a.staff.school.short_name or a.staff.school.name,
@@ -495,30 +538,39 @@ def download_attendance():
             a.sign_in_time.strftime('%H:%M') if a.sign_in_time else '',
             a.sign_out_time.strftime('%H:%M') if a.sign_out_time else '',
             'Late' if a.is_late else 'On Time',
-            a.late_minutes
+            a.late_minutes,
+            a.overtime_minutes
         ])
     
     output.seek(0)
-    return Response(output.getvalue(), mimetype='text/csv', headers={'Content-Disposition': f'attachment; filename=attendance_{selected_date}.csv'})
+    filename = f'attendance_{date_from}_to_{date_to}.csv'
+    return Response(output.getvalue(), mimetype='text/csv', headers={'Content-Disposition': f'attachment; filename={filename}'})
 
 @app.route('/reports/late')
 @login_required
 def late_report():
-    period = request.args.get('period', 'all')
+    today_param = request.args.get('today', '')
+    date_from = request.args.get('date_from', '')
+    date_to = request.args.get('date_to', '')
     school_id = request.args.get('school_id', '')
+    calc_mode = request.args.get('calc_mode', 'alltime')
     
-    if period == 'today':
-        start_date = date.today()
-        end_date = date.today()
-    elif period == 'week':
-        start_date = date.today() - timedelta(days=date.today().weekday())
-        end_date = date.today()
-    elif period == 'month':
-        start_date = date.today().replace(day=1)
-        end_date = date.today()
-    else:
-        start_date = None
-        end_date = None
+    today = date.today()
+    
+    if today_param == '1':
+        date_from = today.isoformat()
+        date_to = today.isoformat()
+    
+    show_toggle = bool(date_from and date_to)
+    
+    start_date = None
+    end_date = None
+    if date_from and date_to:
+        try:
+            start_date = datetime.strptime(date_from, '%Y-%m-%d').date()
+            end_date = datetime.strptime(date_to, '%Y-%m-%d').date()
+        except:
+            pass
     
     staff_query = Staff.query.filter_by(is_active=True)
     
@@ -534,25 +586,46 @@ def late_report():
         if s.department == 'Management':
             continue
         
-        att_query = Attendance.query.filter_by(staff_id=s.id)
+        if start_date and end_date:
+            period_att_query = Attendance.query.filter(
+                Attendance.staff_id == s.id,
+                Attendance.date >= start_date,
+                Attendance.date <= end_date
+            )
+            period_total = period_att_query.count()
+            period_late = period_att_query.filter_by(is_late=True).count()
+        else:
+            period_total = 0
+            period_late = 0
+        
+        all_att_query = Attendance.query.filter_by(staff_id=s.id)
+        all_total = all_att_query.count()
+        all_late = all_att_query.filter_by(is_late=True).count()
         
         if start_date and end_date:
-            att_query = att_query.filter(Attendance.date >= start_date, Attendance.date <= end_date)
+            times_late = period_late
+        else:
+            times_late = s.times_late
         
-        total_attendance = att_query.count()
-        late_count = att_query.filter_by(is_late=True).count()
-        
-        if s.times_late > 0 or late_count > 0:
-            if total_attendance > 0:
-                punctuality = round(((total_attendance - late_count) / total_attendance) * 100, 1)
-                lateness = round((late_count / total_attendance) * 100, 1)
+        if times_late > 0 or s.times_late > 0:
+            if calc_mode == 'period' and start_date and end_date:
+                if period_total > 0:
+                    punctuality = round(((period_total - period_late) / period_total) * 100, 1)
+                    lateness = round((period_late / period_total) * 100, 1)
+                else:
+                    punctuality = 100.0
+                    lateness = 0.0
             else:
-                punctuality = 100.0
-                lateness = 0.0
+                if all_total > 0:
+                    punctuality = round(((all_total - all_late) / all_total) * 100, 1)
+                    lateness = round((all_late / all_total) * 100, 1)
+                else:
+                    punctuality = 100.0
+                    lateness = 0.0
             
             late_staff.append({
                 'staff': s,
-                'times_late': s.times_late if period == 'all' else late_count,
+                'times_late': times_late,
                 'punctuality': punctuality,
                 'lateness': lateness
             })
@@ -560,12 +633,32 @@ def late_report():
     late_staff.sort(key=lambda x: x['times_late'], reverse=True)
     schools = School.query.all() if current_user.role in ['super_admin', 'hr_viewer', 'ceo_viewer'] else []
     
-    return render_template('late_report.html', late_staff=late_staff, schools=schools, period=period, school_id=school_id)
+    return render_template('late_report.html', 
+                         late_staff=late_staff, 
+                         schools=schools, 
+                         date_from=date_from,
+                         date_to=date_to,
+                         school_id=school_id,
+                         calc_mode=calc_mode,
+                         show_toggle=show_toggle,
+                         today=today.isoformat())
 
 @app.route('/reports/late/download')
 @login_required
 def download_late_report():
+    date_from = request.args.get('date_from', '')
+    date_to = request.args.get('date_to', '')
     school_id = request.args.get('school_id', '')
+    calc_mode = request.args.get('calc_mode', 'alltime')
+    
+    start_date = None
+    end_date = None
+    if date_from and date_to:
+        try:
+            start_date = datetime.strptime(date_from, '%Y-%m-%d').date()
+            end_date = datetime.strptime(date_to, '%Y-%m-%d').date()
+        except:
+            pass
     
     staff_query = Staff.query.filter_by(is_active=True)
     
@@ -584,29 +677,56 @@ def download_late_report():
         if s.department == 'Management':
             continue
         
-        total_attendance = Attendance.query.filter_by(staff_id=s.id).count()
-        late_count = Attendance.query.filter_by(staff_id=s.id, is_late=True).count()
-        
-        if total_attendance > 0:
-            punctuality = round(((total_attendance - late_count) / total_attendance) * 100, 1)
-            lateness = round((late_count / total_attendance) * 100, 1)
+        if start_date and end_date:
+            period_att_query = Attendance.query.filter(
+                Attendance.staff_id == s.id,
+                Attendance.date >= start_date,
+                Attendance.date <= end_date
+            )
+            period_total = period_att_query.count()
+            period_late = period_att_query.filter_by(is_late=True).count()
         else:
-            punctuality = 100.0
-            lateness = 0.0
+            period_total = 0
+            period_late = 0
         
-        if s.times_late > 0:
+        all_att_query = Attendance.query.filter_by(staff_id=s.id)
+        all_total = all_att_query.count()
+        all_late = all_att_query.filter_by(is_late=True).count()
+        
+        if start_date and end_date:
+            times_late = period_late
+        else:
+            times_late = s.times_late
+        
+        if times_late > 0 or s.times_late > 0:
+            if calc_mode == 'period' and start_date and end_date:
+                if period_total > 0:
+                    punctuality = round(((period_total - period_late) / period_total) * 100, 1)
+                    lateness = round((period_late / period_total) * 100, 1)
+                else:
+                    punctuality = 100.0
+                    lateness = 0.0
+            else:
+                if all_total > 0:
+                    punctuality = round(((all_total - all_late) / all_total) * 100, 1)
+                    lateness = round((all_late / all_total) * 100, 1)
+                else:
+                    punctuality = 100.0
+                    lateness = 0.0
+            
             writer.writerow([
                 s.staff_id,
                 s.name,
                 s.school.short_name or s.school.name,
                 s.department,
-                s.times_late,
+                times_late,
                 punctuality,
                 lateness
             ])
     
     output.seek(0)
-    return Response(output.getvalue(), mimetype='text/csv', headers={'Content-Disposition': f'attachment; filename=late_report_{date.today()}.csv'})
+    filename = f'late_report_{date_from}_to_{date_to}.csv' if date_from and date_to else f'late_report_{date.today()}.csv'
+    return Response(output.getvalue(), mimetype='text/csv', headers={'Content-Disposition': f'attachment; filename={filename}'})
 
 @app.route('/reports/late/reset', methods=['POST'])
 @login_required
@@ -632,44 +752,84 @@ def reset_late_counter():
 @app.route('/reports/absent')
 @login_required
 def absent_report():
-    selected_date = request.args.get('date', date.today().isoformat())
+    today_param = request.args.get('today', '')
+    date_from = request.args.get('date_from', '')
+    date_to = request.args.get('date_to', '')
     school_id = request.args.get('school_id', '')
     
-    check_date = datetime.strptime(selected_date, '%Y-%m-%d').date()
+    today = date.today()
     
-    if check_date.weekday() >= 5:
-        flash('Selected date is a weekend. No attendance expected.', 'info')
-        absent_staff = []
-    else:
-        staff_query = Staff.query.filter_by(is_active=True)
-        
-        if school_id:
-            staff_query = staff_query.filter_by(school_id=school_id)
-        elif current_user.role == 'school_admin':
-            staff_query = staff_query.filter_by(school_id=current_user.school_id)
-        
-        all_staff = staff_query.all()
-        
-        absent_staff = []
-        for s in all_staff:
-            if s.department == 'Management':
-                continue
-            
-            attendance = Attendance.query.filter_by(staff_id=s.id, date=check_date).first()
-            if not attendance:
-                absent_staff.append(s)
+    if today_param == '1':
+        date_from = today.isoformat()
+        date_to = today.isoformat()
+    
+    if not date_from:
+        date_from = today.isoformat()
+    if not date_to:
+        date_to = today.isoformat()
+    
+    try:
+        start_date = datetime.strptime(date_from, '%Y-%m-%d').date()
+        end_date = datetime.strptime(date_to, '%Y-%m-%d').date()
+    except:
+        start_date = today
+        end_date = today
+    
+    staff_query = Staff.query.filter_by(is_active=True)
+    
+    if school_id:
+        staff_query = staff_query.filter_by(school_id=school_id)
+    elif current_user.role == 'school_admin':
+        staff_query = staff_query.filter_by(school_id=current_user.school_id)
+    
+    all_staff = staff_query.all()
+    
+    absent_records = []
+    current_date = start_date
+    while current_date <= end_date:
+        if current_date.weekday() < 5:
+            for s in all_staff:
+                if s.department == 'Management':
+                    continue
+                
+                attendance = Attendance.query.filter_by(staff_id=s.id, date=current_date).first()
+                if not attendance:
+                    absent_records.append({
+                        'date': current_date,
+                        'staff': s
+                    })
+        current_date += timedelta(days=1)
     
     schools = School.query.all() if current_user.role in ['super_admin', 'hr_viewer', 'ceo_viewer'] else []
     
-    return render_template('absent_report.html', absent_staff=absent_staff, schools=schools, selected_date=selected_date, school_id=school_id)
+    return render_template('absent_report.html', 
+                         absent_records=absent_records, 
+                         schools=schools, 
+                         date_from=date_from,
+                         date_to=date_to,
+                         school_id=school_id,
+                         today=today.isoformat())
 
 @app.route('/reports/absent/download')
 @login_required
 def download_absent_report():
-    selected_date = request.args.get('date', date.today().isoformat())
+    date_from = request.args.get('date_from', '')
+    date_to = request.args.get('date_to', '')
     school_id = request.args.get('school_id', '')
     
-    check_date = datetime.strptime(selected_date, '%Y-%m-%d').date()
+    today = date.today()
+    
+    if not date_from:
+        date_from = today.isoformat()
+    if not date_to:
+        date_to = today.isoformat()
+    
+    try:
+        start_date = datetime.strptime(date_from, '%Y-%m-%d').date()
+        end_date = datetime.strptime(date_to, '%Y-%m-%d').date()
+    except:
+        start_date = today
+        end_date = today
     
     staff_query = Staff.query.filter_by(is_active=True)
     
@@ -682,32 +842,59 @@ def download_absent_report():
     
     output = io.StringIO()
     writer = csv.writer(output)
-    writer.writerow(['Staff ID', 'Name', 'School', 'Department'])
+    writer.writerow(['Date', 'Staff ID', 'Name', 'School', 'Department'])
     
-    for s in all_staff:
-        if s.department == 'Management':
-            continue
-        
-        attendance = Attendance.query.filter_by(staff_id=s.id, date=check_date).first()
-        if not attendance:
-            writer.writerow([
-                s.staff_id,
-                s.name,
-                s.school.short_name or s.school.name,
-                s.department
-            ])
+    current_date = start_date
+    while current_date <= end_date:
+        if current_date.weekday() < 5:
+            for s in all_staff:
+                if s.department == 'Management':
+                    continue
+                
+                attendance = Attendance.query.filter_by(staff_id=s.id, date=current_date).first()
+                if not attendance:
+                    writer.writerow([
+                        current_date.strftime('%d/%m/%Y'),
+                        s.staff_id,
+                        s.name,
+                        s.school.short_name or s.school.name,
+                        s.department
+                    ])
+        current_date += timedelta(days=1)
     
     output.seek(0)
-    return Response(output.getvalue(), mimetype='text/csv', headers={'Content-Disposition': f'attachment; filename=absent_{selected_date}.csv'})
+    filename = f'absent_{date_from}_to_{date_to}.csv'
+    return Response(output.getvalue(), mimetype='text/csv', headers={'Content-Disposition': f'attachment; filename={filename}'})
 
 @app.route('/reports/overtime')
 @login_required
 def overtime_report():
-    selected_date = request.args.get('date', date.today().isoformat())
+    today_param = request.args.get('today', '')
+    date_from = request.args.get('date_from', '')
+    date_to = request.args.get('date_to', '')
     school_id = request.args.get('school_id', '')
     
+    today = date.today()
+    
+    if today_param == '1':
+        date_from = today.isoformat()
+        date_to = today.isoformat()
+    
+    if not date_from:
+        date_from = today.isoformat()
+    if not date_to:
+        date_to = today.isoformat()
+    
+    try:
+        start_date = datetime.strptime(date_from, '%Y-%m-%d').date()
+        end_date = datetime.strptime(date_to, '%Y-%m-%d').date()
+    except:
+        start_date = today
+        end_date = today
+    
     query = Attendance.query.filter(
-        Attendance.date == datetime.strptime(selected_date, '%Y-%m-%d').date(),
+        Attendance.date >= start_date,
+        Attendance.date <= end_date,
         Attendance.overtime_minutes > 0
     )
     
@@ -718,19 +905,41 @@ def overtime_report():
         staff_ids = [s.id for s in Staff.query.filter_by(school_id=current_user.school_id).all()]
         query = query.filter(Attendance.staff_id.in_(staff_ids)) if staff_ids else query.filter(False)
     
-    overtime = query.all()
+    overtime = query.order_by(Attendance.date.desc()).all()
     schools = School.query.all() if current_user.role in ['super_admin', 'hr_viewer', 'ceo_viewer'] else []
     
-    return render_template('overtime_report.html', overtime=overtime, schools=schools, selected_date=selected_date, school_id=school_id)
+    return render_template('overtime_report.html', 
+                         overtime=overtime, 
+                         schools=schools, 
+                         date_from=date_from,
+                         date_to=date_to,
+                         school_id=school_id,
+                         today=today.isoformat())
 
 @app.route('/reports/overtime/download')
 @login_required
 def download_overtime_report():
-    selected_date = request.args.get('date', date.today().isoformat())
+    date_from = request.args.get('date_from', '')
+    date_to = request.args.get('date_to', '')
     school_id = request.args.get('school_id', '')
     
+    today = date.today()
+    
+    if not date_from:
+        date_from = today.isoformat()
+    if not date_to:
+        date_to = today.isoformat()
+    
+    try:
+        start_date = datetime.strptime(date_from, '%Y-%m-%d').date()
+        end_date = datetime.strptime(date_to, '%Y-%m-%d').date()
+    except:
+        start_date = today
+        end_date = today
+    
     query = Attendance.query.filter(
-        Attendance.date == datetime.strptime(selected_date, '%Y-%m-%d').date(),
+        Attendance.date >= start_date,
+        Attendance.date <= end_date,
         Attendance.overtime_minutes > 0
     )
     
@@ -741,14 +950,15 @@ def download_overtime_report():
         staff_ids = [s.id for s in Staff.query.filter_by(school_id=current_user.school_id).all()]
         query = query.filter(Attendance.staff_id.in_(staff_ids)) if staff_ids else query.filter(False)
     
-    overtime = query.all()
+    overtime = query.order_by(Attendance.date.desc()).all()
     
     output = io.StringIO()
     writer = csv.writer(output)
-    writer.writerow(['Staff ID', 'Name', 'School', 'Department', 'Sign Out', 'Overtime (mins)'])
+    writer.writerow(['Date', 'Staff ID', 'Name', 'School', 'Department', 'Sign Out', 'Overtime (mins)'])
     
     for o in overtime:
         writer.writerow([
+            o.date.strftime('%d/%m/%Y'),
             o.staff.staff_id,
             o.staff.name,
             o.staff.school.short_name or o.staff.school.name,
@@ -758,7 +968,8 @@ def download_overtime_report():
         ])
     
     output.seek(0)
-    return Response(output.getvalue(), mimetype='text/csv', headers={'Content-Disposition': f'attachment; filename=overtime_{selected_date}.csv'})
+    filename = f'overtime_{date_from}_to_{date_to}.csv'
+    return Response(output.getvalue(), mimetype='text/csv', headers={'Content-Disposition': f'attachment; filename={filename}'})
 
 # API for Kiosk
 @app.route('/api/sync', methods=['GET', 'POST', 'OPTIONS'])
