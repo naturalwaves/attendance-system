@@ -735,7 +735,7 @@ def add_school():
                                 <label>{{ day }}</label>
                                 <div>
                                     <small>Resumption</small>
-                                    <input type="time" name="{{ day.lower() }}_resumption" value="{{ '08:00' if day != 'Friday' else '08:00' }}">
+                                    <input type="time" name="{{ day.lower() }}_resumption" value="{{ '08:00' }}">
                                 </div>
                                 <div>
                                     <small>Closing</small>
@@ -2333,11 +2333,17 @@ def settings():
     ''')
 
 # API Endpoint for Kiosk (with CORS support)
-@app.route('/api/sync', methods=['POST', 'OPTIONS'])
+@app.route('/api/sync', methods=['GET', 'POST', 'OPTIONS'])
 def api_sync():
     # Handle CORS preflight request
     if request.method == 'OPTIONS':
         response = make_response()
+        response = add_cors_headers(response)
+        return response
+    
+    # Handle GET request (for testing)
+    if request.method == 'GET':
+        response = jsonify({'status': 'API is working', 'message': 'Use POST with X-API-Key header'})
         response = add_cors_headers(response)
         return response
     
