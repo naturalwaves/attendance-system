@@ -5,40 +5,67 @@
 {% block content %}
 <div class="d-flex justify-content-between align-items-center mb-4">
     <h2>Late Staff Report</h2>
-    <a href="{{ url_for('download_late_report', school_id=school_id) }}" class="btn btn-success">
+    <a href="{{ url_for('download_late_report', date_from=date_from, date_to=date_to, school_id=school_id, calc_mode=calc_mode) }}" class="btn btn-success">
         <i class="fas fa-download me-2"></i>Download CSV
     </a>
 </div>
 
 <div class="card mb-4">
     <div class="card-body">
-        <form method="GET" class="row g-3 align-items-end">
-            <div class="col-md-3">
-                <label class="form-label">Period</label>
-                <select name="period" class="form-select">
-                    <option value="all" {% if period == 'all' %}selected{% endif %}>All Time</option>
-                    <option value="today" {% if period == 'today' %}selected{% endif %}>Today</option>
-                    <option value="week" {% if period == 'week' %}selected{% endif %}>This Week</option>
-                    <option value="month" {% if period == 'month' %}selected{% endif %}>This Month</option>
-                </select>
+        <div class="row g-3 align-items-end">
+            <div class="col-md-2">
+                <a href="{{ url_for('late_report', today='1', school_id=school_id) }}" class="btn btn-primary w-100">
+                    <i class="fas fa-calendar-day me-2"></i>Today
+                </a>
+            </div>
+            <div class="col-md-7">
+                <form method="GET" class="row g-3 align-items-end" id="dateRangeForm">
+                    <div class="col-md-4">
+                        <label class="form-label">From Date</label>
+                        <input type="date" name="date_from" id="date_from" class="form-control" value="{{ date_from }}">
+                    </div>
+                    <div class="col-md-4">
+                        <label class="form-label">To Date</label>
+                        <input type="date" name="date_to" id="date_to" class="form-control" value="{{ date_to }}">
+                    </div>
+                    {% if current_user.role in ['super_admin', 'hr_viewer', 'ceo_viewer'] %}
+                    <input type="hidden" name="school_id" value="{{ school_id }}">
+                    {% endif %}
+                    <div class="col-md-4">
+                        <button type="submit" class="btn btn-secondary w-100">
+                            <i class="fas fa-filter me-2"></i>Filter
+                        </button>
+                    </div>
+                </form>
             </div>
             {% if current_user.role in ['super_admin', 'hr_viewer', 'ceo_viewer'] %}
             <div class="col-md-3">
                 <label class="form-label">School</label>
-                <select name="school_id" class="form-select">
+                <select id="schoolSelect" class="form-select" onchange="updateSchool(this.value)">
                     <option value="">All Schools</option>
                     {% for school in schools %}
-                    <option value="{{ school.id }}" {% if school_id == school.id|string %}selected{% endif %}>{{ school.name }}</option>
+                    <option value="{{ school.id }}" {% if school_id == school.id|string %}selected{% endif %}>{{ school.short_name or school.name }}</option>
                     {% endfor %}
                 </select>
             </div>
             {% endif %}
-            <div class="col-md-3">
-                <button type="submit" class="btn btn-primary">
-                    <i class="fas fa-filter me-2"></i>Filter
-                </button>
+        </div>
+        
+        {% if show_toggle %}
+        <div class="mt-3 pt-3 border-top">
+            <label class="form-label me-3">% Calculation Based On:</label>
+            <div class="btn-group" role="group">
+                <a href="{{ url_for('late_report', date_from=date_from, date_to=date_to, school_id=school_id, calc_mode='period') }}" 
+                   class="btn btn-{{ 'primary' if calc_mode == 'period' else 'outline-primary' }}">
+                    Selected Period
+                </a>
+                <a href="{{ url_for('late_report', date_from=date_from, date_to=date_to, school_id=school_id, calc_mode='alltime') }}" 
+                   class="btn btn-{{ 'primary' if calc_mode == 'alltime' else 'outline-primary' }}">
+                    All Time
+                </a>
             </div>
-        </form>
+        </div>
+        {% endif %}
     </div>
 </div>
 
@@ -54,7 +81,7 @@
                 <select name="school_id" class="form-select">
                     <option value="">All Schools</option>
                     {% for school in schools %}
-                    <option value="{{ school.id }}">{{ school.name }}</option>
+                    <option value="{{ school.id }}">{{ school.short_name or school.name }}</option>
                     {% endfor %}
                 </select>
             </div>
@@ -69,6 +96,12 @@
 {% endif %}
 
 <div class="card">
+    <div class="card-header">
+        <i class="fas fa-clock me-2"></i>Late Staff ({{ late_staff|length }} total)
+        {% if date_from and date_to %}
+        <span class="text-muted ms-2">| {{ date_from }} to {{ date_to }}</span>
+        {% endif %}
+    </div>
     <div class="card-body">
         <div class="table-responsive">
             <table class="table table-hover">
@@ -112,5 +145,16 @@
         </div>
     </div>
 </div>
-{% endblock %}
 
+<script>
+function updateSchool(schoolId) {
+    const url = new URL(window.location.href);
+    if (schoolId) {
+        url.searchParams.set('school_id', schoolId);
+    } else {
+        url.searchParams.delete('school_id');
+    }
+    window.location.href = url.toString();
+}
+</script>
+{% endblock %}
