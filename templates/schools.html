@@ -1,1 +1,68 @@
+{% extends 'base.html' %}
+
+{% block title %}Schools - Attendance System{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <h2>Schools</h2>
+    <a href="{{ url_for('add_school') }}" class="btn btn-primary">
+        <i class="fas fa-plus me-2"></i>Add School
+    </a>
+</div>
+
+<div class="card">
+    <div class="card-body">
+        <div class="table-responsive">
+            <table class="table table-hover">
+                <thead>
+                    <tr>
+                        <th>School Name</th>
+                        <th>Short Name</th>
+                        <th>API Key</th>
+                        <th>Staff Count</th>
+                        <th>Actions</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for school in schools %}
+                    <tr>
+                        <td>{{ school.name }}</td>
+                        <td>{{ school.short_name or '-' }}</td>
+                        <td>
+                            <code style="font-size: 11px;">{{ school.api_key[:25] }}...</code>
+                            <button class="btn btn-sm btn-outline-secondary ms-2" onclick="copyToClipboard('{{ school.api_key }}')" title="Copy full key">
+                                <i class="fas fa-copy"></i>
+                            </button>
+                        </td>
+                        <td>
+                            {% set staff_count = school.staff | selectattr('is_active') | list | length %}
+                            <span class="badge bg-primary">{{ staff_count }}</span>
+                        </td>
+                        <td>
+                            <a href="{{ url_for('edit_school', id=school.id) }}" class="btn btn-sm btn-warning">
+                                <i class="fas fa-edit"></i>
+                            </a>
+                            <a href="{{ url_for('regenerate_api_key', id=school.id) }}" class="btn btn-sm btn-secondary" onclick="return confirm('Regenerate API key? The kiosk will need to be reconfigured.')">
+                                <i class="fas fa-key"></i>
+                            </a>
+                            <a href="{{ url_for('delete_school', id=school.id) }}" class="btn btn-sm btn-danger" onclick="return confirm('Delete this school? All staff and attendance records will be deleted.')">
+                                <i class="fas fa-trash"></i>
+                            </a>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+
+<script>
+function copyToClipboard(text) {
+    navigator.clipboard.writeText(text).then(function() {
+        alert('API Key copied to clipboard!');
+    });
+}
+</script>
+{% endblock %}
 
