@@ -1,1 +1,116 @@
+{% extends 'base.html' %}
+
+{% block title %}Late Report - Attendance System{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <h2>Late Staff Report</h2>
+    <a href="{{ url_for('download_late_report', school_id=school_id) }}" class="btn btn-success">
+        <i class="fas fa-download me-2"></i>Download CSV
+    </a>
+</div>
+
+<div class="card mb-4">
+    <div class="card-body">
+        <form method="GET" class="row g-3 align-items-end">
+            <div class="col-md-3">
+                <label class="form-label">Period</label>
+                <select name="period" class="form-select">
+                    <option value="all" {% if period == 'all' %}selected{% endif %}>All Time</option>
+                    <option value="today" {% if period == 'today' %}selected{% endif %}>Today</option>
+                    <option value="week" {% if period == 'week' %}selected{% endif %}>This Week</option>
+                    <option value="month" {% if period == 'month' %}selected{% endif %}>This Month</option>
+                </select>
+            </div>
+            {% if current_user.role in ['super_admin', 'hr_viewer', 'ceo_viewer'] %}
+            <div class="col-md-3">
+                <label class="form-label">School</label>
+                <select name="school_id" class="form-select">
+                    <option value="">All Schools</option>
+                    {% for school in schools %}
+                    <option value="{{ school.id }}" {% if school_id == school.id|string %}selected{% endif %}>{{ school.name }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+            {% endif %}
+            <div class="col-md-3">
+                <button type="submit" class="btn btn-primary">
+                    <i class="fas fa-filter me-2"></i>Filter
+                </button>
+            </div>
+        </form>
+    </div>
+</div>
+
+{% if current_user.role == 'super_admin' %}
+<div class="card mb-4">
+    <div class="card-header bg-danger text-white">
+        <i class="fas fa-redo me-2"></i>Reset Late Counters
+    </div>
+    <div class="card-body">
+        <form method="POST" action="{{ url_for('reset_late_counter') }}" class="row g-3 align-items-end">
+            <div class="col-md-4">
+                <label class="form-label">School</label>
+                <select name="school_id" class="form-select">
+                    <option value="">All Schools</option>
+                    {% for school in schools %}
+                    <option value="{{ school.id }}">{{ school.name }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+            <div class="col-md-4">
+                <button type="submit" class="btn btn-danger" onclick="return confirm('Are you sure you want to reset all late counters? This cannot be undone.')">
+                    <i class="fas fa-redo me-2"></i>Reset Counters
+                </button>
+            </div>
+        </form>
+    </div>
+</div>
+{% endif %}
+
+<div class="card">
+    <div class="card-body">
+        <div class="table-responsive">
+            <table class="table table-hover">
+                <thead>
+                    <tr>
+                        <th>Staff ID</th>
+                        <th>Name</th>
+                        <th>School</th>
+                        <th>Department</th>
+                        <th>Times Late</th>
+                        <th>% Punctuality</th>
+                        <th>% Lateness</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for item in late_staff %}
+                    <tr>
+                        <td>{{ item.staff.staff_id }}</td>
+                        <td>{{ item.staff.name }}</td>
+                        <td>{{ item.staff.school.short_name or item.staff.school.name }}</td>
+                        <td>{{ item.staff.department }}</td>
+                        <td><span class="badge bg-danger">{{ item.times_late }}</span></td>
+                        <td>
+                            <span class="badge bg-{% if item.punctuality >= 90 %}success{% elif item.punctuality >= 70 %}warning{% else %}danger{% endif %}">
+                                {{ item.punctuality }}%
+                            </span>
+                        </td>
+                        <td>
+                            <span class="badge bg-{% if item.lateness <= 10 %}success{% elif item.lateness <= 30 %}warning{% else %}danger{% endif %}">
+                                {{ item.lateness }}%
+                            </span>
+                        </td>
+                    </tr>
+                    {% else %}
+                    <tr>
+                        <td colspan="7" class="text-center text-muted">No late records found.</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+{% endblock %}
 
