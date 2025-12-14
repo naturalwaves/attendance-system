@@ -53,7 +53,7 @@ class Attendance(db.Model):
 def load_user(user_id):
     return User.query.get(int(user_id))
 
-LOGO = "https://coronaschools.com/wp-content/uploads/2020/06/Corona-Logo.png"
+LOGO = "https://i.ibb.co/PGPKP3HB/corona-logo-2.png"
 
 def get_base():
     return '''<!DOCTYPE html>
@@ -676,3 +676,4 @@ with app.app_context():
 if __name__ == '__main__':
     port = int(os.environ.get('PORT', 5000))
     app.run(host='0.0.0.0', port=port)
+
