@@ -8,7 +8,7 @@ import secrets
 
 app = Flask(__name__)
 app.config['SECRET_KEY'] = os.environ.get('SECRET_KEY', 'dev-secret-key')
-app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///attendance.db'
+app.config['SQLALCHEMY_DATABASE_URI'] = os.environ.get('DATABASE_URL', 'postgresql://postgres:bigdaddy8624@db.ytavcjojzfbshstoewmc.supabase.co:5432/postgres')
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 
 db = SQLAlchemy(app)
@@ -48,8 +48,6 @@ class Attendance(db.Model):
 @login_manager.user_loader
 def load_user(user_id):
     return User.query.get(int(user_id))
-
-LOGO_URL = "https://i.imgur.com/your_logo_id.png"
 
 BASE_HTML = '''
 <!DOCTYPE html>
@@ -116,7 +114,7 @@ BASE_HTML = '''
     {% if current_user.is_authenticated %}
     <div class="navbar">
         <div class="logo-section">
-            <img src="https://i.imgur.com/7wj25QM.png" alt="Logo">
+            <img src="https://i.imgur.com/yARMhzG.png" alt="Logo">
             <h1>Staff Attendance</h1>
         </div>
         <nav>
@@ -153,11 +151,6 @@ def init_db():
     if not User.query.filter_by(username='admin').first():
         admin = User(username='admin', password_hash=generate_password_hash('admin123'), role='superadmin')
         db.session.add(admin)
-        db.session.commit()
-    if not School.query.first():
-        for i in range(1, 8):
-            school = School(name='School ' + str(i), code='SCH' + str(i).zfill(3), api_key=secrets.token_hex(32))
-            db.session.add(school)
         db.session.commit()
 
 @app.route('/')
@@ -207,7 +200,7 @@ def login():
         <div class="login-container">
             <div class="card">
                 <div class="logo-section">
-                    <img src="https://i.imgur.com/7wj25QM.png" alt="Logo">
+                    <img src="https://i.imgur.com/yARMhzG.png" alt="Logo">
                     <h2>Staff Attendance</h2>
                     <p>Sign in to continue</p>
                 </div>
@@ -260,6 +253,8 @@ def dashboard():
             <div style="margin-top: 0.75rem; font-size: 0.85rem; color: #888;">{total_staff} total staff</div>
         </div>
         '''
+    if not stats_html:
+        stats_html = '<div class="card"><p style="text-align:center; color:#888;">No schools yet. Go to Schools to add one.</p></div>'
     content = f'''
     <div class="page-header">
         <h2>Dashboard</h2>
@@ -284,12 +279,13 @@ def schools():
             <td>{school.last_sync.strftime('%Y-%m-%d %H:%M') if school.last_sync else '<span style="color:#888;">Never</span>'}</td>
             <td>
                 <a href="{url_for('edit_school', school_id=school.id)}" class="btn btn-secondary">Edit</a>
-                <form method="POST" action="{url_for('delete_school', school_id=school.id)}" style="display:inline;" onsubmit="return confirm('Are you sure you want to delete this school? All staff and attendance data will be lost.');">
+                <form method="POST" action="{url_for('delete_school', school_id=school.id)}" style="display:inline;" onsubmit="return confirm('Delete this school and all its data?');">
                     <button type="submit" class="btn btn-danger">Delete</button>
                 </form>
             </td>
         </tr>
         '''
+    empty_state = '<tr><td colspan="5" class="empty-state"><p>No schools yet. Click "Add School" to get started.</p></td></tr>'
     content = f'''
     <div class="page-header" style="display: flex; justify-content: space-between; align-items: center;">
         <h2>Schools</h2>
@@ -300,7 +296,7 @@ def schools():
             <thead>
                 <tr><th>Name</th><th>Code</th><th>API Key</th><th>Last Sync</th><th>Actions</th></tr>
             </thead>
-            <tbody>{rows}</tbody>
+            <tbody>{rows if rows else empty_state}</tbody>
         </table>
     </div>
     '''
@@ -376,7 +372,7 @@ def edit_school(school_id):
             <a href="{url_for('schools')}" class="btn btn-secondary">Cancel</a>
         </form>
         <hr>
-        <form method="POST" action="{url_for('regenerate_api_key', school_id=school.id)}" onsubmit="return confirm('Are you sure? The kiosk will need to be reconfigured with the new key.');">
+        <form method="POST" action="{url_for('regenerate_api_key', school_id=school.id)}" onsubmit="return confirm('Regenerate API key? The kiosk will need reconfiguring.');">
             <button type="submit" class="btn btn-danger">Regenerate API Key</button>
         </form>
     </div>
@@ -543,7 +539,7 @@ def attendance():
         '''
     
     school_options = ''.join([f'<option value="{s.id}" {"selected" if school_id == s.id else ""}>{s.name}</option>' for s in schools])
-    empty_state = '<tr><td colspan="6" class="empty-state"><p>No attendance records found for the selected period.</p></td></tr>'
+    empty_state = '<tr><td colspan="6" class="empty-state"><p>No attendance records found.</p></td></tr>'
     
     content = f'''
     <div class="page-header">
@@ -575,7 +571,6 @@ def attendance():
 @app.route('/today')
 @login_required
 def today():
-    schools = School.query.all() if current_user.role == 'superadmin' else School.query.filter_by(id=current_user.school_id).all()
     today_date = datetime.now().date()
     
     query = Attendance.query.filter(db.func.date(Attendance.timestamp) == today_date)
@@ -599,7 +594,7 @@ def today():
         </tr>
         '''
     
-    empty_state = '<tr><td colspan="5" class="empty-state"><p>No activity recorded today yet.</p></td></tr>'
+    empty_state = '<tr><td colspan="5" class="empty-state"><p>No activity today yet.</p></td></tr>'
     
     content = f'''
     <div class="page-header">
@@ -630,7 +625,7 @@ def admins():
         rows += f'''
         <tr>
             <td><strong>{admin.username}</strong></td>
-            <td><span class="badge {'badge-success' if admin.role == 'superadmin' else 'badge-secondary'}" style="background: {'#c41e3a' if admin.role == 'superadmin' else '#6c757d'};">{admin.role}</span></td>
+            <td><span class="badge" style="background: {'#c41e3a' if admin.role == 'superadmin' else '#6c757d'};">{admin.role}</span></td>
             <td>{school.name if school else '<span style="color:#888;">All Schools</span>'}</td>
             <td>
                 {'<form method="POST" action="' + url_for('delete_admin', id=admin.id) + '" style="display:inline;" onsubmit="return confirm(\'Delete this admin?\');"><button type="submit" class="btn btn-danger">Delete</button></form>' if admin.id != current_user.id else '<span style="color:#888;">Current User</span>'}
