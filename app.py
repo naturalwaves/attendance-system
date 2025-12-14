@@ -7,6 +7,7 @@ import os
 import csv
 import io
 import secrets
+import json
 
 app = Flask(__name__)
 app.config['SECRET_KEY'] = os.environ.get('SECRET_KEY', 'your-secret-key-here')
@@ -19,17 +20,52 @@ db = SQLAlchemy(app)
 login_manager = LoginManager(app)
 login_manager.login_view = 'login'
 
-# Models
+DEFAULT_SCHEDULE = {
+    'monday': {'resumption': '08:00', 'closing': '17:00'},
+    'tuesday': {'resumption': '08:00', 'closing': '17:00'},
+    'wednesday': {'resumption': '08:00', 'closing': '17:00'},
+    'thursday': {'resumption': '08:00', 'closing': '17:00'},
+    'friday': {'resumption': '08:00', 'closing': '14:00'}
+}
+
+DEPARTMENT_CHOICES = ['Academic', 'Admin', 'Non-Academic', 'Management']
+
 class School(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     name = db.Column(db.String(100), nullable=False)
     address = db.Column(db.String(200))
     api_key = db.Column(db.String(64), unique=True, nullable=False)
-    resumption_time = db.Column(db.String(5), default='08:00')
-    closing_time = db.Column(db.String(5), default='17:00')
+    schedule = db.Column(db.Text, default=json.dumps(DEFAULT_SCHEDULE))
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
     staff = db.relationship('Staff', backref='school', lazy=True)
     attendance = db.relationship('Attendance', backref='school', lazy=True)
+    
+    def get_schedule(self):
+        try:
+            return json.loads(self.schedule) if self.schedule else DEFAULT_SCHEDULE
+        except:
+            return DEFAULT_SCHEDULE
+    
+    def set_schedule(self, schedule_dict):
+        self.schedule = json.dumps(schedule_dict)
+    
+    def get_resumption_time(self, date=None):
+        if date is None:
+            date = datetime.now().date()
+        day_name = date.strftime('%A').lower()
+        schedule = self.get_schedule()
+        if day_name in schedule:
+            return schedule[day_name]['resumption']
+        return '08:00'
+    
+    def get_closing_time(self, date=None):
+        if date is None:
+            date = datetime.now().date()
+        day_name = date.strftime('%A').lower()
+        schedule = self.get_schedule()
+        if day_name in schedule:
+            return schedule[day_name]['closing']
+        return '17:00'
 
 class User(UserMixin, db.Model):
     id = db.Column(db.Integer, primary_key=True)
@@ -69,7 +105,6 @@ def get_styles():
             * { margin: 0; padding: 0; box-sizing: border-box; }
             body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background: #f4f6f9; min-height: 100vh; }
             
-            /* Top Navigation */
             .top-nav {
                 background: linear-gradient(135deg, #800000, #a00000);
                 color: white;
@@ -98,15 +133,8 @@ def get_styles():
                 font-size: 1.3rem;
                 font-weight: bold;
             }
-            .nav-brand img {
-                height: 45px;
-                width: auto;
-            }
-            .nav-menu {
-                display: flex;
-                align-items: center;
-                gap: 5px;
-            }
+            .nav-brand img { height: 45px; width: auto; }
+            .nav-menu { display: flex; align-items: center; gap: 5px; }
             .nav-menu a, .nav-dropdown .dropdown-btn {
                 color: white;
                 text-decoration: none;
@@ -122,15 +150,9 @@ def get_styles():
                 cursor: pointer;
                 font-family: inherit;
             }
-            .nav-menu a:hover, .nav-dropdown .dropdown-btn:hover {
-                background: rgba(255,255,255,0.2);
-            }
-            .nav-menu a.active {
-                background: rgba(255,255,255,0.25);
-            }
-            .nav-dropdown {
-                position: relative;
-            }
+            .nav-menu a:hover, .nav-dropdown .dropdown-btn:hover { background: rgba(255,255,255,0.2); }
+            .nav-menu a.active { background: rgba(255,255,255,0.25); }
+            .nav-dropdown { position: relative; }
             .dropdown-content {
                 display: none;
                 position: absolute;
@@ -143,9 +165,7 @@ def get_styles():
                 overflow: hidden;
                 z-index: 1001;
             }
-            .nav-dropdown:hover .dropdown-content {
-                display: block;
-            }
+            .nav-dropdown:hover .dropdown-content { display: block; }
             .dropdown-content a {
                 color: #333 !important;
                 padding: 12px 16px;
@@ -154,11 +174,8 @@ def get_styles():
                 gap: 10px;
                 border-radius: 0;
             }
-            .dropdown-content a:hover {
-                background: #f5f5f5 !important;
-            }
+            .dropdown-content a:hover { background: #f5f5f5 !important; }
             
-            /* Main Content */
             .main-content {
                 margin-top: 60px;
                 padding: 30px;
@@ -167,7 +184,6 @@ def get_styles():
                 margin-right: auto;
             }
             
-            /* Cards */
             .card {
                 background: white;
                 border-radius: 12px;
@@ -182,7 +198,6 @@ def get_styles():
                 border-bottom: 2px solid #f0f0f0;
             }
             
-            /* Stats Grid */
             .stats-grid {
                 display: grid;
                 grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
@@ -208,50 +223,20 @@ def get_styles():
                 align-items: center;
                 gap: 8px;
             }
-            .stat-card .number {
-                font-size: 2.2rem;
-                font-weight: bold;
-                color: #800000;
-            }
+            .stat-card .number { font-size: 2.2rem; font-weight: bold; color: #800000; }
             .stat-card.green .number { color: #28a745; }
             .stat-card.blue .number { color: #007bff; }
             .stat-card.yellow .number { color: #ffc107; }
             .stat-card.red .number { color: #dc3545; }
-            .stat-card small {
-                color: #888;
-                font-size: 0.8rem;
-            }
+            .stat-card small { color: #888; font-size: 0.8rem; }
             
-            /* Tables */
-            table {
-                width: 100%;
-                border-collapse: collapse;
-                margin-top: 15px;
-            }
-            th, td {
-                padding: 14px;
-                text-align: left;
-                border-bottom: 1px solid #eee;
-            }
-            th {
-                background: #800000;
-                color: white;
-                font-weight: 600;
-            }
-            tr:hover {
-                background: #f8f9fa;
-            }
+            table { width: 100%; border-collapse: collapse; margin-top: 15px; }
+            th, td { padding: 14px; text-align: left; border-bottom: 1px solid #eee; }
+            th { background: #800000; color: white; font-weight: 600; }
+            tr:hover { background: #f8f9fa; }
             
-            /* Forms */
-            .form-group {
-                margin-bottom: 20px;
-            }
-            .form-group label {
-                display: block;
-                margin-bottom: 8px;
-                font-weight: 600;
-                color: #333;
-            }
+            .form-group { margin-bottom: 20px; }
+            .form-group label { display: block; margin-bottom: 8px; font-weight: 600; color: #333; }
             .form-group input, .form-group select, .form-group textarea {
                 width: 100%;
                 padding: 12px;
@@ -260,12 +245,8 @@ def get_styles():
                 font-size: 1rem;
                 transition: border-color 0.3s;
             }
-            .form-group input:focus, .form-group select:focus {
-                outline: none;
-                border-color: #800000;
-            }
+            .form-group input:focus, .form-group select:focus { outline: none; border-color: #800000; }
             
-            /* Buttons */
             .btn {
                 padding: 12px 24px;
                 border: none;
@@ -279,98 +260,55 @@ def get_styles():
                 gap: 8px;
                 text-decoration: none;
             }
-            .btn-primary {
-                background: linear-gradient(135deg, #800000, #a00000);
-                color: white;
-            }
-            .btn-primary:hover {
-                background: linear-gradient(135deg, #600000, #800000);
-                transform: translateY(-2px);
-            }
-            .btn-success {
-                background: #28a745;
-                color: white;
-            }
-            .btn-success:hover {
-                background: #218838;
-            }
-            .btn-danger {
-                background: #dc3545;
-                color: white;
-            }
-            .btn-danger:hover {
-                background: #c82333;
-            }
-            .btn-secondary {
-                background: #6c757d;
-                color: white;
-            }
-            .btn-warning {
-                background: #ffc107;
-                color: #333;
-            }
-            .btn-sm {
-                padding: 6px 12px;
-                font-size: 0.85rem;
-            }
+            .btn-primary { background: linear-gradient(135deg, #800000, #a00000); color: white; }
+            .btn-primary:hover { background: linear-gradient(135deg, #600000, #800000); transform: translateY(-2px); }
+            .btn-success { background: #28a745; color: white; }
+            .btn-success:hover { background: #218838; }
+            .btn-danger { background: #dc3545; color: white; }
+            .btn-danger:hover { background: #c82333; }
+            .btn-secondary { background: #6c757d; color: white; }
+            .btn-warning { background: #ffc107; color: #333; }
+            .btn-sm { padding: 6px 12px; font-size: 0.85rem; }
             
-            /* Filter Bar */
-            .filter-bar {
+            .filter-bar { display: flex; gap: 15px; margin-bottom: 20px; flex-wrap: wrap; align-items: end; }
+            .filter-bar .form-group { margin-bottom: 0; }
+            .filter-bar label { font-size: 0.85rem; margin-bottom: 5px; }
+            .filter-bar input, .filter-bar select { padding: 10px; min-width: 150px; }
+            
+            .toggle-container {
                 display: flex;
+                align-items: center;
                 gap: 15px;
-                margin-bottom: 20px;
-                flex-wrap: wrap;
-                align-items: end;
+                margin: 20px 0;
+                padding: 15px;
+                background: #f8f9fa;
+                border-radius: 8px;
             }
-            .filter-bar .form-group {
-                margin-bottom: 0;
-            }
-            .filter-bar label {
-                font-size: 0.85rem;
-                margin-bottom: 5px;
-            }
-            .filter-bar input, .filter-bar select {
-                padding: 10px;
-                min-width: 150px;
-            }
-            
-            /* Status Badges */
-            .status {
-                padding: 5px 12px;
+            .toggle-container label { font-weight: 600; color: #333; }
+            .toggle-switch { display: flex; background: #e0e0e0; border-radius: 25px; padding: 4px; }
+            .toggle-switch a {
+                padding: 8px 20px;
                 border-radius: 20px;
-                font-size: 0.85rem;
+                text-decoration: none;
+                color: #666;
                 font-weight: 600;
+                font-size: 0.9rem;
+                transition: all 0.3s;
             }
+            .toggle-switch a.active { background: #800000; color: white; }
+            .toggle-switch a:hover:not(.active) { background: #d0d0d0; }
+            
+            .status { padding: 5px 12px; border-radius: 20px; font-size: 0.85rem; font-weight: 600; }
             .status.signed-in { background: #d4edda; color: #155724; }
             .status.signed-out { background: #cce5ff; color: #004085; }
             .status.absent { background: #f8d7da; color: #721c24; }
             .status.na { background: #e9ecef; color: #6c757d; }
-            .status.active { background: #d4edda; color: #155724; }
-            .status.inactive { background: #f8d7da; color: #721c24; }
             
-            /* Alerts */
-            .alert {
-                padding: 15px 20px;
-                border-radius: 8px;
-                margin-bottom: 20px;
-            }
-            .alert-success {
-                background: #d4edda;
-                color: #155724;
-                border: 1px solid #c3e6cb;
-            }
-            .alert-danger {
-                background: #f8d7da;
-                color: #721c24;
-                border: 1px solid #f5c6cb;
-            }
-            .alert-info {
-                background: #d1ecf1;
-                color: #0c5460;
-                border: 1px solid #bee5eb;
-            }
+            .alert { padding: 15px 20px; border-radius: 8px; margin-bottom: 20px; }
+            .alert-success { background: #d4edda; color: #155724; border: 1px solid #c3e6cb; }
+            .alert-danger { background: #f8d7da; color: #721c24; border: 1px solid #f5c6cb; }
+            .alert-info { background: #d1ecf1; color: #0c5460; border: 1px solid #bee5eb; }
             
-            /* Login Page */
             .login-container {
                 min-height: 100vh;
                 display: flex;
@@ -386,44 +324,15 @@ def get_styles():
                 width: 100%;
                 max-width: 420px;
             }
-            .login-box h1 {
-                color: #800000;
-                margin-bottom: 10px;
-                text-align: center;
-            }
-            .login-box .subtitle {
-                color: #666;
-                margin-bottom: 30px;
-                text-align: center;
-            }
-            .login-logo {
-                text-align: center;
-                margin-bottom: 25px;
-            }
-            .login-logo img {
-                height: 80px;
-                width: auto;
-            }
+            .login-box h1 { color: #800000; margin-bottom: 10px; text-align: center; }
+            .login-box .subtitle { color: #666; margin-bottom: 30px; text-align: center; }
+            .login-logo { text-align: center; margin-bottom: 25px; }
+            .login-logo img { height: 80px; width: auto; }
             
-            /* Actions */
-            .actions {
-                display: flex;
-                gap: 8px;
-                flex-wrap: wrap;
-            }
+            .actions { display: flex; gap: 8px; flex-wrap: wrap; }
+            .checkbox-group { display: flex; align-items: center; gap: 10px; }
+            .checkbox-group input[type="checkbox"] { width: 18px; height: 18px; }
             
-            /* Checkbox styling */
-            .checkbox-group {
-                display: flex;
-                align-items: center;
-                gap: 10px;
-            }
-            .checkbox-group input[type="checkbox"] {
-                width: 18px;
-                height: 18px;
-            }
-            
-            /* Reset Section */
             .reset-section {
                 background: #fff3cd;
                 border: 1px solid #ffc107;
@@ -431,14 +340,36 @@ def get_styles():
                 padding: 20px;
                 margin-top: 20px;
             }
-            .reset-section h4 {
-                color: #856404;
-                margin-bottom: 15px;
+            .reset-section h4 { color: #856404; margin-bottom: 15px; }
+            .reset-section .btn { margin-right: 10px; margin-bottom: 10px; }
+            
+            .schedule-grid {
+                display: grid;
+                grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+                gap: 15px;
+                margin-top: 15px;
             }
-            .reset-section .btn {
-                margin-right: 10px;
-                margin-bottom: 10px;
+            .schedule-day {
+                background: #f8f9fa;
+                padding: 15px;
+                border-radius: 8px;
+                border: 1px solid #e0e0e0;
             }
+            .schedule-day h4 { color: #800000; margin-bottom: 10px; font-size: 0.95rem; }
+            .schedule-day .form-group { margin-bottom: 10px; }
+            .schedule-day label { font-size: 0.85rem; margin-bottom: 4px; }
+            .schedule-day input { padding: 8px; }
+            
+            .dept-badge {
+                padding: 4px 10px;
+                border-radius: 12px;
+                font-size: 0.8rem;
+                font-weight: 600;
+            }
+            .dept-badge.academic { background: #e3f2fd; color: #1565c0; }
+            .dept-badge.admin { background: #fff3e0; color: #ef6c00; }
+            .dept-badge.non-academic { background: #f3e5f5; color: #7b1fa2; }
+            .dept-badge.management { background: #ffebee; color: #c62828; }
         </style>
         <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
     '''
@@ -446,9 +377,6 @@ def get_styles():
 def get_nav(active=''):
     if not current_user.is_authenticated:
         return ''
-    
-    school_filter_disabled = '' if current_user.is_super_admin else 'disabled'
-    
     return f'''
         <nav class="top-nav">
             <div class="nav-container">
@@ -495,7 +423,18 @@ def get_nav(active=''):
         </nav>
     '''
 
-# Routes
+def get_dept_badge(department):
+    dept_lower = (department or '').lower().replace('-', '')
+    if dept_lower == 'academic':
+        return '<span class="dept-badge academic">Academic</span>'
+    elif dept_lower == 'admin':
+        return '<span class="dept-badge admin">Admin</span>'
+    elif dept_lower == 'nonacademic':
+        return '<span class="dept-badge non-academic">Non-Academic</span>'
+    elif dept_lower == 'management':
+        return '<span class="dept-badge management">Management</span>'
+    return f'<span class="dept-badge">{department or "-"}</span>'
+
 @app.route('/')
 def index():
     if current_user.is_authenticated:
@@ -506,17 +445,14 @@ def index():
 def login():
     if current_user.is_authenticated:
         return redirect(url_for('dashboard'))
-    
     if request.method == 'POST':
         username = request.form.get('username')
         password = request.form.get('password')
         user = User.query.filter_by(username=username).first()
-        
         if user and check_password_hash(user.password_hash, password):
             login_user(user)
             return redirect(url_for('dashboard'))
         flash('Invalid username or password', 'danger')
-    
     return render_template_string('''
         <!DOCTYPE html>
         <html>
@@ -529,7 +465,7 @@ def login():
             <div class="login-container">
                 <div class="login-box">
                     <div class="login-logo">
-                        <img src="https://i.ibb.co/PGPKP3HB/corona-logo-2.png" alt="Corona Schools Logo">
+                        <img src="https://i.ibb.co/PGPKP3HB/corona-logo-2.png" alt="Logo">
                     </div>
                     <h1>Welcome Back</h1>
                     <p class="subtitle">Staff Attendance Management System</p>
@@ -576,7 +512,6 @@ def dashboard():
     
     total_staff = Staff.query.filter(Staff.school_id.in_(school_ids), Staff.is_active == True).count()
     
-    # Get today's attendance
     today_attendance = Attendance.query.filter(
         Attendance.school_id.in_(school_ids),
         Attendance.date == today
@@ -585,7 +520,6 @@ def dashboard():
     signed_in_ids = [a.staff_id for a in today_attendance if a.sign_in_time]
     late_count = len([a for a in today_attendance if a.is_late])
     
-    # Absent count (exclude Management)
     all_active_staff = Staff.query.filter(
         Staff.school_id.in_(school_ids),
         Staff.is_active == True,
@@ -668,7 +602,7 @@ def dashboard():
             </div>
         </body>
         </html>
-    ''', schools=schools, total_staff=total_staff, signed_in_count=len(signed_in_ids), 
+    ''', schools=schools, total_staff=total_staff, signed_in_count=len(signed_in_ids),
         late_count=late_count, absent_count=absent_count, today=today)
 
 @app.route('/schools')
@@ -711,8 +645,7 @@ def schools():
                             <tr>
                                 <th>School Name</th>
                                 <th>Address</th>
-                                <th>Resumption Time</th>
-                                <th>Closing Time</th>
+                                <th>Today's Hours</th>
                                 <th>API Key</th>
                                 <th>Actions</th>
                             </tr>
@@ -722,18 +655,17 @@ def schools():
                             <tr>
                                 <td><strong>{{ school.name }}</strong></td>
                                 <td>{{ school.address or '-' }}</td>
-                                <td>{{ school.resumption_time }}</td>
-                                <td>{{ school.closing_time }}</td>
+                                <td>{{ school.get_resumption_time() }} - {{ school.get_closing_time() }}</td>
                                 <td><code style="background: #f4f4f4; padding: 4px 8px; border-radius: 4px; font-size: 0.85rem;">{{ school.api_key[:16] }}...</code></td>
                                 <td class="actions">
                                     <a href="/schools/edit/{{ school.id }}" class="btn btn-sm btn-primary">
                                         <i class="fas fa-edit"></i>
                                     </a>
                                     {% if current_user.is_super_admin %}
-                                    <a href="/schools/regenerate-key/{{ school.id }}" class="btn btn-sm btn-warning" onclick="return confirm('Regenerate API key? Kiosk will need to be updated.')">
+                                    <a href="/schools/regenerate-key/{{ school.id }}" class="btn btn-sm btn-warning" onclick="return confirm('Regenerate API key?')">
                                         <i class="fas fa-key"></i>
                                     </a>
-                                    <a href="/schools/delete/{{ school.id }}" class="btn btn-sm btn-danger" onclick="return confirm('Delete this school? This cannot be undone.')">
+                                    <a href="/schools/delete/{{ school.id }}" class="btn btn-sm btn-danger" onclick="return confirm('Delete this school?')">
                                         <i class="fas fa-trash"></i>
                                     </a>
                                     {% endif %}
@@ -756,12 +688,18 @@ def add_school():
         return redirect(url_for('schools'))
     
     if request.method == 'POST':
+        schedule = {}
+        for day in ['monday', 'tuesday', 'wednesday', 'thursday', 'friday']:
+            schedule[day] = {
+                'resumption': request.form.get(f'{day}_resumption', '08:00'),
+                'closing': request.form.get(f'{day}_closing', '17:00')
+            }
+        
         school = School(
             name=request.form.get('name'),
             address=request.form.get('address'),
             api_key=secrets.token_hex(32),
-            resumption_time=request.form.get('resumption_time', '08:00'),
-            closing_time=request.form.get('closing_time', '17:00')
+            schedule=json.dumps(schedule)
         )
         db.session.add(school)
         db.session.commit()
@@ -779,7 +717,7 @@ def add_school():
         <body>
             ''' + get_nav('schools') + '''
             <div class="main-content">
-                <div class="card" style="max-width: 600px;">
+                <div class="card" style="max-width: 800px;">
                     <h2><i class="fas fa-plus"></i> Add New School</h2>
                     <form method="POST">
                         <div class="form-group">
@@ -790,18 +728,74 @@ def add_school():
                             <label>Address</label>
                             <input type="text" name="address">
                         </div>
-                        <div class="form-group">
-                            <label>Resumption Time</label>
-                            <input type="time" name="resumption_time" value="08:00">
+                        
+                        <h3 style="margin: 25px 0 15px; color: #800000;"><i class="fas fa-clock"></i> Weekly Schedule</h3>
+                        <p style="color: #666; margin-bottom: 15px;">Set resumption and closing times for each day</p>
+                        
+                        <div class="schedule-grid">
+                            <div class="schedule-day">
+                                <h4><i class="fas fa-calendar-day"></i> Monday</h4>
+                                <div class="form-group">
+                                    <label>Resumption</label>
+                                    <input type="time" name="monday_resumption" value="08:00">
+                                </div>
+                                <div class="form-group">
+                                    <label>Closing</label>
+                                    <input type="time" name="monday_closing" value="17:00">
+                                </div>
+                            </div>
+                            <div class="schedule-day">
+                                <h4><i class="fas fa-calendar-day"></i> Tuesday</h4>
+                                <div class="form-group">
+                                    <label>Resumption</label>
+                                    <input type="time" name="tuesday_resumption" value="08:00">
+                                </div>
+                                <div class="form-group">
+                                    <label>Closing</label>
+                                    <input type="time" name="tuesday_closing" value="17:00">
+                                </div>
+                            </div>
+                            <div class="schedule-day">
+                                <h4><i class="fas fa-calendar-day"></i> Wednesday</h4>
+                                <div class="form-group">
+                                    <label>Resumption</label>
+                                    <input type="time" name="wednesday_resumption" value="08:00">
+                                </div>
+                                <div class="form-group">
+                                    <label>Closing</label>
+                                    <input type="time" name="wednesday_closing" value="17:00">
+                                </div>
+                            </div>
+                            <div class="schedule-day">
+                                <h4><i class="fas fa-calendar-day"></i> Thursday</h4>
+                                <div class="form-group">
+                                    <label>Resumption</label>
+                                    <input type="time" name="thursday_resumption" value="08:00">
+                                </div>
+                                <div class="form-group">
+                                    <label>Closing</label>
+                                    <input type="time" name="thursday_closing" value="17:00">
+                                </div>
+                            </div>
+                            <div class="schedule-day">
+                                <h4><i class="fas fa-calendar-day"></i> Friday</h4>
+                                <div class="form-group">
+                                    <label>Resumption</label>
+                                    <input type="time" name="friday_resumption" value="08:00">
+                                </div>
+                                <div class="form-group">
+                                    <label>Closing</label>
+                                    <input type="time" name="friday_closing" value="14:00">
+                                </div>
+                            </div>
                         </div>
-                        <div class="form-group">
-                            <label>Closing Time</label>
-                            <input type="time" name="closing_time" value="17:00">
+                        
+                        <div style="margin-top: 25px;">
+                            <button type="submit" class="btn btn-primary">
+                                <i class="fas fa-save"></i> Save School
+                            </button>
+                            <a href="/schools" class="btn btn-secondary">Cancel</a>
                         </div>
-                        <button type="submit" class="btn btn-primary">
-                            <i class="fas fa-save"></i> Save School
-                        </button>
-                        <a href="/schools" class="btn btn-secondary">Cancel</a>
                     </form>
                 </div>
             </div>
@@ -821,11 +815,20 @@ def edit_school(id):
     if request.method == 'POST':
         school.name = request.form.get('name')
         school.address = request.form.get('address')
-        school.resumption_time = request.form.get('resumption_time', '08:00')
-        school.closing_time = request.form.get('closing_time', '17:00')
+        
+        schedule = {}
+        for day in ['monday', 'tuesday', 'wednesday', 'thursday', 'friday']:
+            schedule[day] = {
+                'resumption': request.form.get(f'{day}_resumption', '08:00'),
+                'closing': request.form.get(f'{day}_closing', '17:00')
+            }
+        school.set_schedule(schedule)
+        
         db.session.commit()
         flash('School updated successfully', 'success')
         return redirect(url_for('schools'))
+    
+    schedule = school.get_schedule()
     
     return render_template_string('''
         <!DOCTYPE html>
@@ -838,7 +841,7 @@ def edit_school(id):
         <body>
             ''' + get_nav('schools') + '''
             <div class="main-content">
-                <div class="card" style="max-width: 600px;">
+                <div class="card" style="max-width: 800px;">
                     <h2><i class="fas fa-edit"></i> Edit School</h2>
                     <form method="POST">
                         <div class="form-group">
@@ -849,18 +852,74 @@ def edit_school(id):
                             <label>Address</label>
                             <input type="text" name="address" value="{{ school.address or '' }}">
                         </div>
-                        <div class="form-group">
-                            <label>Resumption Time</label>
-                            <input type="time" name="resumption_time" value="{{ school.resumption_time }}">
+                        
+                        <h3 style="margin: 25px 0 15px; color: #800000;"><i class="fas fa-clock"></i> Weekly Schedule</h3>
+                        <p style="color: #666; margin-bottom: 15px;">Set resumption and closing times for each day</p>
+                        
+                        <div class="schedule-grid">
+                            <div class="schedule-day">
+                                <h4><i class="fas fa-calendar-day"></i> Monday</h4>
+                                <div class="form-group">
+                                    <label>Resumption</label>
+                                    <input type="time" name="monday_resumption" value="{{ schedule.monday.resumption }}">
+                                </div>
+                                <div class="form-group">
+                                    <label>Closing</label>
+                                    <input type="time" name="monday_closing" value="{{ schedule.monday.closing }}">
+                                </div>
+                            </div>
+                            <div class="schedule-day">
+                                <h4><i class="fas fa-calendar-day"></i> Tuesday</h4>
+                                <div class="form-group">
+                                    <label>Resumption</label>
+                                    <input type="time" name="tuesday_resumption" value="{{ schedule.tuesday.resumption }}">
+                                </div>
+                                <div class="form-group">
+                                    <label>Closing</label>
+                                    <input type="time" name="tuesday_closing" value="{{ schedule.tuesday.closing }}">
+                                </div>
+                            </div>
+                            <div class="schedule-day">
+                                <h4><i class="fas fa-calendar-day"></i> Wednesday</h4>
+                                <div class="form-group">
+                                    <label>Resumption</label>
+                                    <input type="time" name="wednesday_resumption" value="{{ schedule.wednesday.resumption }}">
+                                </div>
+                                <div class="form-group">
+                                    <label>Closing</label>
+                                    <input type="time" name="wednesday_closing" value="{{ schedule.wednesday.closing }}">
+                                </div>
+                            </div>
+                            <div class="schedule-day">
+                                <h4><i class="fas fa-calendar-day"></i> Thursday</h4>
+                                <div class="form-group">
+                                    <label>Resumption</label>
+                                    <input type="time" name="thursday_resumption" value="{{ schedule.thursday.resumption }}">
+                                </div>
+                                <div class="form-group">
+                                    <label>Closing</label>
+                                    <input type="time" name="thursday_closing" value="{{ schedule.thursday.closing }}">
+                                </div>
+                            </div>
+                            <div class="schedule-day">
+                                <h4><i class="fas fa-calendar-day"></i> Friday</h4>
+                                <div class="form-group">
+                                    <label>Resumption</label>
+                                    <input type="time" name="friday_resumption" value="{{ schedule.friday.resumption }}">
+                                </div>
+                                <div class="form-group">
+                                    <label>Closing</label>
+                                    <input type="time" name="friday_closing" value="{{ schedule.friday.closing }}">
+                                </div>
+                            </div>
                         </div>
-                        <div class="form-group">
-                            <label>Closing Time</label>
-                            <input type="time" name="closing_time" value="{{ school.closing_time }}">
+                        
+                        <div style="margin-top: 25px;">
+                            <button type="submit" class="btn btn-primary">
+                                <i class="fas fa-save"></i> Update School
+                            </button>
+                            <a href="/schools" class="btn btn-secondary">Cancel</a>
                         </div>
-                        <button type="submit" class="btn btn-primary">
-                            <i class="fas fa-save"></i> Update School
-                        </button>
-                        <a href="/schools" class="btn btn-secondary">Cancel</a>
                     </form>
                     
                     <div style="margin-top: 30px; padding-top: 20px; border-top: 2px solid #eee;">
@@ -874,7 +933,7 @@ def edit_school(id):
             </div>
         </body>
         </html>
-    ''', school=school)
+    ''', school=school, schedule=schedule)
 
 @app.route('/schools/delete/<int:id>')
 @login_required
@@ -882,7 +941,6 @@ def delete_school(id):
     if not current_user.is_super_admin:
         flash('Access denied', 'danger')
         return redirect(url_for('schools'))
-    
     school = School.query.get_or_404(id)
     db.session.delete(school)
     db.session.commit()
@@ -895,7 +953,6 @@ def regenerate_key(id):
     if not current_user.is_super_admin:
         flash('Access denied', 'danger')
         return redirect(url_for('schools'))
-    
     school = School.query.get_or_404(id)
     school.api_key = secrets.token_hex(32)
     db.session.commit()
@@ -918,9 +975,7 @@ def staff():
         selected_school_id = current_user.school_id
     
     today = datetime.now().date()
-    today_attendance = {a.staff_id: a for a in Attendance.query.filter(
-        Attendance.date == today
-    ).all()}
+    today_attendance = {a.staff_id: a for a in Attendance.query.filter(Attendance.date == today).all()}
     
     return render_template_string('''
         <!DOCTYPE html>
@@ -954,9 +1009,7 @@ def staff():
                                 <select name="school_id" onchange="this.form.submit()" {{ 'disabled' if not current_user.is_super_admin else '' }}>
                                     <option value="">All Schools</option>
                                     {% for school in schools %}
-                                    <option value="{{ school.id }}" {{ 'selected' if selected_school_id == school.id else '' }}>
-                                        {{ school.name }}
-                                    </option>
+                                    <option value="{{ school.id }}" {{ 'selected' if selected_school_id == school.id else '' }}>{{ school.name }}</option>
                                     {% endfor %}
                                 </select>
                             </div>
@@ -979,7 +1032,7 @@ def staff():
                             <tr>
                                 <td><strong>{{ s.staff_id }}</strong></td>
                                 <td>{{ s.first_name }} {{ s.last_name }}</td>
-                                <td>{{ s.department or '-' }}</td>
+                                <td>{{ get_dept_badge(s.department)|safe }}</td>
                                 <td>{{ s.school.name }}</td>
                                 <td>
                                     {% if s.department == 'Management' %}
@@ -998,7 +1051,7 @@ def staff():
                                     <a href="/staff/toggle/{{ s.id }}" class="btn btn-sm {{ 'btn-warning' if s.is_active else 'btn-success' }}">
                                         <i class="fas {{ 'fa-ban' if s.is_active else 'fa-check' }}"></i>
                                     </a>
-                                    <a href="/staff/delete/{{ s.id }}" class="btn btn-sm btn-danger" onclick="return confirm('Delete this staff member?')">
+                                    <a href="/staff/delete/{{ s.id }}" class="btn btn-sm btn-danger" onclick="return confirm('Delete this staff?')">
                                         <i class="fas fa-trash"></i>
                                     </a>
                                 </td>
@@ -1010,7 +1063,7 @@ def staff():
             </div>
         </body>
         </html>
-    ''', staff=all_staff, schools=schools, selected_school_id=selected_school_id, today_attendance=today_attendance)
+    ''', staff=all_staff, schools=schools, selected_school_id=selected_school_id, today_attendance=today_attendance, get_dept_badge=get_dept_badge)
 
 @app.route('/staff/add', methods=['GET', 'POST'])
 @login_required
@@ -1072,8 +1125,14 @@ def add_staff():
                             <input type="text" name="last_name" required>
                         </div>
                         <div class="form-group">
-                            <label>Department</label>
-                            <input type="text" name="department" placeholder="e.g. Teaching, Admin, Management">
+                            <label>Department *</label>
+                            <select name="department" required>
+                                <option value="">Select Department</option>
+                                <option value="Academic">Academic</option>
+                                <option value="Admin">Admin</option>
+                                <option value="Non-Academic">Non-Academic</option>
+                                <option value="Management">Management</option>
+                            </select>
                         </div>
                         <button type="submit" class="btn btn-primary">
                             <i class="fas fa-save"></i> Save Staff
@@ -1090,26 +1149,21 @@ def add_staff():
 @login_required
 def toggle_staff(id):
     staff_member = Staff.query.get_or_404(id)
-    
     if not current_user.is_super_admin and current_user.school_id != staff_member.school_id:
         flash('Access denied', 'danger')
         return redirect(url_for('staff'))
-    
     staff_member.is_active = not staff_member.is_active
     db.session.commit()
-    status = 'activated' if staff_member.is_active else 'deactivated'
-    flash(f'Staff {status} successfully', 'success')
+    flash(f'Staff {"activated" if staff_member.is_active else "deactivated"} successfully', 'success')
     return redirect(url_for('staff'))
 
 @app.route('/staff/delete/<int:id>')
 @login_required
 def delete_staff(id):
     staff_member = Staff.query.get_or_404(id)
-    
     if not current_user.is_super_admin and current_user.school_id != staff_member.school_id:
         flash('Access denied', 'danger')
         return redirect(url_for('staff'))
-    
     db.session.delete(staff_member)
     db.session.commit()
     flash('Staff deleted successfully', 'success')
@@ -1134,24 +1188,34 @@ def bulk_upload():
         try:
             stream = io.StringIO(file.stream.read().decode('UTF-8'))
             reader = csv.DictReader(stream)
-            
             count = 0
+            errors = []
+            valid_depts = ['Academic', 'Admin', 'Non-Academic', 'Management']
+            
             for row in reader:
+                dept = row.get('Department', row.get('department', ''))
+                if dept and dept not in valid_depts:
+                    errors.append(f"Row {count+1}: Invalid department '{dept}'")
+                    continue
+                
                 staff = Staff(
                     staff_id=row.get('ID', row.get('staff_id', '')),
                     first_name=row.get('Firstname', row.get('first_name', '')),
                     last_name=row.get('Surname', row.get('last_name', '')),
-                    department=row.get('Department', row.get('department', '')),
+                    department=dept,
                     school_id=school_id
                 )
                 db.session.add(staff)
                 count += 1
             
             db.session.commit()
-            flash(f'Successfully uploaded {count} staff records', 'success')
+            
+            if errors:
+                flash(f'Uploaded {count} records. Errors: {"; ".join(errors[:3])}{"..." if len(errors) > 3 else ""}', 'warning')
+            else:
+                flash(f'Successfully uploaded {count} staff records', 'success')
         except Exception as e:
             flash(f'Error processing file: {str(e)}', 'danger')
-        
         return redirect(url_for('bulk_upload'))
     
     return render_template_string('''
@@ -1165,7 +1229,7 @@ def bulk_upload():
         <body>
             ''' + get_nav('bulk-upload') + '''
             <div class="main-content">
-                <div class="card" style="max-width: 600px;">
+                <div class="card" style="max-width: 700px;">
                     <h2><i class="fas fa-file-upload"></i> Bulk Staff Upload</h2>
                     
                     {% with messages = get_flashed_messages(with_categories=true) %}
@@ -1196,14 +1260,25 @@ def bulk_upload():
                     </form>
                     
                     <div style="margin-top: 30px; padding: 20px; background: #f8f9fa; border-radius: 8px;">
-                        <h4>CSV Format</h4>
+                        <h4><i class="fas fa-info-circle"></i> CSV Format</h4>
                         <p style="margin: 10px 0;">Your CSV file should have these columns:</p>
-                        <code style="display: block; background: #fff; padding: 15px; border-radius: 4px; margin: 10px 0;">
+                        <code style="display: block; background: #fff; padding: 15px; border-radius: 4px; font-size: 0.9rem;">
                             Firstname,Surname,ID,Department<br>
-                            John,Doe,EMP001,Teaching<br>
-                            Jane,Smith,EMP002,Admin
+                            John,Doe,EMP001,Academic<br>
+                            Jane,Smith,EMP002,Admin<br>
+                            Peter,Brown,EMP003,Non-Academic<br>
+                            Mary,Johnson,EMP004,Management
                         </code>
-                        <a href="/download-template" class="btn btn-secondary btn-sm" style="margin-top: 10px;">
+                        <div style="margin-top: 15px; padding: 10px; background: #fff3cd; border-radius: 4px;">
+                            <strong><i class="fas fa-exclamation-triangle"></i> Department Options:</strong>
+                            <ul style="margin: 10px 0 0 20px;">
+                                <li><strong>Academic</strong> - Teachers, Instructors</li>
+                                <li><strong>Admin</strong> - Office staff, Secretaries</li>
+                                <li><strong>Non-Academic</strong> - Support staff, Drivers, Security</li>
+                                <li><strong>Management</strong> - Principals, Directors (excluded from absent counts)</li>
+                            </ul>
+                        </div>
+                        <a href="/download-template" class="btn btn-secondary btn-sm" style="margin-top: 15px;">
                             <i class="fas fa-download"></i> Download Template
                         </a>
                     </div>
@@ -1219,9 +1294,10 @@ def download_template():
     output = io.StringIO()
     writer = csv.writer(output)
     writer.writerow(['Firstname', 'Surname', 'ID', 'Department'])
-    writer.writerow(['John', 'Doe', 'EMP001', 'Teaching'])
+    writer.writerow(['John', 'Doe', 'EMP001', 'Academic'])
     writer.writerow(['Jane', 'Smith', 'EMP002', 'Admin'])
-    
+    writer.writerow(['Peter', 'Brown', 'EMP003', 'Non-Academic'])
+    writer.writerow(['Mary', 'Johnson', 'EMP004', 'Management'])
     response = make_response(output.getvalue())
     response.headers['Content-Type'] = 'text/csv'
     response.headers['Content-Disposition'] = 'attachment; filename=staff_template.csv'
@@ -1237,8 +1313,9 @@ def attendance():
         schools = School.query.filter_by(id=current_user.school_id).all()
         selected_school_id = current_user.school_id
     
-    date_from = request.args.get('date_from', datetime.now().strftime('%Y-%m-%d'))
-    date_to = request.args.get('date_to', datetime.now().strftime('%Y-%m-%d'))
+    today = datetime.now().strftime('%Y-%m-%d')
+    date_from = request.args.get('date_from', today)
+    date_to = request.args.get('date_to', today)
     
     query = Attendance.query.filter(
         Attendance.date >= datetime.strptime(date_from, '%Y-%m-%d').date(),
@@ -1274,9 +1351,7 @@ def attendance():
                                 <select name="school_id">
                                     <option value="">All Schools</option>
                                     {% for school in schools %}
-                                    <option value="{{ school.id }}" {{ 'selected' if selected_school_id == school.id else '' }}>
-                                        {{ school.name }}
-                                    </option>
+                                    <option value="{{ school.id }}" {{ 'selected' if selected_school_id == school.id else '' }}>{{ school.name }}</option>
                                     {% endfor %}
                                 </select>
                             </div>
@@ -1289,15 +1364,9 @@ def attendance():
                                 <label>To Date</label>
                                 <input type="date" name="date_to" value="{{ date_to }}">
                             </div>
-                            <button type="submit" class="btn btn-primary">
-                                <i class="fas fa-filter"></i> Filter
-                            </button>
-                            <a href="/attendance?date_from={{ today }}&date_to={{ today }}" class="btn btn-secondary">
-                                <i class="fas fa-calendar-day"></i> Today
-                            </a>
-                            <a href="/attendance/download?school_id={{ selected_school_id or '' }}&date_from={{ date_from }}&date_to={{ date_to }}" class="btn btn-success">
-                                <i class="fas fa-download"></i> Download CSV
-                            </a>
+                            <button type="submit" class="btn btn-primary"><i class="fas fa-filter"></i> Filter</button>
+                            <a href="/attendance?date_from={{ today }}&date_to={{ today }}" class="btn btn-secondary"><i class="fas fa-calendar-day"></i> Today</a>
+                            <a href="/attendance/download?school_id={{ selected_school_id or '' }}&date_from={{ date_from }}&date_to={{ date_to }}" class="btn btn-success"><i class="fas fa-download"></i> Download CSV</a>
                         </form>
                     </div>
                     
@@ -1307,6 +1376,7 @@ def attendance():
                                 <th>Date</th>
                                 <th>Staff ID</th>
                                 <th>Name</th>
+                                <th>Department</th>
                                 <th>School</th>
                                 <th>Sign In</th>
                                 <th>Sign Out</th>
@@ -1319,6 +1389,7 @@ def attendance():
                                 <td>{{ record.date.strftime('%Y-%m-%d') }}</td>
                                 <td>{{ record.staff.staff_id }}</td>
                                 <td>{{ record.staff.first_name }} {{ record.staff.last_name }}</td>
+                                <td>{{ get_dept_badge(record.staff.department)|safe }}</td>
                                 <td>{{ record.school.name }}</td>
                                 <td>{{ record.sign_in_time.strftime('%H:%M:%S') if record.sign_in_time else '-' }}</td>
                                 <td>{{ record.sign_out_time.strftime('%H:%M:%S') if record.sign_out_time else '-' }}</td>
@@ -1337,8 +1408,7 @@ def attendance():
             </div>
         </body>
         </html>
-    ''', records=records, schools=schools, selected_school_id=selected_school_id,
-        date_from=date_from, date_to=date_to, today=datetime.now().strftime('%Y-%m-%d'))
+    ''', records=records, schools=schools, selected_school_id=selected_school_id, date_from=date_from, date_to=date_to, today=today, get_dept_badge=get_dept_badge)
 
 @app.route('/attendance/download')
 @login_required
@@ -1351,7 +1421,6 @@ def download_attendance():
         Attendance.date >= datetime.strptime(date_from, '%Y-%m-%d').date(),
         Attendance.date <= datetime.strptime(date_to, '%Y-%m-%d').date()
     )
-    
     if school_id:
         query = query.filter(Attendance.school_id == school_id)
     elif not current_user.is_super_admin:
@@ -1361,14 +1430,14 @@ def download_attendance():
     
     output = io.StringIO()
     writer = csv.writer(output)
-    writer.writerow(['Date', 'Staff ID', 'First Name', 'Last Name', 'School', 'Sign In', 'Sign Out', 'Late'])
-    
+    writer.writerow(['Date', 'Staff ID', 'First Name', 'Last Name', 'Department', 'School', 'Sign In', 'Sign Out', 'Late'])
     for r in records:
         writer.writerow([
             r.date.strftime('%Y-%m-%d'),
             r.staff.staff_id,
             r.staff.first_name,
             r.staff.last_name,
+            r.staff.department,
             r.school.name,
             r.sign_in_time.strftime('%H:%M:%S') if r.sign_in_time else '',
             r.sign_out_time.strftime('%H:%M:%S') if r.sign_out_time else '',
@@ -1390,10 +1459,15 @@ def late_report():
         schools = School.query.filter_by(id=current_user.school_id).all()
         selected_school_id = current_user.school_id
     
-    date_from = request.args.get('date_from', datetime.now().strftime('%Y-%m-%d'))
-    date_to = request.args.get('date_to', datetime.now().strftime('%Y-%m-%d'))
+    today = datetime.now().strftime('%Y-%m-%d')
+    date_from = request.args.get('date_from', today)
+    date_to = request.args.get('date_to', today)
+    is_single_day = (date_from == date_to)
+    stats_mode = request.args.get('stats_mode', 'all' if is_single_day else 'period')
     
-    # Get all staff for the selected scope
+    date_from_obj = datetime.strptime(date_from, '%Y-%m-%d').date()
+    date_to_obj = datetime.strptime(date_to, '%Y-%m-%d').date()
+    
     if selected_school_id:
         staff_query = Staff.query.filter_by(school_id=selected_school_id, is_active=True)
     elif current_user.is_super_admin:
@@ -1402,17 +1476,31 @@ def late_report():
         staff_query = Staff.query.filter_by(school_id=current_user.school_id, is_active=True)
     
     all_staff = staff_query.all()
-    
-    # Calculate late statistics for each staff member
     staff_stats = []
+    
     for s in all_staff:
-        # Total times late (all time)
-        total_late = Attendance.query.filter_by(staff_id=s.id, is_late=True).count()
+        late_in_period = Attendance.query.filter(
+            Attendance.staff_id == s.id,
+            Attendance.is_late == True,
+            Attendance.date >= date_from_obj,
+            Attendance.date <= date_to_obj
+        ).count()
         
-        # Total attendance records (all time)
-        total_attendance = Attendance.query.filter_by(staff_id=s.id).filter(Attendance.sign_in_time.isnot(None)).count()
+        if late_in_period == 0:
+            continue
         
-        # Calculate percentages
+        if stats_mode == 'all':
+            total_late = Attendance.query.filter_by(staff_id=s.id, is_late=True).count()
+            total_attendance = Attendance.query.filter_by(staff_id=s.id).filter(Attendance.sign_in_time.isnot(None)).count()
+        else:
+            total_late = late_in_period
+            total_attendance = Attendance.query.filter(
+                Attendance.staff_id == s.id,
+                Attendance.sign_in_time.isnot(None),
+                Attendance.date >= date_from_obj,
+                Attendance.date <= date_to_obj
+            ).count()
+        
         if total_attendance > 0:
             punctuality_pct = round(((total_attendance - total_late) / total_attendance) * 100, 1)
             lateness_pct = round((total_late / total_attendance) * 100, 1)
@@ -1420,24 +1508,13 @@ def late_report():
             punctuality_pct = 0
             lateness_pct = 0
         
-        # Get late records within date range
-        late_records = Attendance.query.filter(
-            Attendance.staff_id == s.id,
-            Attendance.is_late == True,
-            Attendance.date >= datetime.strptime(date_from, '%Y-%m-%d').date(),
-            Attendance.date <= datetime.strptime(date_to, '%Y-%m-%d').date()
-        ).all()
-        
-        if late_records or request.args.get('show_all'):
-            staff_stats.append({
-                'staff': s,
-                'times_late': total_late,
-                'punctuality_pct': punctuality_pct,
-                'lateness_pct': lateness_pct,
-                'late_records': late_records
-            })
+        staff_stats.append({
+            'staff': s,
+            'times_late': total_late,
+            'punctuality_pct': punctuality_pct,
+            'lateness_pct': lateness_pct
+        })
     
-    # Sort by times late descending
     staff_stats.sort(key=lambda x: x['times_late'], reverse=True)
     
     return render_template_string('''
@@ -1462,9 +1539,7 @@ def late_report():
                                 <select name="school_id">
                                     <option value="">All Schools</option>
                                     {% for school in schools %}
-                                    <option value="{{ school.id }}" {{ 'selected' if selected_school_id == school.id else '' }}>
-                                        {{ school.name }}
-                                    </option>
+                                    <option value="{{ school.id }}" {{ 'selected' if selected_school_id == school.id else '' }}>{{ school.name }}</option>
                                     {% endfor %}
                                 </select>
                             </div>
@@ -1477,17 +1552,29 @@ def late_report():
                                 <label>To Date</label>
                                 <input type="date" name="date_to" value="{{ date_to }}">
                             </div>
-                            <button type="submit" class="btn btn-primary">
-                                <i class="fas fa-filter"></i> Filter
-                            </button>
-                            <a href="/late-report?date_from={{ today }}&date_to={{ today }}" class="btn btn-secondary">
-                                <i class="fas fa-calendar-day"></i> Today
-                            </a>
-                            <a href="/late-report/download?school_id={{ selected_school_id or '' }}&date_from={{ date_from }}&date_to={{ date_to }}" class="btn btn-success">
-                                <i class="fas fa-download"></i> Download CSV
-                            </a>
+                            <input type="hidden" name="stats_mode" value="{{ stats_mode }}">
+                            <button type="submit" class="btn btn-primary"><i class="fas fa-filter"></i> Filter</button>
+                            <a href="/late-report?date_from={{ today }}&date_to={{ today }}&stats_mode=all" class="btn btn-secondary"><i class="fas fa-calendar-day"></i> Today</a>
+                            <a href="/late-report/download?school_id={{ selected_school_id or '' }}&date_from={{ date_from }}&date_to={{ date_to }}&stats_mode={{ stats_mode }}" class="btn btn-success"><i class="fas fa-download"></i> Download CSV</a>
                         </form>
                     </div>
+                    
+                    {% if not is_single_day %}
+                    <div class="toggle-container">
+                        <label><i class="fas fa-chart-bar"></i> Stats View:</label>
+                        <div class="toggle-switch">
+                            <a href="/late-report?school_id={{ selected_school_id or '' }}&date_from={{ date_from }}&date_to={{ date_to }}&stats_mode=period" class="{{ 'active' if stats_mode == 'period' else '' }}">Per Period</a>
+                            <a href="/late-report?school_id={{ selected_school_id or '' }}&date_from={{ date_from }}&date_to={{ date_to }}&stats_mode=all" class="{{ 'active' if stats_mode == 'all' else '' }}">All Time</a>
+                        </div>
+                        <small style="color: #666;">
+                            {% if stats_mode == 'period' %}Showing stats for {{ date_from }} to {{ date_to }}{% else %}Showing all-time stats{% endif %}
+                        </small>
+                    </div>
+                    {% else %}
+                    <div class="alert alert-info">
+                        <i class="fas fa-info-circle"></i> Showing staff late today with their <strong>all-time</strong> statistics.
+                    </div>
+                    {% endif %}
                     
                     <table>
                         <thead>
@@ -1506,20 +1593,28 @@ def late_report():
                             <tr>
                                 <td>{{ stat.staff.staff_id }}</td>
                                 <td>{{ stat.staff.first_name }} {{ stat.staff.last_name }}</td>
-                                <td>{{ stat.staff.department or '-' }}</td>
+                                <td>{{ get_dept_badge(stat.staff.department)|safe }}</td>
                                 <td>{{ stat.staff.school.name }}</td>
                                 <td><strong style="color: #dc3545;">{{ stat.times_late }}</strong></td>
                                 <td><span style="color: #28a745;">{{ stat.punctuality_pct }}%</span></td>
                                 <td><span style="color: #dc3545;">{{ stat.lateness_pct }}%</span></td>
                             </tr>
                             {% endfor %}
+                            {% if not staff_stats %}
+                            <tr>
+                                <td colspan="7" style="text-align: center; color: #666; padding: 30px;">
+                                    <i class="fas fa-check-circle" style="font-size: 2rem; color: #28a745;"></i>
+                                    <p style="margin-top: 10px;">No late staff for the selected period!</p>
+                                </td>
+                            </tr>
+                            {% endif %}
                         </tbody>
                     </table>
                     
                     {% if current_user.is_super_admin %}
                     <div class="reset-section">
                         <h4><i class="fas fa-exclamation-triangle"></i> Reset Late Counters (Super Admin Only)</h4>
-                        <p style="margin-bottom: 15px;">This will reset the late count for all staff. This action cannot be undone.</p>
+                        <p style="margin-bottom: 15px;">This will reset the late count. This cannot be undone.</p>
                         <form method="POST" action="/reset-late-count" style="display: inline;">
                             <input type="hidden" name="scope" value="school">
                             <select name="school_id" required style="padding: 10px; margin-right: 10px;">
@@ -1534,7 +1629,7 @@ def late_report():
                         </form>
                         <form method="POST" action="/reset-late-count" style="display: inline;">
                             <input type="hidden" name="scope" value="all">
-                            <button type="submit" class="btn btn-danger" onclick="return confirm('Reset late counters for ALL schools? This cannot be undone!')">
+                            <button type="submit" class="btn btn-danger" onclick="return confirm('Reset ALL late counters?')">
                                 <i class="fas fa-undo"></i> Reset All Schools
                             </button>
                         </form>
@@ -1544,8 +1639,7 @@ def late_report():
             </div>
         </body>
         </html>
-    ''', staff_stats=staff_stats, schools=schools, selected_school_id=selected_school_id,
-        date_from=date_from, date_to=date_to, today=datetime.now().strftime('%Y-%m-%d'))
+    ''', staff_stats=staff_stats, schools=schools, selected_school_id=selected_school_id, date_from=date_from, date_to=date_to, today=today, is_single_day=is_single_day, stats_mode=stats_mode, get_dept_badge=get_dept_badge)
 
 @app.route('/reset-late-count', methods=['POST'])
 @login_required
@@ -1558,14 +1652,12 @@ def reset_late_count():
     school_id = request.form.get('school_id', type=int)
     
     if scope == 'school' and school_id:
-        # Reset late flags for specific school
         staff_ids = [s.id for s in Staff.query.filter_by(school_id=school_id).all()]
         Attendance.query.filter(Attendance.staff_id.in_(staff_ids)).update({Attendance.is_late: False}, synchronize_session=False)
         db.session.commit()
         school = School.query.get(school_id)
         flash(f'Late counters reset for {school.name}', 'success')
     elif scope == 'all':
-        # Reset all late flags
         Attendance.query.update({Attendance.is_late: False}, synchronize_session=False)
         db.session.commit()
         flash('Late counters reset for all schools', 'success')
@@ -1578,6 +1670,12 @@ def reset_late_count():
 @login_required
 def download_late_report():
     school_id = request.args.get('school_id', type=int)
+    date_from = request.args.get('date_from', datetime.now().strftime('%Y-%m-%d'))
+    date_to = request.args.get('date_to', datetime.now().strftime('%Y-%m-%d'))
+    stats_mode = request.args.get('stats_mode', 'all')
+    
+    date_from_obj = datetime.strptime(date_from, '%Y-%m-%d').date()
+    date_to_obj = datetime.strptime(date_to, '%Y-%m-%d').date()
     
     if school_id:
         staff_query = Staff.query.filter_by(school_id=school_id, is_active=True)
@@ -1586,15 +1684,32 @@ def download_late_report():
     else:
         staff_query = Staff.query.filter_by(school_id=current_user.school_id, is_active=True)
     
-    all_staff = staff_query.all()
-    
     output = io.StringIO()
     writer = csv.writer(output)
     writer.writerow(['Staff ID', 'First Name', 'Last Name', 'Department', 'School', 'Times Late', '% Punctuality', '% Lateness'])
     
-    for s in all_staff:
-        total_late = Attendance.query.filter_by(staff_id=s.id, is_late=True).count()
-        total_attendance = Attendance.query.filter_by(staff_id=s.id).filter(Attendance.sign_in_time.isnot(None)).count()
+    for s in staff_query.all():
+        late_in_period = Attendance.query.filter(
+            Attendance.staff_id == s.id,
+            Attendance.is_late == True,
+            Attendance.date >= date_from_obj,
+            Attendance.date <= date_to_obj
+        ).count()
+        
+        if late_in_period == 0:
+            continue
+        
+        if stats_mode == 'all':
+            total_late = Attendance.query.filter_by(staff_id=s.id, is_late=True).count()
+            total_attendance = Attendance.query.filter_by(staff_id=s.id).filter(Attendance.sign_in_time.isnot(None)).count()
+        else:
+            total_late = late_in_period
+            total_attendance = Attendance.query.filter(
+                Attendance.staff_id == s.id,
+                Attendance.sign_in_time.isnot(None),
+                Attendance.date >= date_from_obj,
+                Attendance.date <= date_to_obj
+            ).count()
         
         if total_attendance > 0:
             punctuality_pct = round(((total_attendance - total_late) / total_attendance) * 100, 1)
@@ -1603,20 +1718,11 @@ def download_late_report():
             punctuality_pct = 0
             lateness_pct = 0
         
-        writer.writerow([
-            s.staff_id,
-            s.first_name,
-            s.last_name,
-            s.department or '',
-            s.school.name,
-            total_late,
-            f'{punctuality_pct}%',
-            f'{lateness_pct}%'
-        ])
+        writer.writerow([s.staff_id, s.first_name, s.last_name, s.department, s.school.name, total_late, f'{punctuality_pct}%', f'{lateness_pct}%'])
     
     response = make_response(output.getvalue())
     response.headers['Content-Type'] = 'text/csv'
-    response.headers['Content-Disposition'] = f'attachment; filename=late_report_{datetime.now().strftime("%Y%m%d")}.csv'
+    response.headers['Content-Disposition'] = f'attachment; filename=late_report_{date_from}_to_{date_to}.csv'
     return response
 
 @app.route('/absent-report')
@@ -1629,52 +1735,36 @@ def absent_report():
         schools = School.query.filter_by(id=current_user.school_id).all()
         selected_school_id = current_user.school_id
     
-    date_from = request.args.get('date_from', datetime.now().strftime('%Y-%m-%d'))
-    date_to = request.args.get('date_to', datetime.now().strftime('%Y-%m-%d'))
+    today = datetime.now().strftime('%Y-%m-%d')
+    date_from = request.args.get('date_from', today)
+    date_to = request.args.get('date_to', today)
     
     date_from_obj = datetime.strptime(date_from, '%Y-%m-%d').date()
     date_to_obj = datetime.strptime(date_to, '%Y-%m-%d').date()
     
-    # Get all active staff (excluding Management)
     if selected_school_id:
-        staff_query = Staff.query.filter(
-            Staff.school_id == selected_school_id,
-            Staff.is_active == True,
-            Staff.department != 'Management'
-        )
+        staff_query = Staff.query.filter(Staff.school_id == selected_school_id, Staff.is_active == True, Staff.department != 'Management')
     elif current_user.is_super_admin:
-        staff_query = Staff.query.filter(
-            Staff.is_active == True,
-            Staff.department != 'Management'
-        )
+        staff_query = Staff.query.filter(Staff.is_active == True, Staff.department != 'Management')
     else:
-        staff_query = Staff.query.filter(
-            Staff.school_id == current_user.school_id,
-            Staff.is_active == True,
-            Staff.department != 'Management'
-        )
+        staff_query = Staff.query.filter(Staff.school_id == current_user.school_id, Staff.is_active == True, Staff.department != 'Management')
     
     all_staff = staff_query.all()
     
-    # Get attendance records within date range
     attendance_records = Attendance.query.filter(
         Attendance.date >= date_from_obj,
         Attendance.date <= date_to_obj
     ).all()
     
-    # Create set of (staff_id, date) tuples for signed in staff
     signed_in = set((a.staff_id, a.date) for a in attendance_records if a.sign_in_time)
     
-    # Find absent staff for each date
     absent_list = []
     current_date = date_from_obj
     while current_date <= date_to_obj:
-        for s in all_staff:
-            if (s.id, current_date) not in signed_in:
-                absent_list.append({
-                    'date': current_date,
-                    'staff': s
-                })
+        if current_date.weekday() < 5:
+            for s in all_staff:
+                if (s.id, current_date) not in signed_in:
+                    absent_list.append({'date': current_date, 'staff': s})
         current_date += timedelta(days=1)
     
     return render_template_string('''
@@ -1690,7 +1780,7 @@ def absent_report():
             <div class="main-content">
                 <div class="card">
                     <h2><i class="fas fa-user-times"></i> Absent Staff Report</h2>
-                    <p style="color: #666; margin-bottom: 20px;">Excludes Management department</p>
+                    <p style="color: #666; margin-bottom: 20px;">Excludes Management department and weekends</p>
                     
                     <div class="filter-bar">
                         <form method="GET" style="display: flex; gap: 15px; align-items: end; flex-wrap: wrap;">
@@ -1700,9 +1790,7 @@ def absent_report():
                                 <select name="school_id">
                                     <option value="">All Schools</option>
                                     {% for school in schools %}
-                                    <option value="{{ school.id }}" {{ 'selected' if selected_school_id == school.id else '' }}>
-                                        {{ school.name }}
-                                    </option>
+                                    <option value="{{ school.id }}" {{ 'selected' if selected_school_id == school.id else '' }}>{{ school.name }}</option>
                                     {% endfor %}
                                 </select>
                             </div>
@@ -1715,15 +1803,9 @@ def absent_report():
                                 <label>To Date</label>
                                 <input type="date" name="date_to" value="{{ date_to }}">
                             </div>
-                            <button type="submit" class="btn btn-primary">
-                                <i class="fas fa-filter"></i> Filter
-                            </button>
-                            <a href="/absent-report?date_from={{ today }}&date_to={{ today }}" class="btn btn-secondary">
-                                <i class="fas fa-calendar-day"></i> Today
-                            </a>
-                            <a href="/absent-report/download?school_id={{ selected_school_id or '' }}&date_from={{ date_from }}&date_to={{ date_to }}" class="btn btn-success">
-                                <i class="fas fa-download"></i> Download CSV
-                            </a>
+                            <button type="submit" class="btn btn-primary"><i class="fas fa-filter"></i> Filter</button>
+                            <a href="/absent-report?date_from={{ today }}&date_to={{ today }}" class="btn btn-secondary"><i class="fas fa-calendar-day"></i> Today</a>
+                            <a href="/absent-report/download?school_id={{ selected_school_id or '' }}&date_from={{ date_from }}&date_to={{ date_to }}" class="btn btn-success"><i class="fas fa-download"></i> Download CSV</a>
                         </form>
                     </div>
                     
@@ -1740,21 +1822,28 @@ def absent_report():
                         <tbody>
                             {% for item in absent_list %}
                             <tr>
-                                <td>{{ item.date.strftime('%Y-%m-%d') }}</td>
+                                <td>{{ item.date.strftime('%Y-%m-%d') }} ({{ item.date.strftime('%A') }})</td>
                                 <td>{{ item.staff.staff_id }}</td>
                                 <td>{{ item.staff.first_name }} {{ item.staff.last_name }}</td>
-                                <td>{{ item.staff.department or '-' }}</td>
+                                <td>{{ get_dept_badge(item.staff.department)|safe }}</td>
                                 <td>{{ item.staff.school.name }}</td>
                             </tr>
                             {% endfor %}
+                            {% if not absent_list %}
+                            <tr>
+                                <td colspan="5" style="text-align: center; color: #666; padding: 30px;">
+                                    <i class="fas fa-check-circle" style="font-size: 2rem; color: #28a745;"></i>
+                                    <p style="margin-top: 10px;">No absent staff for the selected period!</p>
+                                </td>
+                            </tr>
+                            {% endif %}
                         </tbody>
                     </table>
                 </div>
             </div>
         </body>
         </html>
-    ''', absent_list=absent_list, schools=schools, selected_school_id=selected_school_id,
-        date_from=date_from, date_to=date_to, today=datetime.now().strftime('%Y-%m-%d'))
+    ''', absent_list=absent_list, schools=schools, selected_school_id=selected_school_id, date_from=date_from, date_to=date_to, today=today, get_dept_badge=get_dept_badge)
 
 @app.route('/absent-report/download')
 @login_required
@@ -1767,48 +1856,27 @@ def download_absent_report():
     date_to_obj = datetime.strptime(date_to, '%Y-%m-%d').date()
     
     if school_id:
-        staff_query = Staff.query.filter(
-            Staff.school_id == school_id,
-            Staff.is_active == True,
-            Staff.department != 'Management'
-        )
+        staff_query = Staff.query.filter(Staff.school_id == school_id, Staff.is_active == True, Staff.department != 'Management')
     elif current_user.is_super_admin:
-        staff_query = Staff.query.filter(
-            Staff.is_active == True,
-            Staff.department != 'Management'
-        )
+        staff_query = Staff.query.filter(Staff.is_active == True, Staff.department != 'Management')
     else:
-        staff_query = Staff.query.filter(
-            Staff.school_id == current_user.school_id,
-            Staff.is_active == True,
-            Staff.department != 'Management'
-        )
+        staff_query = Staff.query.filter(Staff.school_id == current_user.school_id, Staff.is_active == True, Staff.department != 'Management')
     
     all_staff = staff_query.all()
     
-    attendance_records = Attendance.query.filter(
-        Attendance.date >= date_from_obj,
-        Attendance.date <= date_to_obj
-    ).all()
-    
+    attendance_records = Attendance.query.filter(Attendance.date >= date_from_obj, Attendance.date <= date_to_obj).all()
     signed_in = set((a.staff_id, a.date) for a in attendance_records if a.sign_in_time)
     
     output = io.StringIO()
     writer = csv.writer(output)
-    writer.writerow(['Date', 'Staff ID', 'First Name', 'Last Name', 'Department', 'School'])
+    writer.writerow(['Date', 'Day', 'Staff ID', 'First Name', 'Last Name', 'Department', 'School'])
     
     current_date = date_from_obj
     while current_date <= date_to_obj:
-        for s in all_staff:
-            if (s.id, current_date) not in signed_in:
-                writer.writerow([
-                    current_date.strftime('%Y-%m-%d'),
-                    s.staff_id,
-                    s.first_name,
-                    s.last_name,
-                    s.department or '',
-                    s.school.name
-                ])
+        if current_date.weekday() < 5:
+            for s in all_staff:
+                if (s.id, current_date) not in signed_in:
+                    writer.writerow([current_date.strftime('%Y-%m-%d'), current_date.strftime('%A'), s.staff_id, s.first_name, s.last_name, s.department, s.school.name])
         current_date += timedelta(days=1)
     
     response = make_response(output.getvalue())
@@ -1826,8 +1894,9 @@ def overtime_report():
         schools = School.query.filter_by(id=current_user.school_id).all()
         selected_school_id = current_user.school_id
     
-    date_from = request.args.get('date_from', datetime.now().strftime('%Y-%m-%d'))
-    date_to = request.args.get('date_to', datetime.now().strftime('%Y-%m-%d'))
+    today = datetime.now().strftime('%Y-%m-%d')
+    date_from = request.args.get('date_from', today)
+    date_to = request.args.get('date_to', today)
     
     query = Attendance.query.filter(
         Attendance.date >= datetime.strptime(date_from, '%Y-%m-%d').date(),
@@ -1841,10 +1910,11 @@ def overtime_report():
         query = query.filter(Attendance.school_id == current_user.school_id)
     
     records = query.all()
-    
     overtime_list = []
+    
     for r in records:
-        closing_time = datetime.strptime(r.school.closing_time, '%H:%M').time()
+        closing_time_str = r.school.get_closing_time(r.date)
+        closing_time = datetime.strptime(closing_time_str, '%H:%M').time()
         sign_out_time = r.sign_out_time.time()
         
         if sign_out_time > closing_time:
@@ -1857,7 +1927,8 @@ def overtime_report():
             overtime_list.append({
                 'record': r,
                 'overtime': f'{overtime_hours}h {overtime_mins}m',
-                'overtime_minutes': overtime_minutes
+                'overtime_minutes': overtime_minutes,
+                'closing_time': closing_time_str
             })
     
     return render_template_string('''
@@ -1882,9 +1953,7 @@ def overtime_report():
                                 <select name="school_id">
                                     <option value="">All Schools</option>
                                     {% for school in schools %}
-                                    <option value="{{ school.id }}" {{ 'selected' if selected_school_id == school.id else '' }}>
-                                        {{ school.name }}
-                                    </option>
+                                    <option value="{{ school.id }}" {{ 'selected' if selected_school_id == school.id else '' }}>{{ school.name }}</option>
                                     {% endfor %}
                                 </select>
                             </div>
@@ -1897,15 +1966,9 @@ def overtime_report():
                                 <label>To Date</label>
                                 <input type="date" name="date_to" value="{{ date_to }}">
                             </div>
-                            <button type="submit" class="btn btn-primary">
-                                <i class="fas fa-filter"></i> Filter
-                            </button>
-                            <a href="/overtime-report?date_from={{ today }}&date_to={{ today }}" class="btn btn-secondary">
-                                <i class="fas fa-calendar-day"></i> Today
-                            </a>
-                            <a href="/overtime-report/download?school_id={{ selected_school_id or '' }}&date_from={{ date_from }}&date_to={{ date_to }}" class="btn btn-success">
-                                <i class="fas fa-download"></i> Download CSV
-                            </a>
+                            <button type="submit" class="btn btn-primary"><i class="fas fa-filter"></i> Filter</button>
+                            <a href="/overtime-report?date_from={{ today }}&date_to={{ today }}" class="btn btn-secondary"><i class="fas fa-calendar-day"></i> Today</a>
+                            <a href="/overtime-report/download?school_id={{ selected_school_id or '' }}&date_from={{ date_from }}&date_to={{ date_to }}" class="btn btn-success"><i class="fas fa-download"></i> Download CSV</a>
                         </form>
                     </div>
                     
@@ -1915,8 +1978,9 @@ def overtime_report():
                                 <th>Date</th>
                                 <th>Staff ID</th>
                                 <th>Name</th>
+                                <th>Department</th>
                                 <th>School</th>
-                                <th>Closing Time</th>
+                                <th>Closing</th>
                                 <th>Sign Out</th>
                                 <th>Overtime</th>
                             </tr>
@@ -1924,23 +1988,31 @@ def overtime_report():
                         <tbody>
                             {% for item in overtime_list %}
                             <tr>
-                                <td>{{ item.record.date.strftime('%Y-%m-%d') }}</td>
+                                <td>{{ item.record.date.strftime('%Y-%m-%d') }} ({{ item.record.date.strftime('%A') }})</td>
                                 <td>{{ item.record.staff.staff_id }}</td>
                                 <td>{{ item.record.staff.first_name }} {{ item.record.staff.last_name }}</td>
+                                <td>{{ get_dept_badge(item.record.staff.department)|safe }}</td>
                                 <td>{{ item.record.school.name }}</td>
-                                <td>{{ item.record.school.closing_time }}</td>
+                                <td>{{ item.closing_time }}</td>
                                 <td>{{ item.record.sign_out_time.strftime('%H:%M:%S') }}</td>
                                 <td><strong style="color: #28a745;">{{ item.overtime }}</strong></td>
                             </tr>
                             {% endfor %}
+                            {% if not overtime_list %}
+                            <tr>
+                                <td colspan="8" style="text-align: center; color: #666; padding: 30px;">
+                                    <i class="fas fa-clock" style="font-size: 2rem; color: #6c757d;"></i>
+                                    <p style="margin-top: 10px;">No overtime records for the selected period.</p>
+                                </td>
+                            </tr>
+                            {% endif %}
                         </tbody>
                     </table>
                 </div>
             </div>
         </body>
         </html>
-    ''', overtime_list=overtime_list, schools=schools, selected_school_id=selected_school_id,
-        date_from=date_from, date_to=date_to, today=datetime.now().strftime('%Y-%m-%d'))
+    ''', overtime_list=overtime_list, schools=schools, selected_school_id=selected_school_id, date_from=date_from, date_to=date_to, today=today, get_dept_badge=get_dept_badge)
 
 @app.route('/overtime-report/download')
 @login_required
@@ -1964,10 +2036,11 @@ def download_overtime_report():
     
     output = io.StringIO()
     writer = csv.writer(output)
-    writer.writerow(['Date', 'Staff ID', 'First Name', 'Last Name', 'School', 'Closing Time', 'Sign Out', 'Overtime'])
+    writer.writerow(['Date', 'Day', 'Staff ID', 'First Name', 'Last Name', 'Department', 'School', 'Closing Time', 'Sign Out', 'Overtime'])
     
     for r in records:
-        closing_time = datetime.strptime(r.school.closing_time, '%H:%M').time()
+        closing_time_str = r.school.get_closing_time(r.date)
+        closing_time = datetime.strptime(closing_time_str, '%H:%M').time()
         sign_out_time = r.sign_out_time.time()
         
         if sign_out_time > closing_time:
@@ -1977,16 +2050,7 @@ def download_overtime_report():
             overtime_hours = overtime_minutes // 60
             overtime_mins = overtime_minutes % 60
             
-            writer.writerow([
-                r.date.strftime('%Y-%m-%d'),
-                r.staff.staff_id,
-                r.staff.first_name,
-                r.staff.last_name,
-                r.school.name,
-                r.school.closing_time,
-                r.sign_out_time.strftime('%H:%M:%S'),
-                f'{overtime_hours}h {overtime_mins}m'
-            ])
+            writer.writerow([r.date.strftime('%Y-%m-%d'), r.date.strftime('%A'), r.staff.staff_id, r.staff.first_name, r.staff.last_name, r.staff.department, r.school.name, closing_time_str, r.sign_out_time.strftime('%H:%M:%S'), f'{overtime_hours}h {overtime_mins}m'])
     
     response = make_response(output.getvalue())
     response.headers['Content-Type'] = 'text/csv'
@@ -2017,9 +2081,7 @@ def admins():
                 <div class="card">
                     <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
                         <h2 style="margin: 0; border: none; padding: 0;"><i class="fas fa-user-shield"></i> Manage Admins</h2>
-                        <a href="/admins/add" class="btn btn-primary">
-                            <i class="fas fa-plus"></i> Add Admin
-                        </a>
+                        <a href="/admins/add" class="btn btn-primary"><i class="fas fa-plus"></i> Add Admin</a>
                     </div>
                     
                     {% with messages = get_flashed_messages(with_categories=true) %}
@@ -2147,9 +2209,7 @@ def add_admin():
                                 {% endfor %}
                             </select>
                         </div>
-                        <button type="submit" class="btn btn-primary">
-                            <i class="fas fa-save"></i> Save Admin
-                        </button>
+                        <button type="submit" class="btn btn-primary"><i class="fas fa-save"></i> Save Admin</button>
                         <a href="/admins" class="btn btn-secondary">Cancel</a>
                     </form>
                 </div>
@@ -2164,11 +2224,9 @@ def delete_admin(id):
     if not current_user.is_super_admin:
         flash('Access denied', 'danger')
         return redirect(url_for('dashboard'))
-    
     if id == current_user.id:
         flash('Cannot delete yourself', 'danger')
         return redirect(url_for('admins'))
-    
     user = User.query.get_or_404(id)
     db.session.delete(user)
     db.session.commit()
@@ -2190,7 +2248,6 @@ def settings():
             current_user.password_hash = generate_password_hash(new_password)
             db.session.commit()
             flash('Password updated successfully', 'success')
-        
         return redirect(url_for('settings'))
     
     return render_template_string('''
@@ -2223,9 +2280,7 @@ def settings():
                             <label>Confirm Password</label>
                             <input type="password" name="confirm_password" required minlength="6">
                         </div>
-                        <button type="submit" class="btn btn-primary">
-                            <i class="fas fa-save"></i> Update Password
-                        </button>
+                        <button type="submit" class="btn btn-primary"><i class="fas fa-save"></i> Update Password</button>
                     </form>
                 </div>
             </div>
@@ -2233,11 +2288,9 @@ def settings():
         </html>
     ''')
 
-# API Endpoint for Kiosk
 @app.route('/api/sync', methods=['POST'])
 def api_sync():
     api_key = request.headers.get('X-API-Key')
-    
     if not api_key:
         return jsonify({'error': 'API key required'}), 401
     
@@ -2246,44 +2299,35 @@ def api_sync():
         return jsonify({'error': 'Invalid API key'}), 401
     
     data = request.get_json()
-    
     if not data:
         return jsonify({'error': 'No data provided'}), 400
     
-    # Process attendance records
     records = data.get('records', [])
     synced = 0
     
     for record in records:
         staff_id = record.get('staff_id')
         staff = Staff.query.filter_by(staff_id=staff_id, school_id=school.id).first()
-        
         if not staff:
             continue
         
         date_str = record.get('date')
         record_date = datetime.strptime(date_str, '%Y-%m-%d').date()
         
-        attendance = Attendance.query.filter_by(
-            staff_id=staff.id,
-            school_id=school.id,
-            date=record_date
-        ).first()
+        if record_date.weekday() >= 5:
+            continue
         
+        attendance = Attendance.query.filter_by(staff_id=staff.id, school_id=school.id, date=record_date).first()
         if not attendance:
-            attendance = Attendance(
-                staff_id=staff.id,
-                school_id=school.id,
-                date=record_date
-            )
+            attendance = Attendance(staff_id=staff.id, school_id=school.id, date=record_date)
             db.session.add(attendance)
         
         if record.get('sign_in_time'):
             sign_in = datetime.strptime(f"{date_str} {record['sign_in_time']}", '%Y-%m-%d %H:%M:%S')
             attendance.sign_in_time = sign_in
             
-            # Check if late
-            resumption = datetime.strptime(school.resumption_time, '%H:%M').time()
+            resumption_time_str = school.get_resumption_time(record_date)
+            resumption = datetime.strptime(resumption_time_str, '%H:%M').time()
             if sign_in.time() > resumption:
                 attendance.is_late = True
         
@@ -2295,38 +2339,27 @@ def api_sync():
     
     db.session.commit()
     
-    # Return staff list for kiosk
-    staff_list = [{
-        'staff_id': s.staff_id,
-        'first_name': s.first_name,
-        'last_name': s.last_name,
-        'department': s.department
-    } for s in Staff.query.filter_by(school_id=school.id, is_active=True).all()]
+    staff_list = [{'staff_id': s.staff_id, 'first_name': s.first_name, 'last_name': s.last_name, 'department': s.department} for s in Staff.query.filter_by(school_id=school.id, is_active=True).all()]
     
+    today = datetime.now().date()
     return jsonify({
         'success': True,
         'synced': synced,
         'staff': staff_list,
         'school': {
             'name': school.name,
-            'resumption_time': school.resumption_time,
-            'closing_time': school.closing_time
+            'resumption_time': school.get_resumption_time(today),
+            'closing_time': school.get_closing_time(today)
         }
     })
 
-# Initialize database
 with app.app_context():
     db.create_all()
-    
-    # Create default admin if none exists
     if not User.query.first():
-        admin = User(
-            username='admin',
-            password_hash=generate_password_hash('admin123'),
-            is_super_admin=True
-        )
+        admin = User(username='admin', password_hash=generate_password_hash('admin123'), is_super_admin=True)
         db.session.add(admin)
         db.session.commit()
 
 if __name__ == '__main__':
-    app.run(debug=True)
+    port = int(os.environ.get('PORT', 5000))
+    app.run(host='0.0.0.0', port=port, debug=False)
