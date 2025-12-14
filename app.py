@@ -22,12 +22,13 @@ if database_url.startswith('postgres://'):
 app.config['SQLALCHEMY_DATABASE_URI'] = database_url
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 
-db = SQLAlchemy(app)
-login_manager = LoginManager(app)
+db = SQLAlchemy()
+login_manager = LoginManager()
 login_manager.login_view = 'login'
 
 # Models
 class School(db.Model):
+    __tablename__ = 'schools'
     id = db.Column(db.Integer, primary_key=True)
     name = db.Column(db.String(100), nullable=False)
     short_name = db.Column(db.String(20), nullable=True)
@@ -45,12 +46,13 @@ class School(db.Model):
     staff = db.relationship('Staff', backref='school', lazy=True)
     users = db.relationship('User', backref='school', lazy=True)
 
-class User(db.Model):
+class User(db.Model, UserMixin):
+    __tablename__ = 'users'
     id = db.Column(db.Integer, primary_key=True)
     username = db.Column(db.String(80), unique=True, nullable=False)
     password_hash = db.Column(db.String(256), nullable=False)
     role = db.Column(db.String(20), nullable=False, default='school_admin')
-    school_id = db.Column(db.Integer, db.ForeignKey('school.id'), nullable=True)
+    school_id = db.Column(db.Integer, db.ForeignKey('schools.id'), nullable=True)
     is_active = db.Column(db.Boolean, default=True)
 
     def set_password(self, password):
@@ -59,28 +61,19 @@ class User(db.Model):
     def check_password(self, password):
         return check_password_hash(self.password_hash, password)
 
-    @property
-    def is_authenticated(self):
-        return True
-
-    @property
-    def is_anonymous(self):
-        return False
-
-    def get_id(self):
-        return str(self.id)
-
 class Staff(db.Model):
+    __tablename__ = 'staff'
     id = db.Column(db.Integer, primary_key=True)
     staff_id = db.Column(db.String(20), unique=True, nullable=False)
     name = db.Column(db.String(100), nullable=False)
     department = db.Column(db.String(50), nullable=False)
-    school_id = db.Column(db.Integer, db.ForeignKey('school.id'), nullable=False)
+    school_id = db.Column(db.Integer, db.ForeignKey('schools.id'), nullable=False)
     is_active = db.Column(db.Boolean, default=True)
     times_late = db.Column(db.Integer, default=0)
     attendance = db.relationship('Attendance', backref='staff', lazy=True)
 
 class Attendance(db.Model):
+    __tablename__ = 'attendance'
     id = db.Column(db.Integer, primary_key=True)
     staff_id = db.Column(db.Integer, db.ForeignKey('staff.id'), nullable=False)
     date = db.Column(db.Date, nullable=False)
@@ -90,6 +83,10 @@ class Attendance(db.Model):
     is_late = db.Column(db.Boolean, default=False)
     late_minutes = db.Column(db.Integer, default=0)
     overtime_minutes = db.Column(db.Integer, default=0)
+
+# Initialize extensions
+db.init_app(app)
+login_manager.init_app(app)
 
 @login_manager.user_loader
 def load_user(user_id):
@@ -557,10 +554,10 @@ def late_report():
     elif current_user.role == 'school_admin':
         staff_query = staff_query.filter_by(school_id=current_user.school_id)
     
-    staff_list = staff_query.all()
+    staff_list_data = staff_query.all()
     
     late_staff = []
-    for s in staff_list:
+    for s in staff_list_data:
         if s.department == 'Management':
             continue
         
@@ -608,13 +605,13 @@ def download_late_report():
     elif current_user.role == 'school_admin':
         staff_query = staff_query.filter_by(school_id=current_user.school_id)
     
-    staff_list = staff_query.all()
+    staff_list_data = staff_query.all()
     
     output = io.StringIO()
     writer = csv.writer(output)
     writer.writerow(['Staff ID', 'Name', 'School', 'Department', 'Times Late', '% Punctuality', '% Lateness'])
     
-    for s in staff_list:
+    for s in staff_list_data:
         if s.department == 'Management':
             continue
         
@@ -817,7 +814,6 @@ def download_overtime_report():
 # API for Kiosk
 @app.route('/api/sync', methods=['GET', 'POST', 'OPTIONS'])
 def api_sync():
-    # Handle preflight
     if request.method == 'OPTIONS':
         response = jsonify({'status': 'ok'})
         response.headers.add('Access-Control-Allow-Origin', '*')
@@ -825,13 +821,11 @@ def api_sync():
         response.headers.add('Access-Control-Allow-Methods', 'GET, POST, OPTIONS')
         return response
     
-    # Handle GET for testing
     if request.method == 'GET':
         response = jsonify({'status': 'API is working', 'message': 'Use POST with X-API-Key header'})
         response.headers.add('Access-Control-Allow-Origin', '*')
         return response
     
-    # Handle POST
     api_key = request.headers.get('X-API-Key')
     
     if not api_key:
@@ -857,8 +851,8 @@ def api_sync():
     
     if action == 'get_staff':
         staff = Staff.query.filter_by(school_id=school.id, is_active=True).all()
-        staff_list = [{'id': s.staff_id, 'name': s.name, 'department': s.department} for s in staff]
-        response = jsonify({'staff': staff_list, 'school_name': school.name})
+        staff_list_data = [{'id': s.staff_id, 'name': s.name, 'department': s.department} for s in staff]
+        response = jsonify({'staff': staff_list_data, 'school_name': school.name})
         response.headers.add('Access-Control-Allow-Origin', '*')
         return response
     
@@ -882,7 +876,6 @@ def api_sync():
                 
                 if record['type'] == 'sign_in':
                     if not attendance:
-                        # Check if late
                         day_of_week = record_date.weekday()
                         start_time, end_time = get_school_schedule(school, day_of_week)
                         
@@ -895,8 +888,6 @@ def api_sync():
                                 is_late = True
                                 delta = datetime.combine(record_date, record_time.time()) - datetime.combine(record_date, scheduled_start)
                                 late_minutes = int(delta.total_seconds() / 60)
-                                
-                                # Update staff late counter
                                 staff.times_late += 1
                         
                         attendance = Attendance(
@@ -913,7 +904,6 @@ def api_sync():
                     if attendance and not attendance.sign_out_time:
                         attendance.sign_out_time = record_time
                         
-                        # Calculate overtime
                         day_of_week = record_date.weekday()
                         start_time, end_time = get_school_schedule(school, day_of_week)
                         
@@ -969,26 +959,21 @@ def api_sync():
     response.headers.add('Access-Control-Allow-Origin', '*')
     return response, 400
 
-# Initialize database
-with app.app_context():
-    db.create_all()
-    
-    # Create default super admin if not exists
-    if not User.query.filter_by(username='admin').first():
-        admin = User(username='admin', role='super_admin')
-        admin.set_password('admin123')
-        db.session.add(admin)
-        db.session.commit()
+# Database initialization route
 @app.route('/init-db')
 def init_db():
-    db.create_all()
-    # Create default admin if not exists
-    if not User.query.filter_by(username='admin').first():
-        admin = User(username='admin', role='super_admin')
-        admin.set_password('admin123')
-        db.session.add(admin)
-        db.session.commit()
-    return 'Database initialized!'
-if __name__ == '__main__':
-    app.run(debug=True, host='0.0.0.0', port=int(os.environ.get('PORT', 5000)))
+    try:
+        db.create_all()
+        if not User.query.filter_by(username='admin').first():
+            admin = User(username='admin', role='super_admin')
+            admin.set_password('admin123')
+            db.session.add(admin)
+            db.session.commit()
+        return 'Database initialized successfully!'
+    except Exception as e:
+        return f'Error: {str(e)}'
 
+if __name__ == '__main__':
+    with app.app_context():
+        db.create_all()
+    app.run(debug=True, host='0.0.0.0', port=int(os.environ.get('PORT', 5000)))
