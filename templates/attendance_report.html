@@ -1,1 +1,87 @@
+{% extends 'base.html' %}
+
+{% block title %}Attendance Report - Attendance System{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <h2>Attendance Report</h2>
+    <a href="{{ url_for('download_attendance', date=selected_date, school_id=school_id) }}" class="btn btn-success">
+        <i class="fas fa-download me-2"></i>Download CSV
+    </a>
+</div>
+
+<div class="card mb-4">
+    <div class="card-body">
+        <form method="GET" class="row g-3 align-items-end">
+            <div class="col-md-4">
+                <label class="form-label">Date</label>
+                <input type="date" name="date" class="form-control" value="{{ selected_date }}">
+            </div>
+            {% if current_user.role in ['super_admin', 'hr_viewer', 'ceo_viewer'] %}
+            <div class="col-md-4">
+                <label class="form-label">School</label>
+                <select name="school_id" class="form-select">
+                    <option value="">All Schools</option>
+                    {% for school in schools %}
+                    <option value="{{ school.id }}" {% if school_id == school.id|string %}selected{% endif %}>{{ school.name }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+            {% endif %}
+            <div class="col-md-4">
+                <button type="submit" class="btn btn-primary">
+                    <i class="fas fa-filter me-2"></i>Filter
+                </button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<div class="card">
+    <div class="card-body">
+        <div class="table-responsive">
+            <table class="table table-hover">
+                <thead>
+                    <tr>
+                        <th>Staff ID</th>
+                        <th>Name</th>
+                        <th>School</th>
+                        <th>Department</th>
+                        <th>Sign In</th>
+                        <th>Sign Out</th>
+                        <th>Status</th>
+                        <th>Late (mins)</th>
+                        <th>Overtime (mins)</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for record in attendance %}
+                    <tr>
+                        <td>{{ record.staff.staff_id }}</td>
+                        <td>{{ record.staff.name }}</td>
+                        <td>{{ record.staff.school.short_name or record.staff.school.name }}</td>
+                        <td>{{ record.staff.department }}</td>
+                        <td>{{ record.sign_in_time.strftime('%H:%M') if record.sign_in_time else '-' }}</td>
+                        <td>{{ record.sign_out_time.strftime('%H:%M') if record.sign_out_time else '-' }}</td>
+                        <td>
+                            {% if record.is_late %}
+                            <span class="badge bg-danger">Late</span>
+                            {% else %}
+                            <span class="badge bg-success">On Time</span>
+                            {% endif %}
+                        </td>
+                        <td>{{ record.late_minutes }}</td>
+                        <td>{{ record.overtime_minutes }}</td>
+                    </tr>
+                    {% else %}
+                    <tr>
+                        <td colspan="9" class="text-center text-muted">No attendance records found for this date.</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+{% endblock %}
 
