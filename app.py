@@ -39,7 +39,7 @@ DEFAULT_SCHEDULE = json.dumps({
 class School(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     name = db.Column(db.String(100), nullable=False)
-    address = db.Column(db.String(200))
+    short_name = db.Column(db.String(20))
     api_key = db.Column(db.String(64), unique=True, nullable=False)
     schedule = db.Column(db.Text, default=DEFAULT_SCHEDULE)
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
@@ -58,6 +58,9 @@ class School(db.Model):
         if day in schedule and schedule[day]['enabled']:
             return schedule[day]['resumption'], schedule[day]['closing']
         return None, None
+    
+    def get_display_name(self):
+        return self.short_name if self.short_name else self.name
 
 class User(UserMixin, db.Model):
     id = db.Column(db.Integer, primary_key=True)
@@ -630,7 +633,7 @@ def schools():
                         <thead>
                             <tr>
                                 <th>School Name</th>
-                                <th>Address</th>
+                                <th>Short Name</th>
                                 <th>API Key</th>
                                 {% if current_user.can_edit() %}
                                 <th>Actions</th>
@@ -641,7 +644,7 @@ def schools():
                             {% for school in schools %}
                             <tr>
                                 <td><strong>{{ school.name }}</strong></td>
-                                <td>{{ school.address or '-' }}</td>
+                                <td>{{ school.short_name or '-' }}</td>
                                 <td><code style="background: #f4f4f4; padding: 4px 8px; border-radius: 4px; font-size: 0.85rem;">{{ school.api_key[:16] }}...</code></td>
                                 {% if current_user.can_edit() %}
                                 <td class="actions">
@@ -686,7 +689,7 @@ def add_school():
         
         school = School(
             name=request.form.get('name'),
-            address=request.form.get('address'),
+            short_name=request.form.get('short_name'),
             api_key=secrets.token_hex(32),
             schedule=json.dumps(schedule)
         )
@@ -711,11 +714,11 @@ def add_school():
                     <form method="POST">
                         <div class="form-group">
                             <label>School Name *</label>
-                            <input type="text" name="name" required>
+                            <input type="text" name="name" required placeholder="e.g. Corona Secondary School Victoria Island">
                         </div>
                         <div class="form-group">
-                            <label>Address</label>
-                            <input type="text" name="address">
+                            <label>Short Name</label>
+                            <input type="text" name="short_name" placeholder="e.g. CSVI" maxlength="20">
                         </div>
                         
                         <h3 style="margin: 25px 0 15px;">Weekly Schedule</h3>
@@ -767,7 +770,7 @@ def edit_school(id):
     
     if request.method == 'POST':
         school.name = request.form.get('name')
-        school.address = request.form.get('address')
+        school.short_name = request.form.get('short_name')
         
         schedule = {}
         for day in ['monday', 'tuesday', 'wednesday', 'thursday', 'friday']:
@@ -803,8 +806,8 @@ def edit_school(id):
                             <input type="text" name="name" value="{{ school.name }}" required>
                         </div>
                         <div class="form-group">
-                            <label>Address</label>
-                            <input type="text" name="address" value="{{ school.address or '' }}">
+                            <label>Short Name</label>
+                            <input type="text" name="short_name" value="{{ school.short_name or '' }}" placeholder="e.g. CSVI" maxlength="20">
                         </div>
                         
                         <h3 style="margin: 25px 0 15px;">Weekly Schedule</h3>
@@ -958,7 +961,7 @@ def staff():
                                 <td><strong>{{ s.staff_id }}</strong></td>
                                 <td>{{ s.first_name }} {{ s.last_name }}</td>
                                 <td>{{ s.department or '-' }}</td>
-                                <td>{{ s.school.name }}</td>
+                                <td>{{ s.school.get_display_name() }}</td>
                                 <td>
                                     {% if s.department == 'Management' %}
                                         <span class="status na">N/A</span>
@@ -1332,7 +1335,7 @@ def attendance():
                                 <td>{{ record.date.strftime('%Y-%m-%d') }}</td>
                                 <td>{{ record.staff.staff_id }}</td>
                                 <td>{{ record.staff.first_name }} {{ record.staff.last_name }}</td>
-                                <td>{{ record.school.name }}</td>
+                                <td>{{ record.school.get_display_name() }}</td>
                                 <td>{{ record.sign_in_time.strftime('%H:%M:%S') if record.sign_in_time else '-' }}</td>
                                 <td>{{ record.sign_out_time.strftime('%H:%M:%S') if record.sign_out_time else '-' }}</td>
                                 <td>
@@ -1382,7 +1385,7 @@ def download_attendance():
             r.staff.staff_id,
             r.staff.first_name,
             r.staff.last_name,
-            r.school.name,
+            r.school.get_display_name(),
             r.sign_in_time.strftime('%H:%M:%S') if r.sign_in_time else '',
             r.sign_out_time.strftime('%H:%M:%S') if r.sign_out_time else '',
             'Yes' if r.is_late else 'No'
@@ -1543,7 +1546,7 @@ def late_report():
                                 <td>{{ stat.staff.staff_id }}</td>
                                 <td>{{ stat.staff.first_name }} {{ stat.staff.last_name }}</td>
                                 <td>{{ stat.staff.department or '-' }}</td>
-                                <td>{{ stat.staff.school.name }}</td>
+                                <td>{{ stat.staff.school.get_display_name() }}</td>
                                 <td><strong style="color: #dc3545;">{{ stat.times_late }}</strong></td>
                                 <td><span style="color: #28a745;">{{ stat.punctuality_pct }}%</span></td>
                                 <td><span style="color: #dc3545;">{{ stat.lateness_pct }}%</span></td>
@@ -1664,7 +1667,7 @@ def download_late_report():
             s.first_name,
             s.last_name,
             s.department or '',
-            s.school.name,
+            s.school.get_display_name(),
             total_late,
             f'{punctuality_pct}%',
             f'{lateness_pct}%'
@@ -1803,7 +1806,7 @@ def absent_report():
                                 <td>{{ item.staff.staff_id }}</td>
                                 <td>{{ item.staff.first_name }} {{ item.staff.last_name }}</td>
                                 <td>{{ item.staff.department or '-' }}</td>
-                                <td>{{ item.staff.school.name }}</td>
+                                <td>{{ item.staff.school.get_display_name() }}</td>
                             </tr>
                             {% endfor %}
                         </tbody>
@@ -1870,7 +1873,7 @@ def download_absent_report():
                             s.first_name,
                             s.last_name,
                             s.department or '',
-                            s.school.name
+                            s.school.get_display_name()
                         ])
         current_date += timedelta(days=1)
     
@@ -1998,7 +2001,7 @@ def overtime_report():
                                 <td>{{ item.record.date.strftime('%Y-%m-%d') }}</td>
                                 <td>{{ item.record.staff.staff_id }}</td>
                                 <td>{{ item.record.staff.first_name }} {{ item.record.staff.last_name }}</td>
-                                <td>{{ item.record.school.name }}</td>
+                                <td>{{ item.record.school.get_display_name() }}</td>
                                 <td>{{ item.closing_time }}</td>
                                 <td>{{ item.record.sign_out_time.strftime('%H:%M:%S') }}</td>
                                 <td><strong style="color: #28a745;">{{ item.overtime }}</strong></td>
@@ -2057,7 +2060,7 @@ def download_overtime_report():
                     r.staff.staff_id,
                     r.staff.first_name,
                     r.staff.last_name,
-                    r.school.name,
+                    r.school.get_display_name(),
                     closing_str,
                     r.sign_out_time.strftime('%H:%M:%S'),
                     f'{overtime_hours}h {overtime_mins}m'
@@ -2232,7 +2235,7 @@ def add_admin():
                             <select name="staff_id" id="staff_id">
                                 <option value="">Select Staff Member</option>
                                 {% for s in all_staff %}
-                                <option value="{{ s.id }}">{{ s.first_name }} {{ s.last_name }} ({{ s.staff_id }}) - {{ s.school.name }}</option>
+                                <option value="{{ s.id }}">{{ s.first_name }} {{ s.last_name }} ({{ s.staff_id }}) - {{ s.school.get_display_name() }}</option>
                                 {% endfor %}
                             </select>
                         </div>
