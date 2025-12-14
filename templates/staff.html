@@ -1,1 +1,72 @@
+{% extends 'base.html' %}
+
+{% block title %}Staff - Attendance System{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <h2>Staff List</h2>
+    {% if current_user.role in ['super_admin', 'school_admin'] %}
+    <div>
+        <a href="{{ url_for('bulk_upload') }}" class="btn btn-success me-2">
+            <i class="fas fa-upload me-2"></i>Bulk Upload
+        </a>
+        <a href="{{ url_for('add_staff') }}" class="btn btn-primary">
+            <i class="fas fa-plus me-2"></i>Add Staff
+        </a>
+    </div>
+    {% endif %}
+</div>
+
+<div class="card">
+    <div class="card-body">
+        <div class="table-responsive">
+            <table class="table table-hover">
+                <thead>
+                    <tr>
+                        <th>Staff ID</th>
+                        <th>Name</th>
+                        <th>School</th>
+                        <th>Department</th>
+                        <th>Status</th>
+                        <th>Active</th>
+                        <th>Actions</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for item in staff_with_status %}
+                    <tr>
+                        <td>{{ item.staff.staff_id }}</td>
+                        <td>{{ item.staff.name }}</td>
+                        <td>{{ item.staff.school.short_name or item.staff.school.name }}</td>
+                        <td>{{ item.staff.department }}</td>
+                        <td>
+                            <span class="badge bg-{{ item.status_color }}">{{ item.status }}</span>
+                        </td>
+                        <td>
+                            {% if item.staff.is_active %}
+                            <span class="badge bg-success">Active</span>
+                            {% else %}
+                            <span class="badge bg-danger">Inactive</span>
+                            {% endif %}
+                        </td>
+                        <td>
+                            {% if current_user.role in ['super_admin', 'school_admin'] %}
+                            <a href="{{ url_for('toggle_staff', id=item.staff.id) }}" class="btn btn-sm btn-warning" title="{{ 'Deactivate' if item.staff.is_active else 'Activate' }}">
+                                <i class="fas fa-{{ 'toggle-on' if item.staff.is_active else 'toggle-off' }}"></i>
+                            </a>
+                            {% endif %}
+                            {% if current_user.role == 'super_admin' %}
+                            <a href="{{ url_for('delete_staff', id=item.staff.id) }}" class="btn btn-sm btn-danger" onclick="return confirm('Delete this staff member?')">
+                                <i class="fas fa-trash"></i>
+                            </a>
+                            {% endif %}
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+{% endblock %}
 
