@@ -49,58 +49,86 @@ class Attendance(db.Model):
 def load_user(user_id):
     return User.query.get(int(user_id))
 
+LOGO_URL = "https://i.imgur.com/your_logo_id.png"
+
 BASE_HTML = '''
 <!DOCTYPE html>
 <html>
 <head>
-    <title>{{ title }}</title>
+    <title>{{ title }} | Staff Attendance</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
     <style>
         * { margin: 0; padding: 0; box-sizing: border-box; }
-        body { font-family: Arial, sans-serif; background: #1a1a2e; color: #eee; }
-        .navbar { background: #16213e; padding: 1rem 2rem; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; }
-        .navbar h1 { color: #e94560; }
-        .navbar a { color: #aaa; text-decoration: none; margin-left: 1rem; }
-        .navbar a:hover { color: #e94560; }
+        body { font-family: 'Inter', Arial, sans-serif; background: #f5f5f5; color: #333; }
+        .navbar { background: #ffffff; padding: 0.75rem 2rem; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; box-shadow: 0 2px 10px rgba(0,0,0,0.08); border-bottom: 3px solid #c41e3a; }
+        .navbar .logo-section { display: flex; align-items: center; gap: 12px; }
+        .navbar .logo-section img { height: 45px; }
+        .navbar .logo-section h1 { color: #c41e3a; font-size: 1.3rem; font-weight: 700; }
+        .navbar nav { display: flex; align-items: center; gap: 0.5rem; }
+        .navbar a { color: #555; text-decoration: none; padding: 0.5rem 1rem; border-radius: 6px; font-weight: 500; transition: all 0.2s; }
+        .navbar a:hover { color: #c41e3a; background: #fff5f5; }
+        .navbar a.active { color: #c41e3a; background: #fff0f0; }
         .container { max-width: 1200px; margin: 0 auto; padding: 2rem; }
-        .card { background: #16213e; border-radius: 10px; padding: 1.5rem; margin-bottom: 1.5rem; }
-        .card h2 { color: #e94560; margin-bottom: 1rem; }
-        .btn { padding: 0.5rem 1rem; border: none; border-radius: 5px; cursor: pointer; text-decoration: none; display: inline-block; margin: 0.2rem; }
-        .btn-primary { background: #e94560; color: white; }
-        .btn-success { background: #2ecc71; color: white; }
-        .btn-danger { background: #e74c3c; color: white; }
-        .btn-secondary { background: #0f3460; color: white; }
-        input, select { padding: 0.5rem; border: 1px solid #0f3460; border-radius: 5px; background: #1a1a2e; color: white; margin: 0.2rem 0; }
+        .page-header { margin-bottom: 1.5rem; }
+        .page-header h2 { color: #333; font-size: 1.75rem; font-weight: 700; }
+        .card { background: #ffffff; border-radius: 12px; padding: 1.5rem; margin-bottom: 1.5rem; box-shadow: 0 2px 12px rgba(0,0,0,0.06); border: 1px solid #eee; }
+        .card h2 { color: #c41e3a; margin-bottom: 1rem; font-size: 1.1rem; font-weight: 600; }
+        .btn { padding: 0.6rem 1.2rem; border: none; border-radius: 8px; cursor: pointer; text-decoration: none; display: inline-block; margin: 0.2rem; font-weight: 500; font-size: 0.9rem; transition: all 0.2s; }
+        .btn-primary { background: #c41e3a; color: white; }
+        .btn-primary:hover { background: #a01830; }
+        .btn-success { background: #28a745; color: white; }
+        .btn-success:hover { background: #218838; }
+        .btn-danger { background: #dc3545; color: white; }
+        .btn-danger:hover { background: #c82333; }
+        .btn-secondary { background: #6c757d; color: white; }
+        .btn-secondary:hover { background: #5a6268; }
+        input, select { padding: 0.6rem 0.8rem; border: 1px solid #ddd; border-radius: 8px; background: #fff; color: #333; margin: 0.2rem 0; font-size: 0.95rem; transition: border-color 0.2s; }
+        input:focus, select:focus { outline: none; border-color: #c41e3a; box-shadow: 0 0 0 3px rgba(196,30,58,0.1); }
         table { width: 100%; border-collapse: collapse; }
-        th, td { padding: 0.75rem; text-align: left; border-bottom: 1px solid #0f3460; }
-        th { color: #e94560; }
-        .flash { padding: 1rem; border-radius: 5px; margin-bottom: 1rem; }
-        .flash.error { background: #e74c3c33; border: 1px solid #e74c3c; }
-        .flash.success { background: #2ecc7133; border: 1px solid #2ecc71; }
-        .stats-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); gap: 1rem; }
-        .stat-card { background: #0f3460; border-radius: 10px; padding: 1.5rem; text-align: center; }
-        .stat-card h3 { color: #aaa; font-size: 0.9rem; }
-        .stat-card .number { font-size: 2.5rem; color: #e94560; font-weight: bold; }
-        .form-group { margin-bottom: 1rem; }
-        .form-group label { display: block; margin-bottom: 0.5rem; color: #aaa; }
-        .badge { padding: 0.2rem 0.5rem; border-radius: 3px; font-size: 0.8rem; color: white; }
-        .badge-success { background: #2ecc71; }
-        .badge-danger { background: #e74c3c; }
+        th, td { padding: 1rem; text-align: left; border-bottom: 1px solid #eee; }
+        th { color: #666; font-weight: 600; font-size: 0.85rem; text-transform: uppercase; letter-spacing: 0.5px; background: #fafafa; }
+        tr:hover { background: #fafafa; }
+        .flash { padding: 1rem 1.25rem; border-radius: 8px; margin-bottom: 1rem; font-weight: 500; }
+        .flash.error { background: #fff5f5; border: 1px solid #ffcdd2; color: #c41e3a; }
+        .flash.success { background: #f0fff4; border: 1px solid #c6f6d5; color: #28a745; }
+        .stats-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); gap: 1.25rem; }
+        .stat-card { background: #ffffff; border-radius: 12px; padding: 1.5rem; text-align: center; box-shadow: 0 2px 12px rgba(0,0,0,0.06); border: 1px solid #eee; transition: transform 0.2s, box-shadow 0.2s; }
+        .stat-card:hover { transform: translateY(-2px); box-shadow: 0 4px 20px rgba(0,0,0,0.1); }
+        .stat-card h3 { color: #666; font-size: 0.9rem; font-weight: 600; margin-bottom: 0.5rem; }
+        .stat-card .number { font-size: 2.75rem; color: #c41e3a; font-weight: 700; }
+        .stat-card .label { color: #888; font-size: 0.85rem; margin-top: 0.25rem; }
+        .form-group { margin-bottom: 1.25rem; }
+        .form-group label { display: block; margin-bottom: 0.5rem; color: #555; font-weight: 500; font-size: 0.9rem; }
+        .badge { padding: 0.35rem 0.75rem; border-radius: 50px; font-size: 0.8rem; color: white; font-weight: 500; }
+        .badge-success { background: #28a745; }
+        .badge-danger { background: #dc3545; }
+        .badge-in { background: #28a745; }
+        .badge-out { background: #6c757d; }
+        code { background: #f5f5f5; padding: 0.25rem 0.5rem; border-radius: 4px; font-size: 0.85rem; color: #666; }
+        hr { border: none; border-top: 1px solid #eee; margin: 1.5rem 0; }
+        .filter-bar { display: flex; gap: 1rem; flex-wrap: wrap; align-items: center; padding: 1rem; background: #fafafa; border-radius: 8px; margin-bottom: 1rem; }
+        .empty-state { text-align: center; padding: 3rem; color: #888; }
+        .empty-state p { font-size: 1rem; }
     </style>
 </head>
 <body>
     {% if current_user.is_authenticated %}
     <div class="navbar">
-        <h1>Attendance System</h1>
+        <div class="logo-section">
+            <img src="https://i.imgur.com/7wj25QM.png" alt="Logo">
+            <h1>Staff Attendance</h1>
+        </div>
         <nav>
-            <a href="{{ url_for('dashboard') }}">Dashboard</a>
-            <a href="{{ url_for('today') }}">Today</a>
-            <a href="{{ url_for('attendance') }}">Reports</a>
-            <a href="{{ url_for('staff') }}">Staff</a>
+            <a href="{{ url_for('dashboard') }}" class="{{ 'active' if request.endpoint == 'dashboard' else '' }}">Dashboard</a>
+            <a href="{{ url_for('today') }}" class="{{ 'active' if request.endpoint == 'today' else '' }}">Today</a>
+            <a href="{{ url_for('attendance') }}" class="{{ 'active' if request.endpoint == 'attendance' else '' }}">Reports</a>
+            <a href="{{ url_for('staff') }}" class="{{ 'active' if request.endpoint in ['staff', 'add_staff'] else '' }}">Staff</a>
             {% if current_user.role == 'superadmin' %}
-            <a href="{{ url_for('schools') }}">Schools</a>
-            <a href="{{ url_for('admins') }}">Admins</a>
+            <a href="{{ url_for('schools') }}" class="{{ 'active' if request.endpoint in ['schools', 'add_school', 'edit_school'] else '' }}">Schools</a>
+            <a href="{{ url_for('admins') }}" class="{{ 'active' if request.endpoint == 'admins' else '' }}">Admins</a>
             {% endif %}
-            <a href="{{ url_for('settings') }}">Settings</a>
+            <a href="{{ url_for('settings') }}" class="{{ 'active' if request.endpoint == 'settings' else '' }}">Settings</a>
             <a href="{{ url_for('logout') }}">Logout</a>
         </nav>
     </div>
@@ -152,44 +180,53 @@ def login():
     <!DOCTYPE html>
     <html>
     <head>
-        <title>Login</title>
+        <title>Login | Staff Attendance</title>
+        <link rel="preconnect" href="https://fonts.googleapis.com">
+        <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
         <style>
             * { margin: 0; padding: 0; box-sizing: border-box; }
-            body { font-family: Arial, sans-serif; background: #1a1a2e; color: #eee; }
-            .container { max-width: 1200px; margin: 0 auto; padding: 2rem; }
-            .card { background: #16213e; border-radius: 10px; padding: 1.5rem; margin-bottom: 1.5rem; }
-            .card h2 { color: #e94560; margin-bottom: 1rem; }
-            .btn { padding: 0.5rem 1rem; border: none; border-radius: 5px; cursor: pointer; }
-            .btn-primary { background: #e94560; color: white; }
-            input { padding: 0.5rem; border: 1px solid #0f3460; border-radius: 5px; background: #1a1a2e; color: white; }
-            .form-group { margin-bottom: 1rem; }
-            .form-group label { display: block; margin-bottom: 0.5rem; color: #aaa; }
-            .flash { padding: 1rem; border-radius: 5px; margin-bottom: 1rem; }
-            .flash.error { background: #e74c3c33; border: 1px solid #e74c3c; }
+            body { font-family: 'Inter', Arial, sans-serif; background: linear-gradient(135deg, #f5f5f5 0%, #e0e0e0 100%); color: #333; min-height: 100vh; display: flex; align-items: center; justify-content: center; }
+            .login-container { width: 100%; max-width: 420px; padding: 2rem; }
+            .card { background: #ffffff; border-radius: 16px; padding: 2.5rem; box-shadow: 0 10px 40px rgba(0,0,0,0.1); border-top: 4px solid #c41e3a; }
+            .logo-section { text-align: center; margin-bottom: 2rem; }
+            .logo-section img { height: 70px; margin-bottom: 1rem; }
+            .logo-section h2 { color: #333; font-size: 1.5rem; font-weight: 700; }
+            .logo-section p { color: #888; font-size: 0.9rem; margin-top: 0.5rem; }
+            .btn { width: 100%; padding: 0.85rem; border: none; border-radius: 8px; cursor: pointer; font-weight: 600; font-size: 1rem; transition: all 0.2s; }
+            .btn-primary { background: #c41e3a; color: white; }
+            .btn-primary:hover { background: #a01830; }
+            input { width: 100%; padding: 0.85rem; border: 1px solid #ddd; border-radius: 8px; background: #fff; color: #333; font-size: 1rem; transition: border-color 0.2s; }
+            input:focus { outline: none; border-color: #c41e3a; box-shadow: 0 0 0 3px rgba(196,30,58,0.1); }
+            .form-group { margin-bottom: 1.25rem; }
+            .form-group label { display: block; margin-bottom: 0.5rem; color: #555; font-weight: 500; }
+            .flash { padding: 1rem; border-radius: 8px; margin-bottom: 1rem; font-weight: 500; }
+            .flash.error { background: #fff5f5; border: 1px solid #ffcdd2; color: #c41e3a; }
         </style>
     </head>
     <body>
-        <div class="container">
-            {% with messages = get_flashed_messages(with_categories=true) %}
-            {% for category, message in messages %}
-            <div class="flash {{ category }}">{{ message }}</div>
-            {% endfor %}
-            {% endwith %}
-            <div style="max-width: 400px; margin: 4rem auto;">
-                <div class="card">
-                    <h2 style="text-align: center;">Staff Attendance System</h2>
-                    <form method="POST" style="margin-top: 1rem;">
-                        <div class="form-group">
-                            <label>Username</label>
-                            <input type="text" name="username" required style="width: 100%;">
-                        </div>
-                        <div class="form-group">
-                            <label>Password</label>
-                            <input type="password" name="password" required style="width: 100%;">
-                        </div>
-                        <button type="submit" class="btn btn-primary" style="width: 100%;">Login</button>
-                    </form>
+        <div class="login-container">
+            <div class="card">
+                <div class="logo-section">
+                    <img src="https://i.imgur.com/7wj25QM.png" alt="Logo">
+                    <h2>Staff Attendance</h2>
+                    <p>Sign in to continue</p>
                 </div>
+                {% with messages = get_flashed_messages(with_categories=true) %}
+                {% for category, message in messages %}
+                <div class="flash {{ category }}">{{ message }}</div>
+                {% endfor %}
+                {% endwith %}
+                <form method="POST">
+                    <div class="form-group">
+                        <label>Username</label>
+                        <input type="text" name="username" required placeholder="Enter your username">
+                    </div>
+                    <div class="form-group">
+                        <label>Password</label>
+                        <input type="password" name="password" required placeholder="Enter your password">
+                    </div>
+                    <button type="submit" class="btn btn-primary">Sign In</button>
+                </form>
             </div>
         </div>
     </body>
@@ -219,12 +256,14 @@ def dashboard():
         <div class="stat-card">
             <h3>{school.name}</h3>
             <div class="number">{signed_in_today}</div>
-            <div>Signed In Today</div>
-            <div style="margin-top: 0.5rem; font-size: 0.9rem; color: #888;">{total_staff} total staff</div>
+            <div class="label">Signed In Today</div>
+            <div style="margin-top: 0.75rem; font-size: 0.85rem; color: #888;">{total_staff} total staff</div>
         </div>
         '''
     content = f'''
-    <h2 style="margin-bottom: 1.5rem;">Dashboard</h2>
+    <div class="page-header">
+        <h2>Dashboard</h2>
+    </div>
     <div class="stats-grid">{stats_html}</div>
     '''
     return render('Dashboard', content)
@@ -239,10 +278,10 @@ def schools():
     for school in schools:
         rows += f'''
         <tr>
-            <td>{school.name}</td>
-            <td>{school.code}</td>
+            <td><strong>{school.name}</strong></td>
+            <td><code>{school.code}</code></td>
             <td><code>{school.api_key[:20]}...</code></td>
-            <td>{school.last_sync.strftime('%Y-%m-%d %H:%M') if school.last_sync else 'Never'}</td>
+            <td>{school.last_sync.strftime('%Y-%m-%d %H:%M') if school.last_sync else '<span style="color:#888;">Never</span>'}</td>
             <td>
                 <a href="{url_for('edit_school', school_id=school.id)}" class="btn btn-secondary">Edit</a>
                 <form method="POST" action="{url_for('delete_school', school_id=school.id)}" style="display:inline;" onsubmit="return confirm('Are you sure you want to delete this school? All staff and attendance data will be lost.');">
@@ -252,8 +291,10 @@ def schools():
         </tr>
         '''
     content = f'''
-    <h2 style="margin-bottom: 1.5rem;">Schools</h2>
-    <a href="{url_for('add_school')}" class="btn btn-success" style="margin-bottom: 1rem;">+ Add School</a>
+    <div class="page-header" style="display: flex; justify-content: space-between; align-items: center;">
+        <h2>Schools</h2>
+        <a href="{url_for('add_school')}" class="btn btn-success">+ Add School</a>
+    </div>
     <div class="card">
         <table>
             <thead>
@@ -282,7 +323,9 @@ def add_school():
             flash('School added successfully', 'success')
             return redirect(url_for('schools'))
     content = f'''
-    <h2 style="margin-bottom: 1.5rem;">Add School</h2>
+    <div class="page-header">
+        <h2>Add School</h2>
+    </div>
     <div class="card" style="max-width: 500px;">
         <form method="POST">
             <div class="form-group">
@@ -312,7 +355,9 @@ def edit_school(school_id):
         flash('School updated', 'success')
         return redirect(url_for('schools'))
     content = f'''
-    <h2 style="margin-bottom: 1.5rem;">Edit School</h2>
+    <div class="page-header">
+        <h2>Edit School</h2>
+    </div>
     <div class="card" style="max-width: 500px;">
         <form method="POST">
             <div class="form-group">
@@ -321,16 +366,16 @@ def edit_school(school_id):
             </div>
             <div class="form-group">
                 <label>School Code</label>
-                <input type="text" value="{school.code}" readonly style="width: 100%;">
+                <input type="text" value="{school.code}" readonly style="width: 100%; background: #f5f5f5;">
             </div>
             <div class="form-group">
                 <label>API Key (for kiosk setup)</label>
-                <input type="text" value="{school.api_key}" readonly style="width: 100%;" onclick="this.select();">
+                <input type="text" value="{school.api_key}" readonly style="width: 100%; background: #f5f5f5;" onclick="this.select();">
             </div>
-            <button type="submit" class="btn btn-primary">Save</button>
+            <button type="submit" class="btn btn-primary">Save Changes</button>
             <a href="{url_for('schools')}" class="btn btn-secondary">Cancel</a>
         </form>
-        <hr style="margin: 1.5rem 0; border-color: #0f3460;">
+        <hr>
         <form method="POST" action="{url_for('regenerate_api_key', school_id=school.id)}" onsubmit="return confirm('Are you sure? The kiosk will need to be reconfigured with the new key.');">
             <button type="submit" class="btn btn-danger">Regenerate API Key</button>
         </form>
@@ -374,9 +419,9 @@ def staff():
         status = '<span class="badge badge-success">Active</span>' if s.active else '<span class="badge badge-danger">Inactive</span>'
         rows += f'''
         <tr>
-            <td>{s.staff_id}</td>
+            <td><strong>{s.staff_id}</strong></td>
             <td>{s.name}</td>
-            <td>{s.department or '-'}</td>
+            <td>{s.department or '<span style="color:#888;">-</span>'}</td>
             <td>{school.name if school else '-'}</td>
             <td>{status}</td>
             <td>
@@ -389,15 +434,18 @@ def staff():
             </td>
         </tr>
         '''
+    empty_state = '<tr><td colspan="6" class="empty-state"><p>No staff members yet. Click "Add Staff" to get started.</p></td></tr>'
     content = f'''
-    <h2 style="margin-bottom: 1.5rem;">Staff</h2>
-    <a href="{url_for('add_staff')}" class="btn btn-success" style="margin-bottom: 1rem;">+ Add Staff</a>
+    <div class="page-header" style="display: flex; justify-content: space-between; align-items: center;">
+        <h2>Staff</h2>
+        <a href="{url_for('add_staff')}" class="btn btn-success">+ Add Staff</a>
+    </div>
     <div class="card">
         <table>
             <thead>
                 <tr><th>Staff ID</th><th>Name</th><th>Department</th><th>School</th><th>Status</th><th>Actions</th></tr>
             </thead>
-            <tbody>{rows}</tbody>
+            <tbody>{rows if rows else empty_state}</tbody>
         </table>
     </div>
     '''
@@ -415,7 +463,9 @@ def add_staff():
         return redirect(url_for('staff'))
     options = ''.join([f'<option value="{s.id}">{s.name}</option>' for s in schools])
     content = f'''
-    <h2 style="margin-bottom: 1.5rem;">Add Staff</h2>
+    <div class="page-header">
+        <h2>Add Staff</h2>
+    </div>
     <div class="card" style="max-width: 500px;">
         <form method="POST">
             <div class="form-group">
@@ -424,17 +474,17 @@ def add_staff():
             </div>
             <div class="form-group">
                 <label>Staff ID</label>
-                <input type="text" name="staff_id" required style="width: 100%;">
+                <input type="text" name="staff_id" required style="width: 100%;" placeholder="e.g. EMP001">
             </div>
             <div class="form-group">
-                <label>Name</label>
-                <input type="text" name="name" required style="width: 100%;">
+                <label>Full Name</label>
+                <input type="text" name="name" required style="width: 100%;" placeholder="e.g. John Smith">
             </div>
             <div class="form-group">
-                <label>Department</label>
-                <input type="text" name="department" style="width: 100%;">
+                <label>Department (optional)</label>
+                <input type="text" name="department" style="width: 100%;" placeholder="e.g. Administration">
             </div>
-            <button type="submit" class="btn btn-success">Add</button>
+            <button type="submit" class="btn btn-success">Add Staff</button>
             <a href="{url_for('staff')}" class="btn btn-secondary">Cancel</a>
         </form>
     </div>
@@ -480,30 +530,33 @@ def attendance():
     for r in records:
         staff = Staff.query.filter_by(staff_id=r.staff_id, school_id=r.school_id).first()
         school = School.query.get(r.school_id)
-        action_badge = '<span class="badge badge-success">IN</span>' if r.action == 'IN' else '<span class="badge badge-danger">OUT</span>'
+        action_badge = '<span class="badge badge-in">IN</span>' if r.action == 'IN' else '<span class="badge badge-out">OUT</span>'
         rows += f'''
         <tr>
             <td>{r.timestamp.strftime('%Y-%m-%d')}</td>
             <td>{r.timestamp.strftime('%H:%M:%S')}</td>
-            <td>{r.staff_id}</td>
-            <td>{staff.name if staff else 'Unknown'}</td>
+            <td><strong>{r.staff_id}</strong></td>
+            <td>{staff.name if staff else '<span style="color:#888;">Unknown</span>'}</td>
             <td>{school.name if school else '-'}</td>
             <td>{action_badge}</td>
         </tr>
         '''
     
     school_options = ''.join([f'<option value="{s.id}" {"selected" if school_id == s.id else ""}>{s.name}</option>' for s in schools])
+    empty_state = '<tr><td colspan="6" class="empty-state"><p>No attendance records found for the selected period.</p></td></tr>'
     
     content = f'''
-    <h2 style="margin-bottom: 1.5rem;">Attendance Reports</h2>
+    <div class="page-header">
+        <h2>Attendance Reports</h2>
+    </div>
     <div class="card">
-        <form method="GET" style="display: flex; gap: 1rem; flex-wrap: wrap; align-items: center;">
-            <select name="school_id" style="padding: 0.5rem;">
+        <form method="GET" class="filter-bar">
+            <select name="school_id" style="padding: 0.6rem;">
                 <option value="">All Schools</option>
                 {school_options}
             </select>
             <input type="date" name="date_from" value="{date_from}">
-            <span>to</span>
+            <span style="color: #888;">to</span>
             <input type="date" name="date_to" value="{date_to}">
             <button type="submit" class="btn btn-primary">Filter</button>
         </form>
@@ -513,11 +566,11 @@ def attendance():
             <thead>
                 <tr><th>Date</th><th>Time</th><th>Staff ID</th><th>Name</th><th>School</th><th>Action</th></tr>
             </thead>
-            <tbody>{rows if rows else '<tr><td colspan="6" style="text-align: center;">No records found</td></tr>'}</tbody>
+            <tbody>{rows if rows else empty_state}</tbody>
         </table>
     </div>
     '''
-    return render('Attendance', content)
+    return render('Attendance Reports', content)
 
 @app.route('/today')
 @login_required
@@ -535,25 +588,30 @@ def today():
     for r in records:
         staff = Staff.query.filter_by(staff_id=r.staff_id, school_id=r.school_id).first()
         school = School.query.get(r.school_id)
-        action_badge = '<span class="badge badge-success">IN</span>' if r.action == 'IN' else '<span class="badge badge-danger">OUT</span>'
+        action_badge = '<span class="badge badge-in">IN</span>' if r.action == 'IN' else '<span class="badge badge-out">OUT</span>'
         rows += f'''
         <tr>
             <td>{r.timestamp.strftime('%H:%M:%S')}</td>
-            <td>{r.staff_id}</td>
-            <td>{staff.name if staff else 'Unknown'}</td>
+            <td><strong>{r.staff_id}</strong></td>
+            <td>{staff.name if staff else '<span style="color:#888;">Unknown</span>'}</td>
             <td>{school.name if school else '-'}</td>
             <td>{action_badge}</td>
         </tr>
         '''
     
+    empty_state = '<tr><td colspan="5" class="empty-state"><p>No activity recorded today yet.</p></td></tr>'
+    
     content = f'''
-    <h2 style="margin-bottom: 1.5rem;">Today's Activity - {today_date.strftime('%A, %d %B %Y')}</h2>
+    <div class="page-header">
+        <h2>Today's Activity</h2>
+        <p style="color: #888; margin-top: 0.5rem;">{today_date.strftime('%A, %d %B %Y')}</p>
+    </div>
     <div class="card">
         <table>
             <thead>
                 <tr><th>Time</th><th>Staff ID</th><th>Name</th><th>School</th><th>Action</th></tr>
             </thead>
-            <tbody>{rows if rows else '<tr><td colspan="5" style="text-align: center;">No activity today</td></tr>'}</tbody>
+            <tbody>{rows if rows else empty_state}</tbody>
         </table>
     </div>
     '''
@@ -571,38 +629,42 @@ def admins():
         school = School.query.get(admin.school_id) if admin.school_id else None
         rows += f'''
         <tr>
-            <td>{admin.username}</td>
-            <td>{admin.role}</td>
-            <td>{school.name if school else 'All Schools'}</td>
+            <td><strong>{admin.username}</strong></td>
+            <td><span class="badge {'badge-success' if admin.role == 'superadmin' else 'badge-secondary'}" style="background: {'#c41e3a' if admin.role == 'superadmin' else '#6c757d'};">{admin.role}</span></td>
+            <td>{school.name if school else '<span style="color:#888;">All Schools</span>'}</td>
             <td>
-                {'<form method="POST" action="' + url_for('delete_admin', id=admin.id) + '" style="display:inline;" onsubmit="return confirm(\'Delete this admin?\');"><button type="submit" class="btn btn-danger">Delete</button></form>' if admin.id != current_user.id else ''}
+                {'<form method="POST" action="' + url_for('delete_admin', id=admin.id) + '" style="display:inline;" onsubmit="return confirm(\'Delete this admin?\');"><button type="submit" class="btn btn-danger">Delete</button></form>' if admin.id != current_user.id else '<span style="color:#888;">Current User</span>'}
             </td>
         </tr>
         '''
     options = ''.join([f'<option value="{s.id}">{s.name}</option>' for s in schools])
     content = f'''
-    <h2 style="margin-bottom: 1.5rem;">Admin Users</h2>
+    <div class="page-header">
+        <h2>Admin Users</h2>
+    </div>
     <div class="card">
         <h2>Add New Admin</h2>
         <form method="POST" action="{url_for('add_admin')}">
-            <div class="form-group">
-                <label>Username</label>
-                <input type="text" name="username" required>
-            </div>
-            <div class="form-group">
-                <label>Password</label>
-                <input type="password" name="password" required>
-            </div>
-            <div class="form-group">
-                <label>Role</label>
-                <select name="role">
-                    <option value="superadmin">Super Admin</option>
-                    <option value="schooladmin">School Admin</option>
-                </select>
-            </div>
-            <div class="form-group">
-                <label>School (for School Admin)</label>
-                <select name="school_id">{options}</select>
+            <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 1rem;">
+                <div class="form-group">
+                    <label>Username</label>
+                    <input type="text" name="username" required style="width: 100%;">
+                </div>
+                <div class="form-group">
+                    <label>Password</label>
+                    <input type="password" name="password" required style="width: 100%;">
+                </div>
+                <div class="form-group">
+                    <label>Role</label>
+                    <select name="role" style="width: 100%;">
+                        <option value="superadmin">Super Admin</option>
+                        <option value="schooladmin">School Admin</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label>School (for School Admin)</label>
+                    <select name="school_id" style="width: 100%;">{options}</select>
+                </div>
             </div>
             <button type="submit" class="btn btn-success">Add Admin</button>
         </form>
@@ -647,13 +709,15 @@ def settings():
             if request.form.get('new_password') == request.form.get('confirm_password'):
                 current_user.password_hash = generate_password_hash(request.form.get('new_password'))
                 db.session.commit()
-                flash('Password changed', 'success')
+                flash('Password changed successfully', 'success')
             else:
                 flash('Passwords do not match', 'error')
         else:
-            flash('Current password incorrect', 'error')
+            flash('Current password is incorrect', 'error')
     content = f'''
-    <h2 style="margin-bottom: 1.5rem;">Settings</h2>
+    <div class="page-header">
+        <h2>Settings</h2>
+    </div>
     <div class="card" style="max-width: 500px;">
         <h2>Change Password</h2>
         <form method="POST">
@@ -666,7 +730,7 @@ def settings():
                 <input type="password" name="new_password" required style="width: 100%;">
             </div>
             <div class="form-group">
-                <label>Confirm Password</label>
+                <label>Confirm New Password</label>
                 <input type="password" name="confirm_password" required style="width: 100%;">
             </div>
             <button type="submit" class="btn btn-primary">Change Password</button>
