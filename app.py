@@ -105,6 +105,13 @@ class Attendance(db.Model):
 def load_user(user_id):
     return User.query.get(int(user_id))
 
+# CORS helper
+def add_cors_headers(response):
+    response.headers['Access-Control-Allow-Origin'] = '*'
+    response.headers['Access-Control-Allow-Methods'] = 'GET, POST, OPTIONS'
+    response.headers['Access-Control-Allow-Headers'] = 'Content-Type, X-API-Key'
+    return response
+
 def get_styles():
     return '''
         <style>
@@ -2325,22 +2332,34 @@ def settings():
         </html>
     ''')
 
-# API Endpoint for Kiosk
-@app.route('/api/sync', methods=['POST'])
+# API Endpoint for Kiosk (with CORS support)
+@app.route('/api/sync', methods=['POST', 'OPTIONS'])
 def api_sync():
+    # Handle CORS preflight request
+    if request.method == 'OPTIONS':
+        response = make_response()
+        response = add_cors_headers(response)
+        return response
+    
     api_key = request.headers.get('X-API-Key')
     
     if not api_key:
-        return jsonify({'error': 'API key required'}), 401
+        response = jsonify({'error': 'API key required'})
+        response = add_cors_headers(response)
+        return response, 401
     
     school = School.query.filter_by(api_key=api_key).first()
     if not school:
-        return jsonify({'error': 'Invalid API key'}), 401
+        response = jsonify({'error': 'Invalid API key'})
+        response = add_cors_headers(response)
+        return response, 401
     
     data = request.get_json()
     
     if not data:
-        return jsonify({'error': 'No data provided'}), 400
+        response = jsonify({'error': 'No data provided'})
+        response = add_cors_headers(response)
+        return response, 400
     
     records = data.get('records', [])
     synced = 0
@@ -2397,15 +2416,18 @@ def api_sync():
     
     schedule = school.get_schedule()
     
-    return jsonify({
+    response = jsonify({
         'success': True,
         'synced': synced,
         'staff': staff_list,
         'school': {
             'name': school.name,
+            'short_name': school.short_name,
             'schedule': schedule
         }
     })
+    response = add_cors_headers(response)
+    return response
 
 # Initialize database
 with app.app_context():
@@ -2421,6 +2443,5 @@ with app.app_context():
         db.session.commit()
 
 if __name__ == '__main__':
-    import os
     port = int(os.environ.get('PORT', 5000))
     app.run(host='0.0.0.0', port=port, debug=False)
