@@ -1,5 +1,5 @@
 import os
-from flask import Flask, request, redirect, url_for, flash, jsonify, Response, make_response
+from flask import Flask, render_template, request, redirect, url_for, flash, jsonify, Response
 from flask_sqlalchemy import SQLAlchemy
 from flask_login import LoginManager, UserMixin, login_user, login_required, logout_user, current_user
 from werkzeug.security import generate_password_hash, check_password_hash
@@ -110,89 +110,6 @@ def get_school_schedule(school, day_of_week):
         return start, end
     return None, None
 
-def get_flashed_messages_html():
-    messages = []
-    for category, message in [(m.split('|')[0] if '|' in m else 'info', m.split('|')[1] if '|' in m else m) for m in []]:
-        messages.append(f'<div class="alert alert-{category}">{message}</div>')
-    return ''.join(messages)
-
-def base_template(title, content, show_nav=True):
-    nav_html = ''
-    if show_nav and current_user.is_authenticated:
-        nav_items = f'''
-        <a href="{url_for('dashboard')}">Dashboard</a>
-        '''
-        if current_user.role == 'super_admin':
-            nav_items += f'''
-            <a href="{url_for('schools')}">Schools</a>
-            <a href="{url_for('users')}">Users</a>
-            '''
-        if current_user.role in ['super_admin', 'school_admin', 'hr_viewer', 'ceo_viewer']:
-            nav_items += f'''
-            <a href="{url_for('staff_list')}">Staff</a>
-            '''
-        nav_items += f'''
-        <a href="{url_for('attendance_report')}">Attendance</a>
-        <a href="{url_for('late_report')}">Late Report</a>
-        <a href="{url_for('absent_report')}">Absent Report</a>
-        <a href="{url_for('overtime_report')}">Overtime</a>
-        <a href="{url_for('logout')}" style="margin-left:auto;">Logout ({current_user.username})</a>
-        '''
-        nav_html = f'<nav style="background:#333;padding:10px;display:flex;gap:15px;flex-wrap:wrap;">{nav_items}</nav>'
-    
-    return f'''<!DOCTYPE html>
-<html>
-<head>
-    <title>{title} - Attendance System</title>
-    <meta name="viewport" content="width=device-width, initial-scale=1">
-    <style>
-        * {{ box-sizing: border-box; margin: 0; padding: 0; }}
-        body {{ font-family: Arial, sans-serif; background: #f5f5f5; min-height: 100vh; }}
-        nav a {{ color: white; text-decoration: none; padding: 5px 10px; }}
-        nav a:hover {{ background: #555; border-radius: 4px; }}
-        .container {{ max-width: 1200px; margin: 0 auto; padding: 20px; }}
-        .card {{ background: white; border-radius: 8px; padding: 20px; margin-bottom: 20px; box-shadow: 0 2px 4px rgba(0,0,0,0.1); }}
-        .btn {{ display: inline-block; padding: 10px 20px; border: none; border-radius: 4px; cursor: pointer; text-decoration: none; font-size: 14px; }}
-        .btn-primary {{ background: #007bff; color: white; }}
-        .btn-success {{ background: #28a745; color: white; }}
-        .btn-danger {{ background: #dc3545; color: white; }}
-        .btn-warning {{ background: #ffc107; color: black; }}
-        .btn-secondary {{ background: #6c757d; color: white; }}
-        .btn:hover {{ opacity: 0.9; }}
-        table {{ width: 100%; border-collapse: collapse; margin-top: 10px; }}
-        th, td {{ padding: 12px; text-align: left; border-bottom: 1px solid #ddd; }}
-        th {{ background: #f8f9fa; }}
-        tr:hover {{ background: #f5f5f5; }}
-        input, select {{ width: 100%; padding: 10px; margin: 5px 0 15px 0; border: 1px solid #ddd; border-radius: 4px; }}
-        label {{ font-weight: bold; }}
-        .alert {{ padding: 15px; margin-bottom: 20px; border-radius: 4px; }}
-        .alert-success {{ background: #d4edda; color: #155724; }}
-        .alert-danger {{ background: #f8d7da; color: #721c24; }}
-        .alert-info {{ background: #d1ecf1; color: #0c5460; }}
-        .badge {{ display: inline-block; padding: 4px 8px; border-radius: 4px; font-size: 12px; }}
-        .badge-success {{ background: #28a745; color: white; }}
-        .badge-danger {{ background: #dc3545; color: white; }}
-        .badge-primary {{ background: #007bff; color: white; }}
-        .badge-secondary {{ background: #6c757d; color: white; }}
-        .stats-grid {{ display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 20px; margin-bottom: 20px; }}
-        .stat-card {{ background: white; padding: 20px; border-radius: 8px; text-align: center; box-shadow: 0 2px 4px rgba(0,0,0,0.1); }}
-        .stat-card h3 {{ font-size: 2em; color: #007bff; }}
-        .form-row {{ display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 15px; }}
-        @media (max-width: 768px) {{
-            .container {{ padding: 10px; }}
-            table {{ font-size: 14px; }}
-            th, td {{ padding: 8px; }}
-        }}
-    </style>
-</head>
-<body>
-    {nav_html}
-    <div class="container">
-        {content}
-    </div>
-</body>
-</html>'''
-
 @app.route('/')
 def index():
     if current_user.is_authenticated:
@@ -204,7 +121,6 @@ def login():
     if current_user.is_authenticated:
         return redirect(url_for('dashboard'))
     
-    error_msg = ''
     if request.method == 'POST':
         username = request.form.get('username')
         password = request.form.get('password')
@@ -212,31 +128,18 @@ def login():
         
         if user and user.check_password(password) and user.is_active:
             login_user(user)
+            flash('Logged in successfully!', 'success')
             return redirect(url_for('dashboard'))
         else:
-            error_msg = '<div class="alert alert-danger">Invalid username or password.</div>'
+            flash('Invalid username or password.', 'danger')
     
-    content = f'''
-    <div style="max-width:400px;margin:50px auto;">
-        <div class="card">
-            <h2 style="text-align:center;margin-bottom:20px;">Staff Attendance System</h2>
-            {error_msg}
-            <form method="POST">
-                <label>Username</label>
-                <input type="text" name="username" required>
-                <label>Password</label>
-                <input type="password" name="password" required>
-                <button type="submit" class="btn btn-primary" style="width:100%;">Login</button>
-            </form>
-        </div>
-    </div>
-    '''
-    return base_template('Login', content, show_nav=False)
+    return render_template('login.html')
 
 @app.route('/logout')
 @login_required
 def logout():
     logout_user()
+    flash('Logged out successfully.', 'success')
     return redirect(url_for('login'))
 
 @app.route('/dashboard')
@@ -261,76 +164,14 @@ def dashboard():
             today_attendance = 0
             late_today = 0
     
-    schools_html = ''
-    if current_user.role in ['super_admin', 'hr_viewer', 'ceo_viewer']:
-        rows = ''
-        for s in schools:
-            staff_count = Staff.query.filter_by(school_id=s.id, is_active=True).count()
-            rows += f'<tr><td>{s.name}</td><td>{s.short_name or "-"}</td><td>{staff_count}</td></tr>'
-        
-        schools_html = f'''
-        <div class="card">
-            <h3>Schools Overview</h3>
-            <table>
-                <tr><th>Name</th><th>Short Name</th><th>Staff Count</th></tr>
-                {rows}
-            </table>
-        </div>
-        '''
-    
-    content = f'''
-    <h2>Dashboard</h2>
-    <div class="stats-grid">
-        <div class="stat-card">
-            <h3>{total_staff}</h3>
-            <p>Total Staff</p>
-        </div>
-        <div class="stat-card">
-            <h3>{today_attendance}</h3>
-            <p>Present Today</p>
-        </div>
-        <div class="stat-card">
-            <h3>{late_today}</h3>
-            <p>Late Today</p>
-        </div>
-        <div class="stat-card">
-            <h3>{len(schools)}</h3>
-            <p>Schools</p>
-        </div>
-    </div>
-    {schools_html}
-    '''
-    return base_template('Dashboard', content)
+    return render_template('dashboard.html', schools=schools, total_staff=total_staff, today_attendance=today_attendance, late_today=late_today)
 
 @app.route('/schools')
 @login_required
 @role_required('super_admin')
 def schools():
     all_schools = School.query.all()
-    rows = ''
-    for s in all_schools:
-        rows += f'''<tr>
-            <td>{s.name}</td>
-            <td>{s.short_name or "-"}</td>
-            <td><code style="font-size:10px;">{s.api_key[:20]}...</code></td>
-            <td>
-                <a href="{url_for('edit_school', id=s.id)}" class="btn btn-warning btn-sm">Edit</a>
-                <a href="{url_for('regenerate_api_key', id=s.id)}" class="btn btn-secondary btn-sm" onclick="return confirm('Regenerate API key?')">New Key</a>
-                <a href="{url_for('delete_school', id=s.id)}" class="btn btn-danger btn-sm" onclick="return confirm('Delete this school?')">Delete</a>
-            </td>
-        </tr>'''
-    
-    content = f'''
-    <h2>Schools</h2>
-    <a href="{url_for('add_school')}" class="btn btn-success" style="margin-bottom:20px;">Add School</a>
-    <div class="card">
-        <table>
-            <tr><th>Name</th><th>Short Name</th><th>API Key</th><th>Actions</th></tr>
-            {rows}
-        </table>
-    </div>
-    '''
-    return base_template('Schools', content)
+    return render_template('schools.html', schools=all_schools)
 
 @app.route('/schools/add', methods=['GET', 'POST'])
 @login_required
@@ -351,76 +192,10 @@ def add_school():
         
         db.session.add(school)
         db.session.commit()
+        flash('School added successfully!', 'success')
         return redirect(url_for('schools'))
     
-    content = f'''
-    <h2>Add School</h2>
-    <div class="card">
-        <form method="POST">
-            <label>School Name</label>
-            <input type="text" name="name" required>
-            
-            <label>Short Name</label>
-            <input type="text" name="short_name" placeholder="e.g. VGC">
-            
-            <h4 style="margin-top:20px;">Schedule</h4>
-            <div class="form-row">
-                <div>
-                    <label>Monday Start</label>
-                    <input type="time" name="schedule_mon_start" value="08:00">
-                </div>
-                <div>
-                    <label>Monday End</label>
-                    <input type="time" name="schedule_mon_end" value="17:00">
-                </div>
-            </div>
-            <div class="form-row">
-                <div>
-                    <label>Tuesday Start</label>
-                    <input type="time" name="schedule_tue_start" value="08:00">
-                </div>
-                <div>
-                    <label>Tuesday End</label>
-                    <input type="time" name="schedule_tue_end" value="17:00">
-                </div>
-            </div>
-            <div class="form-row">
-                <div>
-                    <label>Wednesday Start</label>
-                    <input type="time" name="schedule_wed_start" value="08:00">
-                </div>
-                <div>
-                    <label>Wednesday End</label>
-                    <input type="time" name="schedule_wed_end" value="17:00">
-                </div>
-            </div>
-            <div class="form-row">
-                <div>
-                    <label>Thursday Start</label>
-                    <input type="time" name="schedule_thu_start" value="08:00">
-                </div>
-                <div>
-                    <label>Thursday End</label>
-                    <input type="time" name="schedule_thu_end" value="17:00">
-                </div>
-            </div>
-            <div class="form-row">
-                <div>
-                    <label>Friday Start</label>
-                    <input type="time" name="schedule_fri_start" value="08:00">
-                </div>
-                <div>
-                    <label>Friday End</label>
-                    <input type="time" name="schedule_fri_end" value="17:00">
-                </div>
-            </div>
-            
-            <button type="submit" class="btn btn-success" style="margin-top:20px;">Add School</button>
-            <a href="{url_for('schools')}" class="btn btn-secondary">Cancel</a>
-        </form>
-    </div>
-    '''
-    return base_template('Add School', content)
+    return render_template('add_school.html')
 
 @app.route('/schools/edit/<int:id>', methods=['GET', 'POST'])
 @login_required
@@ -439,79 +214,10 @@ def edit_school(id):
             setattr(school, f'schedule_{day}_end', end)
         
         db.session.commit()
+        flash('School updated successfully!', 'success')
         return redirect(url_for('schools'))
     
-    content = f'''
-    <h2>Edit School</h2>
-    <div class="card">
-        <form method="POST">
-            <label>School Name</label>
-            <input type="text" name="name" value="{school.name}" required>
-            
-            <label>Short Name</label>
-            <input type="text" name="short_name" value="{school.short_name or ''}" placeholder="e.g. VGC">
-            
-            <label>API Key</label>
-            <input type="text" value="{school.api_key}" readonly style="background:#f5f5f5;">
-            
-            <h4 style="margin-top:20px;">Schedule</h4>
-            <div class="form-row">
-                <div>
-                    <label>Monday Start</label>
-                    <input type="time" name="schedule_mon_start" value="{school.schedule_mon_start}">
-                </div>
-                <div>
-                    <label>Monday End</label>
-                    <input type="time" name="schedule_mon_end" value="{school.schedule_mon_end}">
-                </div>
-            </div>
-            <div class="form-row">
-                <div>
-                    <label>Tuesday Start</label>
-                    <input type="time" name="schedule_tue_start" value="{school.schedule_tue_start}">
-                </div>
-                <div>
-                    <label>Tuesday End</label>
-                    <input type="time" name="schedule_tue_end" value="{school.schedule_tue_end}">
-                </div>
-            </div>
-            <div class="form-row">
-                <div>
-                    <label>Wednesday Start</label>
-                    <input type="time" name="schedule_wed_start" value="{school.schedule_wed_start}">
-                </div>
-                <div>
-                    <label>Wednesday End</label>
-                    <input type="time" name="schedule_wed_end" value="{school.schedule_wed_end}">
-                </div>
-            </div>
-            <div class="form-row">
-                <div>
-                    <label>Thursday Start</label>
-                    <input type="time" name="schedule_thu_start" value="{school.schedule_thu_start}">
-                </div>
-                <div>
-                    <label>Thursday End</label>
-                    <input type="time" name="schedule_thu_end" value="{school.schedule_thu_end}">
-                </div>
-            </div>
-            <div class="form-row">
-                <div>
-                    <label>Friday Start</label>
-                    <input type="time" name="schedule_fri_start" value="{school.schedule_fri_start}">
-                </div>
-                <div>
-                    <label>Friday End</label>
-                    <input type="time" name="schedule_fri_end" value="{school.schedule_fri_end}">
-                </div>
-            </div>
-            
-            <button type="submit" class="btn btn-success" style="margin-top:20px;">Save Changes</button>
-            <a href="{url_for('schools')}" class="btn btn-secondary">Cancel</a>
-        </form>
-    </div>
-    '''
-    return base_template('Edit School', content)
+    return render_template('edit_school.html', school=school)
 
 @app.route('/schools/delete/<int:id>')
 @login_required
@@ -520,6 +226,7 @@ def delete_school(id):
     school = School.query.get_or_404(id)
     db.session.delete(school)
     db.session.commit()
+    flash('School deleted successfully!', 'success')
     return redirect(url_for('schools'))
 
 @app.route('/schools/regenerate-key/<int:id>')
@@ -529,6 +236,7 @@ def regenerate_api_key(id):
     school = School.query.get_or_404(id)
     school.api_key = secrets.token_hex(32)
     db.session.commit()
+    flash('API key regenerated successfully!', 'success')
     return redirect(url_for('schools'))
 
 @app.route('/staff')
@@ -541,7 +249,7 @@ def staff_list():
     else:
         staff = Staff.query.filter_by(school_id=current_user.school_id).all()
     
-    rows = ''
+    staff_with_status = []
     for s in staff:
         attendance_today = Attendance.query.filter_by(staff_id=s.id, date=today).first()
         
@@ -559,40 +267,14 @@ def staff_list():
             status = 'Absent'
             status_color = 'danger'
         
-        active_badge = '<span class="badge badge-success">Active</span>' if s.is_active else '<span class="badge badge-danger">Inactive</span>'
-        
-        actions = f'<a href="{url_for("toggle_staff", id=s.id)}" class="btn btn-warning btn-sm">{"Deactivate" if s.is_active else "Activate"}</a>'
-        if current_user.role == 'super_admin':
-            actions += f' <a href="{url_for("delete_staff", id=s.id)}" class="btn btn-danger btn-sm" onclick="return confirm(\'Delete this staff?\')">Delete</a>'
-        
-        rows += f'''<tr>
-            <td>{s.staff_id}</td>
-            <td>{s.name}</td>
-            <td>{s.school.short_name or s.school.name}</td>
-            <td>{s.department}</td>
-            <td><span class="badge badge-{status_color}">{status}</span></td>
-            <td>{active_badge}</td>
-            <td>{actions}</td>
-        </tr>'''
+        staff_with_status.append({
+            'staff': s,
+            'status': status,
+            'status_color': status_color
+        })
     
-    add_btn = ''
-    if current_user.role in ['super_admin', 'school_admin']:
-        add_btn = f'''
-        <a href="{url_for('add_staff')}" class="btn btn-success">Add Staff</a>
-        <a href="{url_for('bulk_upload')}" class="btn btn-primary">Bulk Upload</a>
-        '''
-    
-    content = f'''
-    <h2>Staff List</h2>
-    <div style="margin-bottom:20px;">{add_btn}</div>
-    <div class="card" style="overflow-x:auto;">
-        <table>
-            <tr><th>Staff ID</th><th>Name</th><th>School</th><th>Department</th><th>Status</th><th>Active</th><th>Actions</th></tr>
-            {rows}
-        </table>
-    </div>
-    '''
-    return base_template('Staff', content)
+    schools = School.query.all()
+    return render_template('staff.html', staff_with_status=staff_with_status, schools=schools)
 
 @app.route('/staff/add', methods=['GET', 'POST'])
 @login_required
@@ -609,58 +291,37 @@ def add_staff():
         
         existing = Staff.query.filter_by(staff_id=staff_id).first()
         if existing:
-            return base_template('Add Staff', '<div class="alert alert-danger">Staff ID already exists!</div><a href="' + url_for('add_staff') + '">Try again</a>')
+            flash('Staff ID already exists!', 'danger')
+            return redirect(url_for('add_staff'))
         
         staff = Staff(staff_id=staff_id, name=name, department=department, school_id=school_id)
         db.session.add(staff)
         db.session.commit()
+        flash('Staff added successfully!', 'success')
         return redirect(url_for('staff_list'))
     
     if current_user.role == 'super_admin':
         schools = School.query.all()
-        school_options = ''.join([f'<option value="{s.id}">{s.name}</option>' for s in schools])
     else:
-        school_options = f'<option value="{current_user.school_id}">{current_user.school.name}</option>'
+        schools = [current_user.school]
     
-    content = f'''
-    <h2>Add Staff</h2>
-    <div class="card">
-        <form method="POST">
-            <label>Staff ID</label>
-            <input type="text" name="staff_id" required>
-            
-            <label>Full Name</label>
-            <input type="text" name="name" required>
-            
-            <label>School</label>
-            <select name="school_id" required>
-                {school_options}
-            </select>
-            
-            <label>Department</label>
-            <select name="department" required>
-                <option value="Academic">Academic</option>
-                <option value="Admin">Admin</option>
-                <option value="Non-Academic">Non-Academic</option>
-                <option value="Management">Management</option>
-            </select>
-            
-            <button type="submit" class="btn btn-success">Add Staff</button>
-            <a href="{url_for('staff_list')}" class="btn btn-secondary">Cancel</a>
-        </form>
-    </div>
-    '''
-    return base_template('Add Staff', content)
+    departments = ['Academic', 'Admin', 'Non-Academic', 'Management']
+    return render_template('add_staff.html', schools=schools, departments=departments)
 
 @app.route('/staff/toggle/<int:id>')
 @login_required
 @role_required('super_admin', 'school_admin')
 def toggle_staff(id):
     staff = Staff.query.get_or_404(id)
+    
     if current_user.role == 'school_admin' and staff.school_id != current_user.school_id:
+        flash('You do not have permission to modify this staff.', 'danger')
         return redirect(url_for('staff_list'))
+    
     staff.is_active = not staff.is_active
     db.session.commit()
+    status = 'activated' if staff.is_active else 'deactivated'
+    flash(f'Staff {status} successfully!', 'success')
     return redirect(url_for('staff_list'))
 
 @app.route('/staff/delete/<int:id>')
@@ -670,113 +331,80 @@ def delete_staff(id):
     staff = Staff.query.get_or_404(id)
     db.session.delete(staff)
     db.session.commit()
+    flash('Staff deleted successfully!', 'success')
     return redirect(url_for('staff_list'))
 
 @app.route('/staff/bulk-upload', methods=['GET', 'POST'])
 @login_required
 @role_required('super_admin', 'school_admin')
 def bulk_upload():
-    message = ''
     if request.method == 'POST':
         if 'file' not in request.files:
-            message = '<div class="alert alert-danger">No file selected!</div>'
-        else:
-            file = request.files['file']
-            if file.filename == '' or not file.filename.endswith('.csv'):
-                message = '<div class="alert alert-danger">Please upload a CSV file!</div>'
-            else:
-                school_id = request.form.get('school_id')
-                if current_user.role == 'school_admin':
-                    school_id = current_user.school_id
+            flash('No file selected!', 'danger')
+            return redirect(url_for('bulk_upload'))
+        
+        file = request.files['file']
+        if file.filename == '':
+            flash('No file selected!', 'danger')
+            return redirect(url_for('bulk_upload'))
+        
+        if not file.filename.endswith('.csv'):
+            flash('Please upload a CSV file!', 'danger')
+            return redirect(url_for('bulk_upload'))
+        
+        school_id = request.form.get('school_id')
+        if current_user.role == 'school_admin':
+            school_id = current_user.school_id
+        
+        try:
+            stream = io.StringIO(file.stream.read().decode('UTF-8'))
+            reader = csv.DictReader(stream)
+            
+            added = 0
+            skipped = 0
+            
+            for row in reader:
+                staff_id = row.get('staff_id', '').strip()
+                name = row.get('name', '').strip()
+                department = row.get('department', '').strip()
                 
-                try:
-                    stream = io.StringIO(file.stream.read().decode('UTF-8'))
-                    reader = csv.DictReader(stream)
-                    added = 0
-                    skipped = 0
-                    
-                    for row in reader:
-                        staff_id = row.get('staff_id', '').strip()
-                        name = row.get('name', '').strip()
-                        department = row.get('department', '').strip()
-                        
-                        if not staff_id or not name:
-                            skipped += 1
-                            continue
-                        
-                        if Staff.query.filter_by(staff_id=staff_id).first():
-                            skipped += 1
-                            continue
-                        
-                        if department not in ['Academic', 'Admin', 'Non-Academic', 'Management']:
-                            department = 'Academic'
-                        
-                        staff = Staff(staff_id=staff_id, name=name, department=department, school_id=school_id)
-                        db.session.add(staff)
-                        added += 1
-                    
-                    db.session.commit()
-                    message = f'<div class="alert alert-success">Upload complete! Added: {added}, Skipped: {skipped}</div>'
-                except Exception as e:
-                    message = f'<div class="alert alert-danger">Error: {str(e)}</div>'
+                if not staff_id or not name:
+                    skipped += 1
+                    continue
+                
+                existing = Staff.query.filter_by(staff_id=staff_id).first()
+                if existing:
+                    skipped += 1
+                    continue
+                
+                if department not in ['Academic', 'Admin', 'Non-Academic', 'Management']:
+                    department = 'Academic'
+                
+                staff = Staff(staff_id=staff_id, name=name, department=department, school_id=school_id)
+                db.session.add(staff)
+                added += 1
+            
+            db.session.commit()
+            flash(f'Bulk upload complete! Added: {added}, Skipped: {skipped}', 'success')
+            
+        except Exception as e:
+            flash(f'Error processing file: {str(e)}', 'danger')
+        
+        return redirect(url_for('staff_list'))
     
     if current_user.role == 'super_admin':
         schools = School.query.all()
-        school_options = ''.join([f'<option value="{s.id}">{s.name}</option>' for s in schools])
     else:
-        school_options = f'<option value="{current_user.school_id}">{current_user.school.name}</option>'
+        schools = [current_user.school]
     
-    content = f'''
-    <h2>Bulk Upload Staff</h2>
-    {message}
-    <div class="card">
-        <p>Upload a CSV file with columns: <strong>staff_id, name, department</strong></p>
-        <p>Department must be: Academic, Admin, Non-Academic, or Management</p>
-        <form method="POST" enctype="multipart/form-data">
-            <label>School</label>
-            <select name="school_id" required>
-                {school_options}
-            </select>
-            
-            <label>CSV File</label>
-            <input type="file" name="file" accept=".csv" required>
-            
-            <button type="submit" class="btn btn-success">Upload</button>
-            <a href="{url_for('staff_list')}" class="btn btn-secondary">Cancel</a>
-        </form>
-    </div>
-    '''
-    return base_template('Bulk Upload', content)
+    return render_template('bulk_upload.html', schools=schools)
 
 @app.route('/users')
 @login_required
 @role_required('super_admin')
 def users():
     all_users = User.query.all()
-    rows = ''
-    for u in all_users:
-        school_name = u.school.name if u.school else '-'
-        rows += f'''<tr>
-            <td>{u.username}</td>
-            <td>{u.role}</td>
-            <td>{school_name}</td>
-            <td>{"Active" if u.is_active else "Inactive"}</td>
-            <td>
-                <a href="{url_for('delete_user', id=u.id)}" class="btn btn-danger btn-sm" onclick="return confirm('Delete this user?')">Delete</a>
-            </td>
-        </tr>'''
-    
-    content = f'''
-    <h2>Users</h2>
-    <a href="{url_for('add_user')}" class="btn btn-success" style="margin-bottom:20px;">Add User</a>
-    <div class="card">
-        <table>
-            <tr><th>Username</th><th>Role</th><th>School</th><th>Status</th><th>Actions</th></tr>
-            {rows}
-        </table>
-    </div>
-    '''
-    return base_template('Users', content)
+    return render_template('users.html', users=all_users)
 
 @app.route('/users/add', methods=['GET', 'POST'])
 @login_required
@@ -788,48 +416,21 @@ def add_user():
         role = request.form.get('role')
         school_id = request.form.get('school_id') or None
         
-        if User.query.filter_by(username=username).first():
-            return base_template('Add User', '<div class="alert alert-danger">Username already exists!</div><a href="' + url_for('add_user') + '">Try again</a>')
+        existing = User.query.filter_by(username=username).first()
+        if existing:
+            flash('Username already exists!', 'danger')
+            return redirect(url_for('add_user'))
         
         user = User(username=username, role=role, school_id=school_id)
         user.set_password(password)
         db.session.add(user)
         db.session.commit()
+        flash('User added successfully!', 'success')
         return redirect(url_for('users'))
     
     schools = School.query.all()
-    school_options = '<option value="">-- No School --</option>' + ''.join([f'<option value="{s.id}">{s.name}</option>' for s in schools])
-    
-    content = f'''
-    <h2>Add User</h2>
-    <div class="card">
-        <form method="POST">
-            <label>Username</label>
-            <input type="text" name="username" required>
-            
-            <label>Password</label>
-            <input type="password" name="password" required>
-            
-            <label>Role</label>
-            <select name="role" required>
-                <option value="super_admin">Super Admin</option>
-                <option value="hr_viewer">HR Viewer</option>
-                <option value="ceo_viewer">CEO Viewer</option>
-                <option value="school_admin">School Admin</option>
-                <option value="staff">Staff</option>
-            </select>
-            
-            <label>School (for School Admin/Staff)</label>
-            <select name="school_id">
-                {school_options}
-            </select>
-            
-            <button type="submit" class="btn btn-success">Add User</button>
-            <a href="{url_for('users')}" class="btn btn-secondary">Cancel</a>
-        </form>
-    </div>
-    '''
-    return base_template('Add User', content)
+    roles = ['super_admin', 'hr_viewer', 'ceo_viewer', 'school_admin', 'staff']
+    return render_template('add_user.html', schools=schools, roles=roles)
 
 @app.route('/users/delete/<int:id>')
 @login_required
@@ -837,9 +438,11 @@ def add_user():
 def delete_user(id):
     user = User.query.get_or_404(id)
     if user.id == current_user.id:
+        flash('You cannot delete yourself!', 'danger')
         return redirect(url_for('users'))
     db.session.delete(user)
     db.session.commit()
+    flash('User deleted successfully!', 'success')
     return redirect(url_for('users'))
 
 @app.route('/reports/attendance')
@@ -858,50 +461,9 @@ def attendance_report():
         query = query.filter(Attendance.staff_id.in_(staff_ids)) if staff_ids else query.filter(False)
     
     attendance = query.all()
+    schools = School.query.all() if current_user.role in ['super_admin', 'hr_viewer', 'ceo_viewer'] else []
     
-    rows = ''
-    for a in attendance:
-        late_badge = '<span class="badge badge-danger">Late</span>' if a.is_late else '<span class="badge badge-success">On Time</span>'
-        rows += f'''<tr>
-            <td>{a.staff.staff_id}</td>
-            <td>{a.staff.name}</td>
-            <td>{a.staff.school.short_name or a.staff.school.name}</td>
-            <td>{a.sign_in_time.strftime('%H:%M') if a.sign_in_time else '-'}</td>
-            <td>{a.sign_out_time.strftime('%H:%M') if a.sign_out_time else '-'}</td>
-            <td>{late_badge}</td>
-            <td>{a.late_minutes} mins</td>
-        </tr>'''
-    
-    school_options = '<option value="">All Schools</option>'
-    if current_user.role in ['super_admin', 'hr_viewer', 'ceo_viewer']:
-        for s in School.query.all():
-            selected = 'selected' if str(s.id) == school_id else ''
-            school_options += f'<option value="{s.id}" {selected}>{s.name}</option>'
-    
-    content = f'''
-    <h2>Attendance Report</h2>
-    <div class="card">
-        <form method="GET" style="display:flex;gap:10px;flex-wrap:wrap;align-items:end;">
-            <div>
-                <label>Date</label>
-                <input type="date" name="date" value="{selected_date}">
-            </div>
-            <div>
-                <label>School</label>
-                <select name="school_id">{school_options}</select>
-            </div>
-            <button type="submit" class="btn btn-primary">Filter</button>
-            <a href="{url_for('download_attendance', date=selected_date, school_id=school_id)}" class="btn btn-success">Download CSV</a>
-        </form>
-    </div>
-    <div class="card" style="overflow-x:auto;">
-        <table>
-            <tr><th>Staff ID</th><th>Name</th><th>School</th><th>Sign In</th><th>Sign Out</th><th>Status</th><th>Late</th></tr>
-            {rows if rows else '<tr><td colspan="7">No attendance records found.</td></tr>'}
-        </table>
-    </div>
-    '''
-    return base_template('Attendance Report', content)
+    return render_template('attendance_report.html', attendance=attendance, schools=schools, selected_date=selected_date, school_id=school_id)
 
 @app.route('/reports/attendance/download')
 @login_required
@@ -945,6 +507,19 @@ def late_report():
     period = request.args.get('period', 'all')
     school_id = request.args.get('school_id', '')
     
+    if period == 'today':
+        start_date = date.today()
+        end_date = date.today()
+    elif period == 'week':
+        start_date = date.today() - timedelta(days=date.today().weekday())
+        end_date = date.today()
+    elif period == 'month':
+        start_date = date.today().replace(day=1)
+        end_date = date.today()
+    else:
+        start_date = None
+        end_date = None
+    
     staff_query = Staff.query.filter_by(is_active=True)
     
     if school_id:
@@ -952,75 +527,40 @@ def late_report():
     elif current_user.role == 'school_admin':
         staff_query = staff_query.filter_by(school_id=current_user.school_id)
     
-    staff_data = staff_query.all()
+    staff_list_data = staff_query.all()
     
-    rows = ''
-    for s in staff_data:
+    late_staff = []
+    for s in staff_list_data:
         if s.department == 'Management':
             continue
-        if s.times_late > 0:
-            total_att = Attendance.query.filter_by(staff_id=s.id).count()
-            late_count = Attendance.query.filter_by(staff_id=s.id, is_late=True).count()
-            punctuality = round(((total_att - late_count) / total_att) * 100, 1) if total_att > 0 else 100
-            lateness = round((late_count / total_att) * 100, 1) if total_att > 0 else 0
+        
+        att_query = Attendance.query.filter_by(staff_id=s.id)
+        
+        if start_date and end_date:
+            att_query = att_query.filter(Attendance.date >= start_date, Attendance.date <= end_date)
+        
+        total_attendance = att_query.count()
+        late_count = att_query.filter_by(is_late=True).count()
+        
+        if s.times_late > 0 or late_count > 0:
+            if total_attendance > 0:
+                punctuality = round(((total_attendance - late_count) / total_attendance) * 100, 1)
+                lateness = round((late_count / total_attendance) * 100, 1)
+            else:
+                punctuality = 100.0
+                lateness = 0.0
             
-            rows += f'''<tr>
-                <td>{s.staff_id}</td>
-                <td>{s.name}</td>
-                <td>{s.school.short_name or s.school.name}</td>
-                <td>{s.times_late}</td>
-                <td>{punctuality}%</td>
-                <td>{lateness}%</td>
-            </tr>'''
+            late_staff.append({
+                'staff': s,
+                'times_late': s.times_late if period == 'all' else late_count,
+                'punctuality': punctuality,
+                'lateness': lateness
+            })
     
-    school_options = '<option value="">All Schools</option>'
-    if current_user.role in ['super_admin', 'hr_viewer', 'ceo_viewer']:
-        for s in School.query.all():
-            selected = 'selected' if str(s.id) == school_id else ''
-            school_options += f'<option value="{s.id}" {selected}>{s.name}</option>'
+    late_staff.sort(key=lambda x: x['times_late'], reverse=True)
+    schools = School.query.all() if current_user.role in ['super_admin', 'hr_viewer', 'ceo_viewer'] else []
     
-    reset_form = ''
-    if current_user.role == 'super_admin':
-        reset_form = f'''
-        <form method="POST" action="{url_for('reset_late_counter')}" style="margin-top:20px;">
-            <select name="school_id">
-                <option value="">All Schools</option>
-                {''.join([f'<option value="{s.id}">{s.name}</option>' for s in School.query.all()])}
-            </select>
-            <button type="submit" class="btn btn-danger" onclick="return confirm('Reset all late counters?')">Reset Late Counters</button>
-        </form>
-        '''
-    
-    content = f'''
-    <h2>Late Staff Report</h2>
-    <div class="card">
-        <form method="GET" style="display:flex;gap:10px;flex-wrap:wrap;align-items:end;">
-            <div>
-                <label>Period</label>
-                <select name="period">
-                    <option value="all" {"selected" if period=="all" else ""}>All Time</option>
-                    <option value="today" {"selected" if period=="today" else ""}>Today</option>
-                    <option value="week" {"selected" if period=="week" else ""}>This Week</option>
-                    <option value="month" {"selected" if period=="month" else ""}>This Month</option>
-                </select>
-            </div>
-            <div>
-                <label>School</label>
-                <select name="school_id">{school_options}</select>
-            </div>
-            <button type="submit" class="btn btn-primary">Filter</button>
-            <a href="{url_for('download_late_report', school_id=school_id)}" class="btn btn-success">Download CSV</a>
-        </form>
-        {reset_form}
-    </div>
-    <div class="card" style="overflow-x:auto;">
-        <table>
-            <tr><th>Staff ID</th><th>Name</th><th>School</th><th>Times Late</th><th>% Punctuality</th><th>% Lateness</th></tr>
-            {rows if rows else '<tr><td colspan="6">No late records found.</td></tr>'}
-        </table>
-    </div>
-    '''
-    return base_template('Late Report', content)
+    return render_template('late_report.html', late_staff=late_staff, schools=schools, period=period, school_id=school_id)
 
 @app.route('/reports/late/download')
 @login_required
@@ -1028,26 +568,42 @@ def download_late_report():
     school_id = request.args.get('school_id', '')
     
     staff_query = Staff.query.filter_by(is_active=True)
+    
     if school_id:
         staff_query = staff_query.filter_by(school_id=school_id)
     elif current_user.role == 'school_admin':
         staff_query = staff_query.filter_by(school_id=current_user.school_id)
     
-    staff_data = staff_query.all()
+    staff_list_data = staff_query.all()
     
     output = io.StringIO()
     writer = csv.writer(output)
     writer.writerow(['Staff ID', 'Name', 'School', 'Department', 'Times Late', '% Punctuality', '% Lateness'])
     
-    for s in staff_data:
+    for s in staff_list_data:
         if s.department == 'Management':
             continue
+        
+        total_attendance = Attendance.query.filter_by(staff_id=s.id).count()
+        late_count = Attendance.query.filter_by(staff_id=s.id, is_late=True).count()
+        
+        if total_attendance > 0:
+            punctuality = round(((total_attendance - late_count) / total_attendance) * 100, 1)
+            lateness = round((late_count / total_attendance) * 100, 1)
+        else:
+            punctuality = 100.0
+            lateness = 0.0
+        
         if s.times_late > 0:
-            total_att = Attendance.query.filter_by(staff_id=s.id).count()
-            late_count = Attendance.query.filter_by(staff_id=s.id, is_late=True).count()
-            punctuality = round(((total_att - late_count) / total_att) * 100, 1) if total_att > 0 else 100
-            lateness = round((late_count / total_att) * 100, 1) if total_att > 0 else 0
-            writer.writerow([s.staff_id, s.name, s.school.short_name or s.school.name, s.department, s.times_late, punctuality, lateness])
+            writer.writerow([
+                s.staff_id,
+                s.name,
+                s.school.short_name or s.school.name,
+                s.department,
+                s.times_late,
+                punctuality,
+                lateness
+            ])
     
     output.seek(0)
     return Response(output.getvalue(), mimetype='text/csv', headers={'Content-Disposition': f'attachment; filename=late_report_{date.today()}.csv'})
@@ -1060,13 +616,17 @@ def reset_late_counter():
     
     if school_id:
         staff = Staff.query.filter_by(school_id=school_id).all()
+        school = School.query.get(school_id)
+        school_name = school.name if school else 'Unknown'
     else:
         staff = Staff.query.all()
+        school_name = 'all schools'
     
     for s in staff:
         s.times_late = 0
     
     db.session.commit()
+    flash(f'Late counters reset for {school_name}!', 'success')
     return redirect(url_for('late_report'))
 
 @app.route('/reports/absent')
@@ -1077,57 +637,31 @@ def absent_report():
     
     check_date = datetime.strptime(selected_date, '%Y-%m-%d').date()
     
-    staff_query = Staff.query.filter_by(is_active=True)
-    if school_id:
-        staff_query = staff_query.filter_by(school_id=school_id)
-    elif current_user.role == 'school_admin':
-        staff_query = staff_query.filter_by(school_id=current_user.school_id)
+    if check_date.weekday() >= 5:
+        flash('Selected date is a weekend. No attendance expected.', 'info')
+        absent_staff = []
+    else:
+        staff_query = Staff.query.filter_by(is_active=True)
+        
+        if school_id:
+            staff_query = staff_query.filter_by(school_id=school_id)
+        elif current_user.role == 'school_admin':
+            staff_query = staff_query.filter_by(school_id=current_user.school_id)
+        
+        all_staff = staff_query.all()
+        
+        absent_staff = []
+        for s in all_staff:
+            if s.department == 'Management':
+                continue
+            
+            attendance = Attendance.query.filter_by(staff_id=s.id, date=check_date).first()
+            if not attendance:
+                absent_staff.append(s)
     
-    all_staff = staff_query.all()
+    schools = School.query.all() if current_user.role in ['super_admin', 'hr_viewer', 'ceo_viewer'] else []
     
-    rows = ''
-    for s in all_staff:
-        if s.department == 'Management':
-            continue
-        attendance = Attendance.query.filter_by(staff_id=s.id, date=check_date).first()
-        if not attendance:
-            rows += f'''<tr>
-                <td>{s.staff_id}</td>
-                <td>{s.name}</td>
-                <td>{s.school.short_name or s.school.name}</td>
-                <td>{s.department}</td>
-            </tr>'''
-    
-    school_options = '<option value="">All Schools</option>'
-    if current_user.role in ['super_admin', 'hr_viewer', 'ceo_viewer']:
-        for s in School.query.all():
-            selected = 'selected' if str(s.id) == school_id else ''
-            school_options += f'<option value="{s.id}" {selected}>{s.name}</option>'
-    
-    content = f'''
-    <h2>Absent Staff Report</h2>
-    <div class="card">
-        <form method="GET" style="display:flex;gap:10px;flex-wrap:wrap;align-items:end;">
-            <div>
-                <label>Date</label>
-                <input type="date" name="date" value="{selected_date}">
-            </div>
-            <div>
-                <label>School</label>
-                <select name="school_id">{school_options}</select>
-            </div>
-            <button type="submit" class="btn btn-primary">Filter</button>
-            <a href="{url_for('download_absent_report', date=selected_date, school_id=school_id)}" class="btn btn-success">Download CSV</a>
-        </form>
-    </div>
-    <div class="card" style="overflow-x:auto;">
-        <table>
-            <tr><th>Staff ID</th><th>Name</th><th>School</th><th>Department</th></tr>
-            {rows if rows else '<tr><td colspan="4">No absent staff found.</td></tr>'}
-        </table>
-    </div>
-    '''
-    return base_template('Absent Report', content)
+    return render_template('absent_report.html', absent_staff=absent_staff, schools=schools, selected_date=selected_date, school_id=school_id)
 
 @app.route('/reports/absent/download')
 @login_required
@@ -1138,6 +672,7 @@ def download_absent_report():
     check_date = datetime.strptime(selected_date, '%Y-%m-%d').date()
     
     staff_query = Staff.query.filter_by(is_active=True)
+    
     if school_id:
         staff_query = staff_query.filter_by(school_id=school_id)
     elif current_user.role == 'school_admin':
@@ -1152,9 +687,15 @@ def download_absent_report():
     for s in all_staff:
         if s.department == 'Management':
             continue
+        
         attendance = Attendance.query.filter_by(staff_id=s.id, date=check_date).first()
         if not attendance:
-            writer.writerow([s.staff_id, s.name, s.school.short_name or s.school.name, s.department])
+            writer.writerow([
+                s.staff_id,
+                s.name,
+                s.school.short_name or s.school.name,
+                s.department
+            ])
     
     output.seek(0)
     return Response(output.getvalue(), mimetype='text/csv', headers={'Content-Disposition': f'attachment; filename=absent_{selected_date}.csv'})
@@ -1178,47 +719,9 @@ def overtime_report():
         query = query.filter(Attendance.staff_id.in_(staff_ids)) if staff_ids else query.filter(False)
     
     overtime = query.all()
+    schools = School.query.all() if current_user.role in ['super_admin', 'hr_viewer', 'ceo_viewer'] else []
     
-    rows = ''
-    for o in overtime:
-        rows += f'''<tr>
-            <td>{o.staff.staff_id}</td>
-            <td>{o.staff.name}</td>
-            <td>{o.staff.school.short_name or o.staff.school.name}</td>
-            <td>{o.sign_out_time.strftime('%H:%M') if o.sign_out_time else '-'}</td>
-            <td>{o.overtime_minutes} mins</td>
-        </tr>'''
-    
-    school_options = '<option value="">All Schools</option>'
-    if current_user.role in ['super_admin', 'hr_viewer', 'ceo_viewer']:
-        for s in School.query.all():
-            selected = 'selected' if str(s.id) == school_id else ''
-            school_options += f'<option value="{s.id}" {selected}>{s.name}</option>'
-    
-    content = f'''
-    <h2>Overtime Report</h2>
-    <div class="card">
-        <form method="GET" style="display:flex;gap:10px;flex-wrap:wrap;align-items:end;">
-            <div>
-                <label>Date</label>
-                <input type="date" name="date" value="{selected_date}">
-            </div>
-            <div>
-                <label>School</label>
-                <select name="school_id">{school_options}</select>
-            </div>
-            <button type="submit" class="btn btn-primary">Filter</button>
-            <a href="{url_for('download_overtime_report', date=selected_date, school_id=school_id)}" class="btn btn-success">Download CSV</a>
-        </form>
-    </div>
-    <div class="card" style="overflow-x:auto;">
-        <table>
-            <tr><th>Staff ID</th><th>Name</th><th>School</th><th>Sign Out</th><th>Overtime</th></tr>
-            {rows if rows else '<tr><td colspan="5">No overtime records found.</td></tr>'}
-        </table>
-    </div>
-    '''
-    return base_template('Overtime Report', content)
+    return render_template('overtime_report.html', overtime=overtime, schools=schools, selected_date=selected_date, school_id=school_id)
 
 @app.route('/reports/overtime/download')
 @login_required
