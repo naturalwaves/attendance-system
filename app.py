@@ -10,9 +10,7 @@ import io
 
 app = Flask(__name__)
 app.config['SECRET_KEY'] = os.environ.get('SECRET_KEY', secrets.token_hex(16))
-app.config['SQLALCHEMY_DATABASE_URI'] = os.environ.get('DATABASE_URL', 'postgresql://postgres:6xhFUFUM4zj3VJJY@db.ytavcjojzfbshstoewmc.supabase.co:5432/postgres')
-if app.config['SQLALCHEMY_DATABASE_URI'].startswith('postgres://'):
-    app.config['SQLALCHEMY_DATABASE_URI'] = app.config['SQLALCHEMY_DATABASE_URI'].replace('postgres://', 'postgresql://', 1)
+app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///attendance.db'
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 
 db = SQLAlchemy(app)
@@ -26,8 +24,8 @@ class School(db.Model):
     code = db.Column(db.String(20), unique=True, nullable=False)
     api_key = db.Column(db.String(64), unique=True, nullable=False)
     last_sync = db.Column(db.DateTime)
-    resumption_time = db.Column(db.Time, default=time(8, 0))  # Default 8:00 AM
-    closing_time = db.Column(db.Time, default=time(17, 0))    # Default 5:00 PM
+    resumption_time = db.Column(db.Time, default=time(8, 0))
+    closing_time = db.Column(db.Time, default=time(17, 0))
     staff = db.relationship('Staff', backref='school', lazy=True)
     attendance = db.relationship('Attendance', backref='school', lazy=True)
 
@@ -61,95 +59,490 @@ class Attendance(db.Model):
 def load_user(user_id):
     return User.query.get(int(user_id))
 
-# Base template
+# Beautiful Base Template with Corona Schools Logo
 BASE_TEMPLATE = '''
 <!DOCTYPE html>
 <html>
 <head>
-    <title>{% block title %}Attendance System{% endblock %}</title>
+    <title>{% block title %}Corona Schools Attendance{% endblock %}</title>
     <meta name="viewport" content="width=device-width, initial-scale=1">
+    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <style>
         * { margin: 0; padding: 0; box-sizing: border-box; }
-        body { font-family: 'Segoe UI', Arial, sans-serif; background: #f5f5f5; color: #333; }
-        .navbar { background: #c41e3a; padding: 0.8rem 2rem; display: flex; align-items: center; justify-content: space-between; box-shadow: 0 2px 4px rgba(0,0,0,0.1); }
-        .navbar-brand { display: flex; align-items: center; gap: 12px; }
-        .navbar-brand img { height: 45px; }
-        .navbar-brand span { color: white; font-size: 1.3rem; font-weight: 600; }
-        .navbar-links { display: flex; gap: 1.5rem; align-items: center; }
-        .navbar-links a { color: white; text-decoration: none; font-size: 0.95rem; padding: 0.5rem 0.8rem; border-radius: 4px; transition: background 0.2s; }
-        .navbar-links a:hover { background: rgba(255,255,255,0.15); }
-        .container { max-width: 1200px; margin: 0 auto; padding: 2rem; }
-        .card { background: white; border-radius: 8px; padding: 1.5rem; margin-bottom: 1.5rem; box-shadow: 0 1px 3px rgba(0,0,0,0.08); border: 1px solid #e8e8e8; }
-        .btn { padding: 0.6rem 1.2rem; border: none; border-radius: 5px; cursor: pointer; font-size: 0.9rem; text-decoration: none; display: inline-block; transition: all 0.2s; }
-        .btn-primary { background: #c41e3a; color: white; }
-        .btn-primary:hover { background: #a01830; }
-        .btn-secondary { background: #6c757d; color: white; }
-        .btn-secondary:hover { background: #545b62; }
-        .btn-success { background: #28a745; color: white; }
-        .btn-success:hover { background: #218838; }
-        .btn-danger { background: #dc3545; color: white; }
-        .btn-danger:hover { background: #c82333; }
-        .btn-warning { background: #ffc107; color: #333; }
-        .btn-warning:hover { background: #e0a800; }
-        .btn-info { background: #17a2b8; color: white; }
-        .btn-info:hover { background: #138496; }
-        table { width: 100%; border-collapse: collapse; margin-top: 1rem; }
-        th, td { padding: 0.9rem; text-align: left; border-bottom: 1px solid #eee; }
-        th { background: #f8f9fa; font-weight: 600; color: #555; }
-        tr:hover { background: #fafafa; }
-        .form-group { margin-bottom: 1rem; }
-        .form-group label { display: block; margin-bottom: 0.4rem; font-weight: 500; color: #555; }
-        .form-group input, .form-group select { width: 100%; padding: 0.7rem; border: 1px solid #ddd; border-radius: 5px; font-size: 0.95rem; }
-        .form-group input:focus, .form-group select:focus { outline: none; border-color: #c41e3a; }
-        .stats-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 1rem; margin-bottom: 1.5rem; }
-        .stat-card { background: white; padding: 1.2rem; border-radius: 8px; text-align: center; border: 1px solid #e8e8e8; }
-        .stat-card h3 { font-size: 2rem; color: #c41e3a; }
-        .stat-card p { color: #666; margin-top: 0.3rem; }
-        .stat-card.warning h3 { color: #ffc107; }
-        .stat-card.info h3 { color: #17a2b8; }
-        .alert { padding: 1rem; border-radius: 5px; margin-bottom: 1rem; }
-        .alert-success { background: #d4edda; color: #155724; border: 1px solid #c3e6cb; }
-        .alert-error { background: #f8d7da; color: #721c24; border: 1px solid #f5c6cb; }
-        .filter-bar { display: flex; gap: 1rem; align-items: flex-end; flex-wrap: wrap; margin-bottom: 1rem; padding: 1rem; background: white; border-radius: 8px; border: 1px solid #e8e8e8; }
-        .filter-bar .form-group { margin-bottom: 0; }
-        .badge { padding: 0.3rem 0.6rem; border-radius: 20px; font-size: 0.8rem; }
-        .badge-success { background: #d4edda; color: #155724; }
-        .badge-secondary { background: #e9ecef; color: #6c757d; }
-        .badge-danger { background: #f8d7da; color: #721c24; }
-        .badge-info { background: #d1ecf1; color: #0c5460; }
-        .page-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 1.5rem; flex-wrap: wrap; gap: 1rem; }
-        .page-header h2 { color: #333; }
-        .button-group { display: flex; gap: 0.5rem; flex-wrap: wrap; }
-        .time-display { font-family: monospace; background: #f5f5f5; padding: 0.3rem 0.6rem; border-radius: 3px; }
+        body { 
+            font-family: 'Poppins', sans-serif; 
+            background: linear-gradient(135deg, #f5f7fa 0%, #e4e8ec 100%);
+            min-height: 100vh;
+            color: #2d3748;
+        }
+        
+        .navbar { 
+            background: linear-gradient(135deg, #c41e3a 0%, #a01830 100%);
+            padding: 0.8rem 2rem; 
+            display: flex; 
+            align-items: center; 
+            justify-content: space-between; 
+            box-shadow: 0 4px 20px rgba(196, 30, 58, 0.3);
+            position: sticky;
+            top: 0;
+            z-index: 1000;
+        }
+        
+        .navbar-brand { 
+            display: flex; 
+            align-items: center; 
+            gap: 15px; 
+        }
+        
+        .navbar-brand img { 
+            height: 50px;
+            border-radius: 8px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.2);
+        }
+        
+        .navbar-brand span { 
+            color: white; 
+            font-size: 1.4rem; 
+            font-weight: 600;
+            text-shadow: 0 2px 4px rgba(0,0,0,0.2);
+        }
+        
+        .navbar-links { 
+            display: flex; 
+            gap: 0.5rem; 
+            align-items: center;
+            flex-wrap: wrap;
+        }
+        
+        .navbar-links a { 
+            color: white; 
+            text-decoration: none; 
+            font-size: 0.9rem; 
+            padding: 0.6rem 1rem; 
+            border-radius: 8px; 
+            transition: all 0.3s ease;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+        
+        .navbar-links a:hover { 
+            background: rgba(255,255,255,0.2);
+            transform: translateY(-2px);
+        }
+        
+        .navbar-links a i {
+            font-size: 1rem;
+        }
+        
+        .container { 
+            max-width: 1300px; 
+            margin: 0 auto; 
+            padding: 2rem; 
+        }
+        
+        .page-title {
+            font-size: 1.8rem;
+            font-weight: 600;
+            color: #1a202c;
+            margin-bottom: 1.5rem;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+        
+        .page-title i {
+            color: #c41e3a;
+        }
+        
+        .card { 
+            background: white; 
+            border-radius: 16px; 
+            padding: 1.8rem; 
+            margin-bottom: 1.5rem; 
+            box-shadow: 0 4px 25px rgba(0,0,0,0.08);
+            border: 1px solid rgba(0,0,0,0.05);
+            transition: transform 0.3s ease, box-shadow 0.3s ease;
+        }
+        
+        .card:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 8px 30px rgba(0,0,0,0.12);
+        }
+        
+        .card-header {
+            font-size: 1.1rem;
+            font-weight: 600;
+            color: #1a202c;
+            margin-bottom: 1.2rem;
+            padding-bottom: 0.8rem;
+            border-bottom: 2px solid #f0f0f0;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+        
+        .card-header i {
+            color: #c41e3a;
+        }
+        
+        .btn { 
+            padding: 0.7rem 1.4rem; 
+            border: none; 
+            border-radius: 10px; 
+            cursor: pointer; 
+            font-size: 0.9rem; 
+            font-weight: 500;
+            text-decoration: none; 
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            transition: all 0.3s ease;
+        }
+        
+        .btn i {
+            font-size: 0.9rem;
+        }
+        
+        .btn-primary { 
+            background: linear-gradient(135deg, #c41e3a 0%, #a01830 100%);
+            color: white; 
+            box-shadow: 0 4px 15px rgba(196, 30, 58, 0.3);
+        }
+        
+        .btn-primary:hover { 
+            transform: translateY(-2px);
+            box-shadow: 0 6px 20px rgba(196, 30, 58, 0.4);
+        }
+        
+        .btn-secondary { 
+            background: linear-gradient(135deg, #718096 0%, #4a5568 100%);
+            color: white;
+            box-shadow: 0 4px 15px rgba(113, 128, 150, 0.3);
+        }
+        
+        .btn-secondary:hover { 
+            transform: translateY(-2px);
+            box-shadow: 0 6px 20px rgba(113, 128, 150, 0.4);
+        }
+        
+        .btn-success { 
+            background: linear-gradient(135deg, #48bb78 0%, #38a169 100%);
+            color: white;
+            box-shadow: 0 4px 15px rgba(72, 187, 120, 0.3);
+        }
+        
+        .btn-success:hover { 
+            transform: translateY(-2px);
+            box-shadow: 0 6px 20px rgba(72, 187, 120, 0.4);
+        }
+        
+        .btn-danger { 
+            background: linear-gradient(135deg, #fc8181 0%, #f56565 100%);
+            color: white;
+            box-shadow: 0 4px 15px rgba(252, 129, 129, 0.3);
+        }
+        
+        .btn-danger:hover { 
+            transform: translateY(-2px);
+            box-shadow: 0 6px 20px rgba(252, 129, 129, 0.4);
+        }
+        
+        .btn-warning { 
+            background: linear-gradient(135deg, #ecc94b 0%, #d69e2e 100%);
+            color: #1a202c;
+            box-shadow: 0 4px 15px rgba(236, 201, 75, 0.3);
+        }
+        
+        .btn-info { 
+            background: linear-gradient(135deg, #4299e1 0%, #3182ce 100%);
+            color: white;
+            box-shadow: 0 4px 15px rgba(66, 153, 225, 0.3);
+        }
+        
+        .btn-sm {
+            padding: 0.5rem 1rem;
+            font-size: 0.85rem;
+        }
+        
+        table { 
+            width: 100%; 
+            border-collapse: collapse; 
+            margin-top: 1rem; 
+        }
+        
+        th, td { 
+            padding: 1rem; 
+            text-align: left; 
+            border-bottom: 1px solid #edf2f7; 
+        }
+        
+        th { 
+            background: linear-gradient(135deg, #f8f9fa 0%, #edf2f7 100%);
+            font-weight: 600; 
+            color: #4a5568;
+            font-size: 0.85rem;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+        
+        tr:hover { 
+            background: #fafbfc; 
+        }
+        
+        .form-group { 
+            margin-bottom: 1.2rem; 
+        }
+        
+        .form-group label { 
+            display: block; 
+            margin-bottom: 0.5rem; 
+            font-weight: 500; 
+            color: #4a5568;
+            font-size: 0.9rem;
+        }
+        
+        .form-group input, .form-group select { 
+            width: 100%; 
+            padding: 0.8rem 1rem; 
+            border: 2px solid #e2e8f0; 
+            border-radius: 10px; 
+            font-size: 0.95rem;
+            font-family: 'Poppins', sans-serif;
+            transition: all 0.3s ease;
+        }
+        
+        .form-group input:focus, .form-group select:focus { 
+            outline: none; 
+            border-color: #c41e3a;
+            box-shadow: 0 0 0 3px rgba(196, 30, 58, 0.1);
+        }
+        
+        .stats-grid { 
+            display: grid; 
+            grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); 
+            gap: 1.5rem; 
+            margin-bottom: 2rem; 
+        }
+        
+        .stat-card { 
+            background: white;
+            padding: 1.5rem; 
+            border-radius: 16px; 
+            text-align: center;
+            box-shadow: 0 4px 25px rgba(0,0,0,0.08);
+            border: 1px solid rgba(0,0,0,0.05);
+            transition: all 0.3s ease;
+            position: relative;
+            overflow: hidden;
+        }
+        
+        .stat-card::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            height: 4px;
+            background: linear-gradient(135deg, #c41e3a 0%, #a01830 100%);
+        }
+        
+        .stat-card:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 8px 30px rgba(0,0,0,0.15);
+        }
+        
+        .stat-card .icon {
+            width: 60px;
+            height: 60px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            margin: 0 auto 1rem;
+            font-size: 1.5rem;
+        }
+        
+        .stat-card.primary .icon { background: rgba(196, 30, 58, 0.1); color: #c41e3a; }
+        .stat-card.success .icon { background: rgba(72, 187, 120, 0.1); color: #48bb78; }
+        .stat-card.warning .icon { background: rgba(236, 201, 75, 0.1); color: #d69e2e; }
+        .stat-card.info .icon { background: rgba(66, 153, 225, 0.1); color: #4299e1; }
+        
+        .stat-card h3 { 
+            font-size: 2.2rem; 
+            font-weight: 700;
+            color: #1a202c;
+            margin-bottom: 0.3rem;
+        }
+        
+        .stat-card p { 
+            color: #718096; 
+            font-size: 0.9rem;
+            font-weight: 500;
+        }
+        
+        .alert { 
+            padding: 1rem 1.5rem; 
+            border-radius: 12px; 
+            margin-bottom: 1.5rem;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+        
+        .alert i {
+            font-size: 1.2rem;
+        }
+        
+        .alert-success { 
+            background: linear-gradient(135deg, #c6f6d5 0%, #9ae6b4 100%);
+            color: #276749;
+            border: 1px solid #9ae6b4;
+        }
+        
+        .alert-error { 
+            background: linear-gradient(135deg, #fed7d7 0%, #feb2b2 100%);
+            color: #c53030;
+            border: 1px solid #feb2b2;
+        }
+        
+        .filter-bar { 
+            display: flex; 
+            gap: 1rem; 
+            align-items: flex-end; 
+            flex-wrap: wrap; 
+            margin-bottom: 1.5rem; 
+            padding: 1.5rem; 
+            background: white; 
+            border-radius: 16px;
+            box-shadow: 0 4px 25px rgba(0,0,0,0.08);
+            border: 1px solid rgba(0,0,0,0.05);
+        }
+        
+        .filter-bar .form-group { 
+            margin-bottom: 0; 
+            min-width: 180px;
+        }
+        
+        .badge { 
+            padding: 0.4rem 0.8rem; 
+            border-radius: 20px; 
+            font-size: 0.8rem;
+            font-weight: 500;
+        }
+        
+        .badge-success { 
+            background: linear-gradient(135deg, #c6f6d5 0%, #9ae6b4 100%);
+            color: #276749; 
+        }
+        
+        .badge-secondary { 
+            background: linear-gradient(135deg, #e2e8f0 0%, #cbd5e0 100%);
+            color: #4a5568; 
+        }
+        
+        .badge-danger { 
+            background: linear-gradient(135deg, #fed7d7 0%, #feb2b2 100%);
+            color: #c53030; 
+        }
+        
+        .badge-info { 
+            background: linear-gradient(135deg, #bee3f8 0%, #90cdf4 100%);
+            color: #2c5282; 
+        }
+        
+        .page-header { 
+            display: flex; 
+            justify-content: space-between; 
+            align-items: center; 
+            margin-bottom: 1.5rem; 
+            flex-wrap: wrap; 
+            gap: 1rem; 
+        }
+        
+        .button-group { 
+            display: flex; 
+            gap: 0.8rem; 
+            flex-wrap: wrap; 
+        }
+        
+        .time-display { 
+            font-family: 'Courier New', monospace;
+            background: linear-gradient(135deg, #edf2f7 0%, #e2e8f0 100%);
+            padding: 0.4rem 0.8rem; 
+            border-radius: 8px;
+            font-weight: 600;
+            color: #2d3748;
+        }
+        
+        .empty-state {
+            text-align: center;
+            padding: 3rem;
+            color: #a0aec0;
+        }
+        
+        .empty-state i {
+            font-size: 4rem;
+            margin-bottom: 1rem;
+            opacity: 0.5;
+        }
+        
+        .empty-state p {
+            font-size: 1.1rem;
+        }
+        
+        @media (max-width: 768px) {
+            .navbar {
+                flex-direction: column;
+                gap: 1rem;
+                padding: 1rem;
+            }
+            
+            .navbar-links {
+                justify-content: center;
+            }
+            
+            .container {
+                padding: 1rem;
+            }
+            
+            .stats-grid {
+                grid-template-columns: 1fr 1fr;
+            }
+        }
     </style>
 </head>
 <body>
     {% if current_user.is_authenticated %}
     <nav class="navbar">
         <div class="navbar-brand">
-            <img src="https://i.imgur.com/yARMhzG.png" alt="Logo">
-            <span>Attendance System</span>
+            <img src="https://coronaschools.com/wp-content/uploads/2020/06/Corona-Logo.png" alt="Corona Schools Logo">
+            <span>Staff Attendance System</span>
         </div>
         <div class="navbar-links">
-            <a href="{{ url_for('dashboard') }}">Dashboard</a>
-            <a href="{{ url_for('today') }}">Today</a>
-            <a href="{{ url_for('latecomers') }}">Late Staff</a>
-            <a href="{{ url_for('overtime') }}">Overtime</a>
-            <a href="{{ url_for('attendance') }}">Reports</a>
-            <a href="{{ url_for('staff') }}">Staff</a>
+            <a href="{{ url_for('dashboard') }}"><i class="fas fa-home"></i> Dashboard</a>
+            <a href="{{ url_for('today') }}"><i class="fas fa-clock"></i> Today</a>
+            <a href="{{ url_for('latecomers') }}"><i class="fas fa-user-clock"></i> Late Staff</a>
+            <a href="{{ url_for('overtime') }}"><i class="fas fa-hourglass-half"></i> Overtime</a>
+            <a href="{{ url_for('attendance') }}"><i class="fas fa-chart-bar"></i> Reports</a>
+            <a href="{{ url_for('staff') }}"><i class="fas fa-users"></i> Staff</a>
             {% if current_user.role == 'superadmin' %}
-            <a href="{{ url_for('schools') }}">Schools</a>
-            <a href="{{ url_for('admins') }}">Admins</a>
+            <a href="{{ url_for('schools') }}"><i class="fas fa-school"></i> Schools</a>
+            <a href="{{ url_for('admins') }}"><i class="fas fa-user-shield"></i> Admins</a>
             {% endif %}
-            <a href="{{ url_for('settings') }}">Settings</a>
-            <a href="{{ url_for('logout') }}">Logout</a>
+            <a href="{{ url_for('settings') }}"><i class="fas fa-cog"></i> Settings</a>
+            <a href="{{ url_for('logout') }}"><i class="fas fa-sign-out-alt"></i> Logout</a>
         </div>
     </nav>
     {% endif %}
     <div class="container">
         {% with messages = get_flashed_messages(with_categories=true) %}
         {% for category, message in messages %}
-        <div class="alert alert-{{ category }}">{{ message }}</div>
+        <div class="alert alert-{{ category }}">
+            <i class="fas {% if category == 'success' %}fa-check-circle{% else %}fa-exclamation-circle{% endif %}"></i>
+            {{ message }}
+        </div>
         {% endfor %}
         {% endwith %}
         {% block content %}{% endblock %}
@@ -160,22 +553,25 @@ BASE_TEMPLATE = '''
 
 LOGIN_TEMPLATE = '''
 {% extends 'base' %}
-{% block title %}Login{% endblock %}
+{% block title %}Login - Corona Schools{% endblock %}
 {% block content %}
-<div style="max-width: 400px; margin: 4rem auto;">
-    <div class="card" style="text-align: center;">
-        <img src="https://i.imgur.com/yARMhzG.png" alt="Logo" style="height: 80px; margin-bottom: 1rem;">
-        <h2 style="margin-bottom: 1.5rem; color: #c41e3a;">Staff Attendance System</h2>
+<div style="max-width: 420px; margin: 3rem auto;">
+    <div class="card" style="text-align: center; padding: 2.5rem;">
+        <img src="https://coronaschools.com/wp-content/uploads/2020/06/Corona-Logo.png" alt="Corona Schools Logo" style="height: 100px; margin-bottom: 1.5rem;">
+        <h2 style="margin-bottom: 0.5rem; color: #c41e3a; font-size: 1.6rem;">Staff Attendance System</h2>
+        <p style="color: #718096; margin-bottom: 2rem;">Sign in to your account</p>
         <form method="POST">
             <div class="form-group">
-                <label>Username</label>
-                <input type="text" name="username" required>
+                <label><i class="fas fa-user" style="margin-right: 5px;"></i>Username</label>
+                <input type="text" name="username" required placeholder="Enter your username">
             </div>
             <div class="form-group">
-                <label>Password</label>
-                <input type="password" name="password" required>
+                <label><i class="fas fa-lock" style="margin-right: 5px;"></i>Password</label>
+                <input type="password" name="password" required placeholder="Enter your password">
             </div>
-            <button type="submit" class="btn btn-primary" style="width: 100%;">Login</button>
+            <button type="submit" class="btn btn-primary" style="width: 100%; padding: 1rem; font-size: 1rem;">
+                <i class="fas fa-sign-in-alt"></i> Sign In
+            </button>
         </form>
     </div>
 </div>
@@ -184,43 +580,64 @@ LOGIN_TEMPLATE = '''
 
 DASHBOARD_TEMPLATE = '''
 {% extends 'base' %}
-{% block title %}Dashboard{% endblock %}
+{% block title %}Dashboard - Corona Schools{% endblock %}
 {% block content %}
-<h2 style="margin-bottom: 1.5rem;">Dashboard</h2>
+<h2 class="page-title"><i class="fas fa-tachometer-alt"></i> Dashboard</h2>
 <div class="stats-grid">
-    <div class="stat-card">
+    <div class="stat-card primary">
+        <div class="icon"><i class="fas fa-school"></i></div>
         <h3>{{ total_schools }}</h3>
         <p>Total Schools</p>
     </div>
-    <div class="stat-card">
+    <div class="stat-card success">
+        <div class="icon"><i class="fas fa-users"></i></div>
         <h3>{{ total_staff }}</h3>
         <p>Total Staff</p>
     </div>
-    <div class="stat-card">
+    <div class="stat-card info">
+        <div class="icon"><i class="fas fa-building"></i></div>
         <h3>{{ on_site }}</h3>
         <p>Currently On Site</p>
     </div>
-    <div class="stat-card">
+    <div class="stat-card primary">
+        <div class="icon"><i class="fas fa-sign-in-alt"></i></div>
         <h3>{{ today_signins }}</h3>
         <p>Sign-ins Today</p>
     </div>
     <div class="stat-card warning">
+        <div class="icon"><i class="fas fa-user-clock"></i></div>
         <h3>{{ late_today }}</h3>
         <p>Late Today</p>
     </div>
 </div>
 <div class="card">
-    <h3 style="margin-bottom: 1rem;">Schools Overview</h3>
+    <div class="card-header"><i class="fas fa-list"></i> Schools Overview</div>
     <table>
-        <tr><th>School</th><th>Resumption</th><th>Closing</th><th>On Site</th><th>Late Today</th><th>Last Sync</th></tr>
+        <tr>
+            <th>School</th>
+            <th>Resumption</th>
+            <th>Closing</th>
+            <th>On Site</th>
+            <th>Late Today</th>
+            <th>Last Sync</th>
+        </tr>
         {% for school in schools %}
         <tr>
-            <td>{{ school.name }}</td>
+            <td><strong>{{ school.name }}</strong></td>
             <td><span class="time-display">{{ school.resumption }}</span></td>
             <td><span class="time-display">{{ school.closing }}</span></td>
             <td>{{ school.on_site }}</td>
             <td><span class="badge {% if school.late > 0 %}badge-danger{% else %}badge-success{% endif %}">{{ school.late }}</span></td>
             <td>{{ school.last_sync.strftime('%Y-%m-%d %H:%M') if school.last_sync else 'Never' }}</td>
+        </tr>
+        {% else %}
+        <tr>
+            <td colspan="6">
+                <div class="empty-state">
+                    <i class="fas fa-school"></i>
+                    <p>No schools configured yet</p>
+                </div>
+            </td>
         </tr>
         {% endfor %}
     </table>
@@ -230,25 +647,41 @@ DASHBOARD_TEMPLATE = '''
 
 SCHOOLS_TEMPLATE = '''
 {% extends 'base' %}
-{% block title %}Schools{% endblock %}
+{% block title %}Schools - Corona Schools{% endblock %}
 {% block content %}
 <div class="page-header">
-    <h2>Manage Schools</h2>
-    <a href="{{ url_for('add_school') }}" class="btn btn-primary">+ Add School</a>
+    <h2 class="page-title"><i class="fas fa-school"></i> Manage Schools</h2>
+    <a href="{{ url_for('add_school') }}" class="btn btn-primary"><i class="fas fa-plus"></i> Add School</a>
 </div>
 <div class="card">
     <table>
-        <tr><th>Name</th><th>Code</th><th>Resumption</th><th>Closing</th><th>API Key</th><th>Actions</th></tr>
+        <tr>
+            <th>Name</th>
+            <th>Code</th>
+            <th>Resumption</th>
+            <th>Closing</th>
+            <th>API Key</th>
+            <th>Actions</th>
+        </tr>
         {% for school in schools %}
         <tr>
-            <td>{{ school.name }}</td>
+            <td><strong>{{ school.name }}</strong></td>
             <td>{{ school.code }}</td>
             <td><span class="time-display">{{ school.resumption_time.strftime('%H:%M') if school.resumption_time else '08:00' }}</span></td>
             <td><span class="time-display">{{ school.closing_time.strftime('%H:%M') if school.closing_time else '17:00' }}</span></td>
-            <td><code style="background: #f5f5f5; padding: 0.3rem 0.5rem; border-radius: 3px; font-size: 0.85rem;">{{ school.api_key[:20] }}...</code></td>
+            <td><code style="background: #f0f0f0; padding: 0.3rem 0.6rem; border-radius: 6px; font-size: 0.8rem;">{{ school.api_key[:16] }}...</code></td>
             <td>
-                <a href="{{ url_for('edit_school', id=school.id) }}" class="btn btn-secondary" style="padding: 0.4rem 0.8rem;">Edit</a>
-                <a href="{{ url_for('delete_school', id=school.id) }}" class="btn btn-danger" style="padding: 0.4rem 0.8rem;" onclick="return confirm('Delete this school?')">Delete</a>
+                <a href="{{ url_for('edit_school', id=school.id) }}" class="btn btn-secondary btn-sm"><i class="fas fa-edit"></i> Edit</a>
+                <a href="{{ url_for('delete_school', id=school.id) }}" class="btn btn-danger btn-sm" onclick="return confirm('Delete this school and all its data?')"><i class="fas fa-trash"></i> Delete</a>
+            </td>
+        </tr>
+        {% else %}
+        <tr>
+            <td colspan="6">
+                <div class="empty-state">
+                    <i class="fas fa-school"></i>
+                    <p>No schools yet. Add your first school!</p>
+                </div>
             </td>
         </tr>
         {% endfor %}
@@ -259,21 +692,21 @@ SCHOOLS_TEMPLATE = '''
 
 ADD_SCHOOL_TEMPLATE = '''
 {% extends 'base' %}
-{% block title %}Add School{% endblock %}
+{% block title %}Add School - Corona Schools{% endblock %}
 {% block content %}
-<h2 style="margin-bottom: 1.5rem;">Add New School</h2>
-<div class="card" style="max-width: 500px;">
+<h2 class="page-title"><i class="fas fa-plus-circle"></i> Add New School</h2>
+<div class="card" style="max-width: 550px;">
     <form method="POST">
         <div class="form-group">
-            <label>School Name</label>
-            <input type="text" name="name" required placeholder="e.g. School 8">
+            <label><i class="fas fa-school"></i> School Name</label>
+            <input type="text" name="name" required placeholder="e.g. Corona School Gbagada">
         </div>
         <div class="form-group">
-            <label>School Code</label>
-            <input type="text" name="code" required placeholder="e.g. SCH8">
+            <label><i class="fas fa-code"></i> School Code</label>
+            <input type="text" name="code" required placeholder="e.g. CSG">
         </div>
         <div class="form-group">
-            <label>Resumption Time</label>
+            <label><i class="fas fa-clock"></i> Resumption Time</label>
             <select name="resumption_time">
                 {% for hour in range(5, 12) %}
                 <option value="{{ '%02d:00'|format(hour) }}" {% if hour == 8 %}selected{% endif %}>{{ '%02d:00'|format(hour) }}</option>
@@ -282,7 +715,7 @@ ADD_SCHOOL_TEMPLATE = '''
             </select>
         </div>
         <div class="form-group">
-            <label>Closing Time</label>
+            <label><i class="fas fa-door-closed"></i> Closing Time</label>
             <select name="closing_time">
                 {% for hour in range(14, 22) %}
                 <option value="{{ '%02d:00'|format(hour) }}" {% if hour == 17 %}selected{% endif %}>{{ '%02d:00'|format(hour) }}</option>
@@ -290,8 +723,10 @@ ADD_SCHOOL_TEMPLATE = '''
                 {% endfor %}
             </select>
         </div>
-        <button type="submit" class="btn btn-primary">Add School</button>
-        <a href="{{ url_for('schools') }}" class="btn btn-secondary">Cancel</a>
+        <div class="button-group">
+            <button type="submit" class="btn btn-primary"><i class="fas fa-save"></i> Add School</button>
+            <a href="{{ url_for('schools') }}" class="btn btn-secondary"><i class="fas fa-times"></i> Cancel</a>
+        </div>
     </form>
 </div>
 {% endblock %}
@@ -299,21 +734,21 @@ ADD_SCHOOL_TEMPLATE = '''
 
 EDIT_SCHOOL_TEMPLATE = '''
 {% extends 'base' %}
-{% block title %}Edit School{% endblock %}
+{% block title %}Edit School - Corona Schools{% endblock %}
 {% block content %}
-<h2 style="margin-bottom: 1.5rem;">Edit School</h2>
-<div class="card" style="max-width: 500px;">
+<h2 class="page-title"><i class="fas fa-edit"></i> Edit School</h2>
+<div class="card" style="max-width: 550px;">
     <form method="POST">
         <div class="form-group">
-            <label>School Name</label>
+            <label><i class="fas fa-school"></i> School Name</label>
             <input type="text" name="name" value="{{ school.name }}" required>
         </div>
         <div class="form-group">
-            <label>School Code</label>
-            <input type="text" value="{{ school.code }}" disabled style="background: #f5f5f5;">
+            <label><i class="fas fa-code"></i> School Code</label>
+            <input type="text" value="{{ school.code }}" disabled style="background: #f5f5f5; cursor: not-allowed;">
         </div>
         <div class="form-group">
-            <label>Resumption Time</label>
+            <label><i class="fas fa-clock"></i> Resumption Time</label>
             <select name="resumption_time">
                 {% for hour in range(5, 12) %}
                 <option value="{{ '%02d:00'|format(hour) }}" {% if school.resumption_time and school.resumption_time.hour == hour and school.resumption_time.minute == 0 %}selected{% endif %}>{{ '%02d:00'|format(hour) }}</option>
@@ -322,7 +757,7 @@ EDIT_SCHOOL_TEMPLATE = '''
             </select>
         </div>
         <div class="form-group">
-            <label>Closing Time</label>
+            <label><i class="fas fa-door-closed"></i> Closing Time</label>
             <select name="closing_time">
                 {% for hour in range(14, 22) %}
                 <option value="{{ '%02d:00'|format(hour) }}" {% if school.closing_time and school.closing_time.hour == hour and school.closing_time.minute == 0 %}selected{% endif %}>{{ '%02d:00'|format(hour) }}</option>
@@ -331,12 +766,14 @@ EDIT_SCHOOL_TEMPLATE = '''
             </select>
         </div>
         <div class="form-group">
-            <label>API Key (for kiosk setup)</label>
-            <input type="text" value="{{ school.api_key }}" readonly onclick="this.select()" style="font-family: monospace; background: #f5f5f5;">
+            <label><i class="fas fa-key"></i> API Key (for kiosk setup)</label>
+            <input type="text" value="{{ school.api_key }}" readonly onclick="this.select()" style="font-family: monospace; background: #f5f5f5; cursor: pointer;">
         </div>
-        <button type="submit" class="btn btn-primary">Save Changes</button>
-        <a href="{{ url_for('regenerate_key', id=school.id) }}" class="btn btn-secondary" onclick="return confirm('Regenerate API key?')">Regenerate Key</a>
-        <a href="{{ url_for('schools') }}" class="btn btn-secondary">Cancel</a>
+        <div class="button-group">
+            <button type="submit" class="btn btn-primary"><i class="fas fa-save"></i> Save Changes</button>
+            <a href="{{ url_for('regenerate_key', id=school.id) }}" class="btn btn-warning" onclick="return confirm('Regenerate API key? The kiosk will need reconfiguration.')"><i class="fas fa-sync"></i> Regenerate Key</a>
+            <a href="{{ url_for('schools') }}" class="btn btn-secondary"><i class="fas fa-times"></i> Cancel</a>
+        </div>
     </form>
 </div>
 {% endblock %}
@@ -344,16 +781,16 @@ EDIT_SCHOOL_TEMPLATE = '''
 
 STAFF_TEMPLATE = '''
 {% extends 'base' %}
-{% block title %}Staff{% endblock %}
+{% block title %}Staff - Corona Schools{% endblock %}
 {% block content %}
 <div class="page-header">
-    <h2>Manage Staff</h2>
-    <a href="{{ url_for('add_staff') }}" class="btn btn-primary">+ Add Staff</a>
+    <h2 class="page-title"><i class="fas fa-users"></i> Manage Staff</h2>
+    <a href="{{ url_for('add_staff') }}" class="btn btn-primary"><i class="fas fa-user-plus"></i> Add Staff</a>
 </div>
 <div class="filter-bar">
     <form method="GET" style="display: flex; gap: 1rem; align-items: flex-end;">
         <div class="form-group">
-            <label>School</label>
+            <label><i class="fas fa-school"></i> School</label>
             <select name="school" onchange="this.form.submit()">
                 <option value="">All Schools</option>
                 {% for school in schools %}
@@ -365,17 +802,33 @@ STAFF_TEMPLATE = '''
 </div>
 <div class="card">
     <table>
-        <tr><th>Staff ID</th><th>Name</th><th>Department</th><th>School</th><th>Status</th><th>Actions</th></tr>
+        <tr>
+            <th>Staff ID</th>
+            <th>Name</th>
+            <th>Department</th>
+            <th>School</th>
+            <th>Status</th>
+            <th>Actions</th>
+        </tr>
         {% for s in staff %}
         <tr>
-            <td>{{ s.staff_id }}</td>
+            <td><strong>{{ s.staff_id }}</strong></td>
             <td>{{ s.name }}</td>
             <td>{{ s.department or '-' }}</td>
             <td>{{ s.school.name }}</td>
             <td><span class="badge {% if s.active %}badge-success{% else %}badge-secondary{% endif %}">{{ 'Active' if s.active else 'Inactive' }}</span></td>
             <td>
-                <a href="{{ url_for('toggle_staff', id=s.id) }}" class="btn btn-secondary" style="padding: 0.4rem 0.8rem;">{{ 'Deactivate' if s.active else 'Activate' }}</a>
-                <a href="{{ url_for('delete_staff', id=s.id) }}" class="btn btn-danger" style="padding: 0.4rem 0.8rem;" onclick="return confirm('Delete?')">Delete</a>
+                <a href="{{ url_for('toggle_staff', id=s.id) }}" class="btn btn-secondary btn-sm"><i class="fas fa-toggle-{% if s.active %}off{% else %}on{% endif %}"></i> {{ 'Deactivate' if s.active else 'Activate' }}</a>
+                <a href="{{ url_for('delete_staff', id=s.id) }}" class="btn btn-danger btn-sm" onclick="return confirm('Delete this staff member?')"><i class="fas fa-trash"></i></a>
+            </td>
+        </tr>
+        {% else %}
+        <tr>
+            <td colspan="6">
+                <div class="empty-state">
+                    <i class="fas fa-users"></i>
+                    <p>No staff members yet</p>
+                </div>
             </td>
         </tr>
         {% endfor %}
@@ -386,13 +839,13 @@ STAFF_TEMPLATE = '''
 
 ADD_STAFF_TEMPLATE = '''
 {% extends 'base' %}
-{% block title %}Add Staff{% endblock %}
+{% block title %}Add Staff - Corona Schools{% endblock %}
 {% block content %}
-<h2 style="margin-bottom: 1.5rem;">Add Staff Member</h2>
-<div class="card" style="max-width: 500px;">
+<h2 class="page-title"><i class="fas fa-user-plus"></i> Add Staff Member</h2>
+<div class="card" style="max-width: 550px;">
     <form method="POST">
         <div class="form-group">
-            <label>School</label>
+            <label><i class="fas fa-school"></i> School</label>
             <select name="school_id" required>
                 {% for school in schools %}
                 <option value="{{ school.id }}">{{ school.name }}</option>
@@ -400,19 +853,21 @@ ADD_STAFF_TEMPLATE = '''
             </select>
         </div>
         <div class="form-group">
-            <label>Staff ID</label>
+            <label><i class="fas fa-id-badge"></i> Staff ID</label>
             <input type="text" name="staff_id" required placeholder="e.g. STF001">
         </div>
         <div class="form-group">
-            <label>Full Name</label>
-            <input type="text" name="name" required>
+            <label><i class="fas fa-user"></i> Full Name</label>
+            <input type="text" name="name" required placeholder="e.g. John Doe">
         </div>
         <div class="form-group">
-            <label>Department (optional)</label>
-            <input type="text" name="department">
+            <label><i class="fas fa-building"></i> Department (optional)</label>
+            <input type="text" name="department" placeholder="e.g. Mathematics">
         </div>
-        <button type="submit" class="btn btn-primary">Add Staff</button>
-        <a href="{{ url_for('staff') }}" class="btn btn-secondary">Cancel</a>
+        <div class="button-group">
+            <button type="submit" class="btn btn-primary"><i class="fas fa-save"></i> Add Staff</button>
+            <a href="{{ url_for('staff') }}" class="btn btn-secondary"><i class="fas fa-times"></i> Cancel</a>
+        </div>
     </form>
 </div>
 {% endblock %}
@@ -420,18 +875,16 @@ ADD_STAFF_TEMPLATE = '''
 
 LATECOMERS_TEMPLATE = '''
 {% extends 'base' %}
-{% block title %}Late Staff{% endblock %}
+{% block title %}Late Staff - Corona Schools{% endblock %}
 {% block content %}
 <div class="page-header">
-    <h2>Late Staff Report</h2>
-    <div class="button-group">
-        <a href="{{ url_for('download_latecomers', school=selected_school or '', date=selected_date) }}" class="btn btn-success">Download CSV</a>
-    </div>
+    <h2 class="page-title"><i class="fas fa-user-clock"></i> Late Staff Report</h2>
+    <a href="{{ url_for('download_latecomers', school=selected_school or '', date=selected_date) }}" class="btn btn-success"><i class="fas fa-download"></i> Download CSV</a>
 </div>
 <div class="filter-bar">
     <form method="GET" style="display: flex; gap: 1rem; align-items: flex-end; flex-wrap: wrap;">
         <div class="form-group">
-            <label>School</label>
+            <label><i class="fas fa-school"></i> School</label>
             <select name="school">
                 <option value="">All Schools</option>
                 {% for school in schools %}
@@ -440,29 +893,46 @@ LATECOMERS_TEMPLATE = '''
             </select>
         </div>
         <div class="form-group">
-            <label>Date</label>
+            <label><i class="fas fa-calendar"></i> Date</label>
             <input type="date" name="date" value="{{ selected_date }}">
         </div>
-        <button type="submit" class="btn btn-primary">Filter</button>
+        <button type="submit" class="btn btn-primary"><i class="fas fa-filter"></i> Filter</button>
     </form>
 </div>
-<div class="stats-grid">
+<div class="stats-grid" style="grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); max-width: 300px;">
     <div class="stat-card warning">
+        <div class="icon"><i class="fas fa-user-clock"></i></div>
         <h3>{{ records|length }}</h3>
         <p>Late Staff</p>
     </div>
 </div>
 <div class="card">
     <table>
-        <tr><th>Staff ID</th><th>Name</th><th>School</th><th>Resumption Time</th><th>Arrival Time</th><th>Late By</th></tr>
+        <tr>
+            <th>Staff ID</th>
+            <th>Name</th>
+            <th>School</th>
+            <th>Resumption</th>
+            <th>Arrival</th>
+            <th>Late By</th>
+        </tr>
         {% for r in records %}
         <tr>
-            <td>{{ r.staff_id }}</td>
+            <td><strong>{{ r.staff_id }}</strong></td>
             <td>{{ r.name }}</td>
             <td>{{ r.school }}</td>
             <td><span class="time-display">{{ r.resumption }}</span></td>
             <td><span class="time-display">{{ r.arrival }}</span></td>
             <td><span class="badge badge-danger">{{ r.late_by }}</span></td>
+        </tr>
+        {% else %}
+        <tr>
+            <td colspan="6">
+                <div class="empty-state">
+                    <i class="fas fa-check-circle"></i>
+                    <p>No late arrivals for this date!</p>
+                </div>
+            </td>
         </tr>
         {% endfor %}
     </table>
@@ -472,18 +942,16 @@ LATECOMERS_TEMPLATE = '''
 
 OVERTIME_TEMPLATE = '''
 {% extends 'base' %}
-{% block title %}Overtime Report{% endblock %}
+{% block title %}Overtime Report - Corona Schools{% endblock %}
 {% block content %}
 <div class="page-header">
-    <h2>Overtime Report</h2>
-    <div class="button-group">
-        <a href="{{ url_for('download_overtime', school=selected_school or '', from_date=from_date, to_date=to_date) }}" class="btn btn-success">Download CSV</a>
-    </div>
+    <h2 class="page-title"><i class="fas fa-hourglass-half"></i> Overtime Report</h2>
+    <a href="{{ url_for('download_overtime', school=selected_school or '', from_date=from_date, to_date=to_date) }}" class="btn btn-success"><i class="fas fa-download"></i> Download CSV</a>
 </div>
 <div class="filter-bar">
     <form method="GET" style="display: flex; gap: 1rem; align-items: flex-end; flex-wrap: wrap;">
         <div class="form-group">
-            <label>School</label>
+            <label><i class="fas fa-school"></i> School</label>
             <select name="school">
                 <option value="">All Schools</option>
                 {% for school in schools %}
@@ -492,32 +960,48 @@ OVERTIME_TEMPLATE = '''
             </select>
         </div>
         <div class="form-group">
-            <label>From Date</label>
+            <label><i class="fas fa-calendar"></i> From Date</label>
             <input type="date" name="from_date" value="{{ from_date }}">
         </div>
         <div class="form-group">
-            <label>To Date</label>
+            <label><i class="fas fa-calendar"></i> To Date</label>
             <input type="date" name="to_date" value="{{ to_date }}">
         </div>
-        <button type="submit" class="btn btn-primary">Filter</button>
+        <button type="submit" class="btn btn-primary"><i class="fas fa-filter"></i> Filter</button>
     </form>
 </div>
-<div class="stats-grid">
+<div class="stats-grid" style="grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); max-width: 300px;">
     <div class="stat-card info">
+        <div class="icon"><i class="fas fa-clock"></i></div>
         <h3>{{ total_overtime }}</h3>
-        <p>Total Overtime Hours</p>
+        <p>Total Overtime</p>
     </div>
 </div>
 <div class="card">
     <table>
-        <tr><th>Staff ID</th><th>Name</th><th>School</th><th>Days Worked</th><th>Total Overtime</th></tr>
+        <tr>
+            <th>Staff ID</th>
+            <th>Name</th>
+            <th>School</th>
+            <th>Days Worked</th>
+            <th>Total Overtime</th>
+        </tr>
         {% for r in records %}
         <tr>
-            <td>{{ r.staff_id }}</td>
+            <td><strong>{{ r.staff_id }}</strong></td>
             <td>{{ r.name }}</td>
             <td>{{ r.school }}</td>
             <td>{{ r.days_worked }}</td>
             <td><span class="badge badge-info">{{ r.overtime_hours }}h {{ r.overtime_mins }}m</span></td>
+        </tr>
+        {% else %}
+        <tr>
+            <td colspan="5">
+                <div class="empty-state">
+                    <i class="fas fa-clock"></i>
+                    <p>No overtime records for this period</p>
+                </div>
+            </td>
         </tr>
         {% endfor %}
     </table>
@@ -527,13 +1011,16 @@ OVERTIME_TEMPLATE = '''
 
 ATTENDANCE_TEMPLATE = '''
 {% extends 'base' %}
-{% block title %}Attendance Reports{% endblock %}
+{% block title %}Attendance Reports - Corona Schools{% endblock %}
 {% block content %}
-<h2 style="margin-bottom: 1.5rem;">Attendance Reports</h2>
+<div class="page-header">
+    <h2 class="page-title"><i class="fas fa-chart-bar"></i> Attendance Reports</h2>
+    <a href="{{ url_for('download_attendance', school=selected_school or '', from_date=from_date, to_date=to_date) }}" class="btn btn-success"><i class="fas fa-download"></i> Download CSV</a>
+</div>
 <div class="filter-bar">
     <form method="GET" style="display: flex; gap: 1rem; align-items: flex-end; flex-wrap: wrap;">
         <div class="form-group">
-            <label>School</label>
+            <label><i class="fas fa-school"></i> School</label>
             <select name="school">
                 <option value="">All Schools</option>
                 {% for school in schools %}
@@ -542,28 +1029,43 @@ ATTENDANCE_TEMPLATE = '''
             </select>
         </div>
         <div class="form-group">
-            <label>From Date</label>
+            <label><i class="fas fa-calendar"></i> From Date</label>
             <input type="date" name="from_date" value="{{ from_date }}">
         </div>
         <div class="form-group">
-            <label>To Date</label>
+            <label><i class="fas fa-calendar"></i> To Date</label>
             <input type="date" name="to_date" value="{{ to_date }}">
         </div>
-        <button type="submit" class="btn btn-primary">Filter</button>
-        <a href="{{ url_for('download_attendance', school=selected_school or '', from_date=from_date, to_date=to_date) }}" class="btn btn-success">Download CSV</a>
+        <button type="submit" class="btn btn-primary"><i class="fas fa-filter"></i> Filter</button>
     </form>
 </div>
 <div class="card">
     <table>
-        <tr><th>Date</th><th>Staff ID</th><th>Name</th><th>School</th><th>First In</th><th>Last Out</th></tr>
+        <tr>
+            <th>Date</th>
+            <th>Staff ID</th>
+            <th>Name</th>
+            <th>School</th>
+            <th>First In</th>
+            <th>Last Out</th>
+        </tr>
         {% for r in records %}
         <tr>
-            <td>{{ r.date }}</td>
+            <td><strong>{{ r.date }}</strong></td>
             <td>{{ r.staff_id }}</td>
             <td>{{ r.name }}</td>
             <td>{{ r.school }}</td>
-            <td>{{ r.first_in }}</td>
-            <td>{{ r.last_out or '-' }}</td>
+            <td><span class="time-display">{{ r.first_in or '-' }}</span></td>
+            <td><span class="time-display">{{ r.last_out or '-' }}</span></td>
+        </tr>
+        {% else %}
+        <tr>
+            <td colspan="6">
+                <div class="empty-state">
+                    <i class="fas fa-calendar-times"></i>
+                    <p>No attendance records for this period</p>
+                </div>
+            </td>
         </tr>
         {% endfor %}
     </table>
@@ -573,13 +1075,13 @@ ATTENDANCE_TEMPLATE = '''
 
 TODAY_TEMPLATE = '''
 {% extends 'base' %}
-{% block title %}Today's Activity{% endblock %}
+{% block title %}Today's Activity - Corona Schools{% endblock %}
 {% block content %}
-<h2 style="margin-bottom: 1.5rem;">Today's Activity</h2>
+<h2 class="page-title"><i class="fas fa-clock"></i> Today's Activity</h2>
 <div class="filter-bar">
     <form method="GET" style="display: flex; gap: 1rem; align-items: flex-end;">
         <div class="form-group">
-            <label>School</label>
+            <label><i class="fas fa-school"></i> School</label>
             <select name="school" onchange="this.form.submit()">
                 <option value="">All Schools</option>
                 {% for school in schools %}
@@ -591,14 +1093,29 @@ TODAY_TEMPLATE = '''
 </div>
 <div class="card">
     <table>
-        <tr><th>Time</th><th>Staff ID</th><th>Name</th><th>School</th><th>Action</th></tr>
+        <tr>
+            <th>Time</th>
+            <th>Staff ID</th>
+            <th>Name</th>
+            <th>School</th>
+            <th>Action</th>
+        </tr>
         {% for r in records %}
         <tr>
-            <td>{{ r.timestamp.strftime('%H:%M:%S') }}</td>
-            <td>{{ r.staff_id }}</td>
+            <td><span class="time-display">{{ r.timestamp.strftime('%H:%M:%S') }}</span></td>
+            <td><strong>{{ r.staff_id }}</strong></td>
             <td>{{ r.staff_name }}</td>
             <td>{{ r.school.name }}</td>
             <td><span class="badge {% if r.action == 'IN' %}badge-success{% else %}badge-secondary{% endif %}">{{ r.action }}</span></td>
+        </tr>
+        {% else %}
+        <tr>
+            <td colspan="5">
+                <div class="empty-state">
+                    <i class="fas fa-calendar-day"></i>
+                    <p>No activity recorded today</p>
+                </div>
+            </td>
         </tr>
         {% endfor %}
     </table>
@@ -608,38 +1125,36 @@ TODAY_TEMPLATE = '''
 
 ADMINS_TEMPLATE = '''
 {% extends 'base' %}
-{% block title %}Manage Admins{% endblock %}
+{% block title %}Manage Admins - Corona Schools{% endblock %}
 {% block content %}
-<div class="page-header">
-    <h2>Manage Admins</h2>
-</div>
-<div class="card" style="max-width: 500px; margin-bottom: 2rem;">
-    <h3 style="margin-bottom: 1rem;">Add New Admin</h3>
+<h2 class="page-title"><i class="fas fa-user-shield"></i> Manage Admins</h2>
+<div class="card" style="max-width: 550px; margin-bottom: 2rem;">
+    <div class="card-header"><i class="fas fa-user-plus"></i> Add New Admin</div>
     <form method="POST">
         <div class="form-group">
-            <label>Username</label>
-            <input type="text" name="username" required>
+            <label><i class="fas fa-user"></i> Username</label>
+            <input type="text" name="username" required placeholder="Enter username">
         </div>
         <div class="form-group">
-            <label>Password</label>
-            <input type="password" name="password" required>
+            <label><i class="fas fa-lock"></i> Password</label>
+            <input type="password" name="password" required placeholder="Enter password">
         </div>
         <div class="form-group">
-            <label>Role</label>
+            <label><i class="fas fa-user-tag"></i> Role</label>
             <select name="role" id="role-select" onchange="toggleSchoolSelect()">
-                <option value="superadmin">Super Admin</option>
-                <option value="schooladmin">School Admin</option>
+                <option value="superadmin">Super Admin (All Schools)</option>
+                <option value="schooladmin">School Admin (Single School)</option>
             </select>
         </div>
         <div class="form-group" id="school-group" style="display: none;">
-            <label>School</label>
+            <label><i class="fas fa-school"></i> School</label>
             <select name="school_id">
                 {% for school in schools %}
                 <option value="{{ school.id }}">{{ school.name }}</option>
                 {% endfor %}
             </select>
         </div>
-        <button type="submit" class="btn btn-primary">Add Admin</button>
+        <button type="submit" class="btn btn-primary"><i class="fas fa-plus"></i> Add Admin</button>
     </form>
 </div>
 <script>
@@ -649,17 +1164,24 @@ function toggleSchoolSelect() {
 }
 </script>
 <div class="card">
-    <h3 style="margin-bottom: 1rem;">Current Admins</h3>
+    <div class="card-header"><i class="fas fa-users-cog"></i> Current Admins</div>
     <table>
-        <tr><th>Username</th><th>Role</th><th>School</th><th>Actions</th></tr>
+        <tr>
+            <th>Username</th>
+            <th>Role</th>
+            <th>School</th>
+            <th>Actions</th>
+        </tr>
         {% for user in users %}
         <tr>
-            <td>{{ user.username }}</td>
-            <td>{{ user.role }}</td>
-            <td>{{ user.school.name if user.school else 'All' }}</td>
+            <td><strong>{{ user.username }}</strong></td>
+            <td><span class="badge {% if user.role == 'superadmin' %}badge-info{% else %}badge-secondary{% endif %}">{{ user.role }}</span></td>
+            <td>{{ user.school.name if user.school else 'All Schools' }}</td>
             <td>
                 {% if user.username != 'admin' %}
-                <a href="{{ url_for('delete_admin', id=user.id) }}" class="btn btn-danger" style="padding: 0.4rem 0.8rem;" onclick="return confirm('Delete?')">Delete</a>
+                <a href="{{ url_for('delete_admin', id=user.id) }}" class="btn btn-danger btn-sm" onclick="return confirm('Delete this admin?')"><i class="fas fa-trash"></i> Delete</a>
+                {% else %}
+                <span style="color: #a0aec0;">Default Admin</span>
                 {% endif %}
             </td>
         </tr>
@@ -671,25 +1193,25 @@ function toggleSchoolSelect() {
 
 SETTINGS_TEMPLATE = '''
 {% extends 'base' %}
-{% block title %}Settings{% endblock %}
+{% block title %}Settings - Corona Schools{% endblock %}
 {% block content %}
-<h2 style="margin-bottom: 1.5rem;">Settings</h2>
-<div class="card" style="max-width: 500px;">
-    <h3 style="margin-bottom: 1rem;">Change Password</h3>
+<h2 class="page-title"><i class="fas fa-cog"></i> Settings</h2>
+<div class="card" style="max-width: 550px;">
+    <div class="card-header"><i class="fas fa-key"></i> Change Password</div>
     <form method="POST">
         <div class="form-group">
-            <label>Current Password</label>
-            <input type="password" name="current_password" required>
+            <label><i class="fas fa-lock"></i> Current Password</label>
+            <input type="password" name="current_password" required placeholder="Enter current password">
         </div>
         <div class="form-group">
-            <label>New Password</label>
-            <input type="password" name="new_password" required>
+            <label><i class="fas fa-lock"></i> New Password</label>
+            <input type="password" name="new_password" required placeholder="Enter new password">
         </div>
         <div class="form-group">
-            <label>Confirm New Password</label>
-            <input type="password" name="confirm_password" required>
+            <label><i class="fas fa-lock"></i> Confirm New Password</label>
+            <input type="password" name="confirm_password" required placeholder="Confirm new password">
         </div>
-        <button type="submit" class="btn btn-primary">Change Password</button>
+        <button type="submit" class="btn btn-primary"><i class="fas fa-save"></i> Change Password</button>
     </form>
 </div>
 {% endblock %}
@@ -840,21 +1362,13 @@ def download_latecomers():
                 late_mins = int(late_seconds // 60)
                 hours = late_mins // 60
                 mins = late_mins % 60
-                records.append({
-                    'staff_id': staff_id,
-                    'name': data['name'],
-                    'school': school.name,
-                    'resumption': resumption.strftime('%H:%M'),
-                    'arrival': data['time'].strftime('%H:%M'),
-                    'late_by': f"{hours}h {mins}m" if hours else f"{mins}m"
-                })
+                records.append([staff_id, data['name'], school.name, resumption.strftime('%H:%M'), 
+                               data['time'].strftime('%H:%M'), f"{hours}h {mins}m" if hours else f"{mins}m"])
     
     output = io.StringIO()
     writer = csv.writer(output)
     writer.writerow(['Staff ID', 'Name', 'School', 'Resumption Time', 'Arrival Time', 'Late By'])
-    for r in records:
-        writer.writerow([r['staff_id'], r['name'], r['school'], r['resumption'], r['arrival'], r['late_by']])
-    
+    writer.writerows(records)
     output.seek(0)
     return Response(output.getvalue(), mimetype='text/csv',
                    headers={'Content-Disposition': f'attachment; filename=latecomers_{selected_date}.csv'})
@@ -966,21 +1480,13 @@ def download_overtime():
                     staff_overtime += int(overtime_seconds // 60)
             
             if staff_overtime > 0:
-                records.append({
-                    'staff_id': staff_id,
-                    'name': data['name'],
-                    'school': school.name,
-                    'days_worked': days_worked,
-                    'overtime_hours': staff_overtime // 60,
-                    'overtime_mins': staff_overtime % 60
-                })
+                records.append([staff_id, data['name'], school.name, days_worked, 
+                               staff_overtime // 60, staff_overtime % 60])
     
     output = io.StringIO()
     writer = csv.writer(output)
     writer.writerow(['Staff ID', 'Name', 'School', 'Days Worked', 'Overtime Hours', 'Overtime Minutes'])
-    for r in records:
-        writer.writerow([r['staff_id'], r['name'], r['school'], r['days_worked'], r['overtime_hours'], r['overtime_mins']])
-    
+    writer.writerows(records)
     output.seek(0)
     return Response(output.getvalue(), mimetype='text/csv',
                    headers={'Content-Disposition': f'attachment; filename=overtime_{from_date}_to_{to_date}.csv'})
@@ -1006,7 +1512,7 @@ def add_school():
                        api_key=secrets.token_hex(32), resumption_time=res_time, closing_time=cls_time)
         db.session.add(school)
         db.session.commit()
-        flash('School added', 'success')
+        flash('School added successfully', 'success')
         return redirect(url_for('schools'))
     return render_template_string(ADD_SCHOOL_TEMPLATE.replace("{% extends 'base' %}", "{% extends base %}"), base=BASE_TEMPLATE)
 
@@ -1021,7 +1527,7 @@ def edit_school(id):
         school.resumption_time = datetime.strptime(request.form['resumption_time'], '%H:%M').time()
         school.closing_time = datetime.strptime(request.form['closing_time'], '%H:%M').time()
         db.session.commit()
-        flash('School updated', 'success')
+        flash('School updated successfully', 'success')
         return redirect(url_for('schools'))
     return render_template_string(EDIT_SCHOOL_TEMPLATE.replace("{% extends 'base' %}", "{% extends base %}"), base=BASE_TEMPLATE, school=school)
 
@@ -1072,7 +1578,7 @@ def add_staff():
                   department=request.form.get('department'), school_id=request.form['school_id'])
         db.session.add(s)
         db.session.commit()
-        flash('Staff added', 'success')
+        flash('Staff member added', 'success')
         return redirect(url_for('staff'))
     return render_template_string(ADD_STAFF_TEMPLATE.replace("{% extends 'base' %}", "{% extends base %}"), base=BASE_TEMPLATE, schools=schools)
 
@@ -1090,7 +1596,7 @@ def delete_staff(id):
     s = Staff.query.get_or_404(id)
     db.session.delete(s)
     db.session.commit()
-    flash('Staff deleted', 'success')
+    flash('Staff member deleted', 'success')
     return redirect(url_for('staff'))
 
 @app.route('/attendance')
@@ -1165,7 +1671,6 @@ def download_attendance():
     writer.writerow(['Date', 'Staff ID', 'Name', 'School', 'First In', 'Last Out'])
     for r in records:
         writer.writerow([r['date'], r['staff_id'], r['name'], r['school'], r['first_in'] or '', r['last_out'] or ''])
-    
     output.seek(0)
     return Response(output.getvalue(), mimetype='text/csv',
                    headers={'Content-Disposition': f'attachment; filename=attendance_{from_date}_to_{to_date}.csv'})
@@ -1220,7 +1725,7 @@ def settings():
             if request.form['new_password'] == request.form['confirm_password']:
                 current_user.password_hash = generate_password_hash(request.form['new_password'])
                 db.session.commit()
-                flash('Password changed', 'success')
+                flash('Password changed successfully', 'success')
             else:
                 flash('Passwords do not match', 'error')
         else:
@@ -1263,11 +1768,7 @@ with app.app_context():
     if not User.query.filter_by(username='admin').first():
         admin = User(username='admin', password_hash=generate_password_hash('admin123'), role='superadmin')
         db.session.add(admin)
-        for i in range(1, 8):
-            school = School(name=f'School {i}', code=f'SCH{i}', api_key=secrets.token_hex(32))
-            db.session.add(school)
         db.session.commit()
 
 port = int(os.environ.get('PORT', 5000))
 app.run(host='0.0.0.0', port=port, debug=False)
-
