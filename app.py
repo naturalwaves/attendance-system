@@ -64,30 +64,43 @@ def get_styles():
         * { margin: 0; padding: 0; box-sizing: border-box; }
         body { font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; background: #f0f2f5; min-height: 100vh; }
         
-        .sidebar { width: 260px; background: linear-gradient(180deg, #8B0000 0%, #6d0000 50%, #4a0000 100%); min-height: 100vh; position: fixed; left: 0; top: 0; padding: 0; box-shadow: 4px 0 15px rgba(0,0,0,0.1); z-index: 100; }
-        .logo-section { padding: 20px; text-align: center; border-bottom: 1px solid rgba(255,255,255,0.1); background: rgba(255,255,255,0.05); }
-        .logo-section img { max-width: 80px; height: auto; margin-bottom: 10px; border-radius: 8px; }
-        .logo-section h1 { color: #fff; font-size: 16px; font-weight: 600; margin-bottom: 3px; }
-        .logo-section span { color: rgba(255,255,255,0.7); font-size: 11px; }
+        /* Top Navigation */
+        .top-nav { background: linear-gradient(135deg, #8B0000 0%, #6d0000 100%); padding: 0 30px; display: flex; align-items: center; justify-content: space-between; position: fixed; top: 0; left: 0; right: 0; height: 70px; z-index: 1000; box-shadow: 0 2px 15px rgba(0,0,0,0.2); }
+        .nav-brand { display: flex; align-items: center; gap: 12px; }
+        .nav-brand img { height: 45px; width: auto; border-radius: 6px; }
+        .nav-brand h1 { color: #fff; font-size: 18px; font-weight: 600; }
         
-        .nav-menu { list-style: none; padding: 15px 0; }
-        .nav-menu li { margin: 2px 0; }
-        .nav-menu li a { display: flex; align-items: center; padding: 14px 25px; color: rgba(255,255,255,0.8); text-decoration: none; font-size: 14px; font-weight: 500; transition: all 0.3s ease; border-left: 3px solid transparent; }
-        .nav-menu li a:hover { background: rgba(255,255,255,0.1); color: #fff; border-left-color: #FFD700; }
-        .nav-menu li a.active { background: rgba(255,255,255,0.15); color: #fff; border-left-color: #FFD700; }
-        .nav-menu li a i { margin-right: 12px; width: 20px; text-align: center; font-size: 16px; }
+        .nav-menu { display: flex; align-items: center; gap: 5px; }
+        .nav-menu a { color: rgba(255,255,255,0.85); text-decoration: none; padding: 10px 16px; border-radius: 6px; font-size: 14px; font-weight: 500; transition: all 0.3s; display: flex; align-items: center; gap: 6px; }
+        .nav-menu a:hover { background: rgba(255,255,255,0.15); color: #fff; }
+        .nav-menu a.active { background: rgba(255,255,255,0.2); color: #fff; }
         
-        .main-content { margin-left: 260px; padding: 30px; min-height: 100vh; }
+        .nav-right { display: flex; align-items: center; gap: 15px; }
+        .user-info { color: rgba(255,255,255,0.9); font-size: 14px; display: flex; align-items: center; gap: 8px; }
+        .user-info i { font-size: 16px; }
+        .btn-logout { background: rgba(255,255,255,0.15); color: #fff; padding: 8px 16px; border-radius: 6px; text-decoration: none; font-size: 14px; font-weight: 500; transition: all 0.3s; display: flex; align-items: center; gap: 6px; }
+        .btn-logout:hover { background: rgba(255,255,255,0.25); }
         
-        .header { background: #fff; padding: 25px 30px; border-radius: 12px; margin-bottom: 25px; display: flex; justify-content: space-between; align-items: center; box-shadow: 0 2px 12px rgba(0,0,0,0.04); }
-        .header h1 { color: #1a1a2e; font-size: 26px; font-weight: 700; }
-        .header-right { display: flex; align-items: center; gap: 15px; }
-        .user-badge { background: #f8f9fa; padding: 8px 16px; border-radius: 20px; font-size: 14px; color: #666; }
+        /* Dropdown Menu */
+        .dropdown { position: relative; }
+        .dropdown-toggle { cursor: pointer; }
+        .dropdown-menu { position: absolute; top: 100%; right: 0; background: #fff; border-radius: 8px; box-shadow: 0 5px 25px rgba(0,0,0,0.15); min-width: 180px; display: none; overflow: hidden; margin-top: 10px; }
+        .dropdown:hover .dropdown-menu { display: block; }
+        .dropdown-menu a { color: #333; padding: 12px 20px; display: flex; align-items: center; gap: 10px; font-size: 14px; }
+        .dropdown-menu a:hover { background: #f5f5f5; }
+        .dropdown-menu a i { width: 18px; color: #666; }
+        
+        /* Main Content */
+        .main-content { padding: 100px 30px 30px 30px; max-width: 1400px; margin: 0 auto; }
+        
+        .page-header { background: #fff; padding: 25px 30px; border-radius: 12px; margin-bottom: 25px; display: flex; justify-content: space-between; align-items: center; box-shadow: 0 2px 12px rgba(0,0,0,0.04); }
+        .page-header h1 { color: #1a1a2e; font-size: 26px; font-weight: 700; display: flex; align-items: center; gap: 12px; }
+        .page-header h1 i { color: #8B0000; }
         
         .btn { padding: 12px 24px; border: none; border-radius: 8px; cursor: pointer; font-size: 14px; font-weight: 600; text-decoration: none; display: inline-flex; align-items: center; gap: 8px; transition: all 0.3s ease; }
         .btn-primary { background: linear-gradient(135deg, #8B0000, #a50000); color: #fff; box-shadow: 0 4px 12px rgba(139,0,0,0.3); }
-        .btn-primary:hover { background: linear-gradient(135deg, #a50000, #8B0000); transform: translateY(-2px); box-shadow: 0 6px 16px rgba(139,0,0,0.4); }
-        .btn-success { background: linear-gradient(135deg, #28a745, #20c040); color: #fff; box-shadow: 0 4px 12px rgba(40,167,69,0.3); }
+        .btn-primary:hover { transform: translateY(-2px); box-shadow: 0 6px 16px rgba(139,0,0,0.4); }
+        .btn-success { background: linear-gradient(135deg, #28a745, #20c040); color: #fff; }
         .btn-success:hover { transform: translateY(-2px); }
         .btn-danger { background: linear-gradient(135deg, #dc3545, #e04555); color: #fff; }
         .btn-danger:hover { transform: translateY(-2px); }
@@ -97,7 +110,7 @@ def get_styles():
         .card { background: #fff; border-radius: 12px; padding: 25px; margin-bottom: 25px; box-shadow: 0 2px 12px rgba(0,0,0,0.04); }
         .card h2, .card h3 { color: #1a1a2e; margin-bottom: 20px; font-weight: 600; }
         
-        .stats-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 20px; margin-bottom: 25px; }
+        .stats-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 20px; margin-bottom: 25px; }
         .stat-card { background: #fff; border-radius: 12px; padding: 25px; box-shadow: 0 2px 12px rgba(0,0,0,0.04); border-left: 4px solid #8B0000; transition: transform 0.3s ease; }
         .stat-card:hover { transform: translateY(-3px); }
         .stat-card.green { border-left-color: #28a745; }
@@ -105,7 +118,7 @@ def get_styles():
         .stat-card.orange { border-left-color: #fd7e14; }
         .stat-card.red { border-left-color: #dc3545; }
         .stat-card h3 { color: #666; font-size: 13px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 12px; }
-        .stat-card .number { font-size: 36px; font-weight: 700; color: #1a1a2e; }
+        .stat-card .number { font-size: 32px; font-weight: 700; color: #1a1a2e; }
         .stat-card small { color: #999; font-size: 12px; }
         
         table { width: 100%; border-collapse: collapse; }
@@ -119,62 +132,69 @@ def get_styles():
         .form-control:focus { outline: none; border-color: #8B0000; box-shadow: 0 0 0 3px rgba(139,0,0,0.1); }
         
         .alert { padding: 16px 20px; border-radius: 8px; margin-bottom: 20px; font-weight: 500; }
-        .alert-success { background: linear-gradient(135deg, #d4edda, #c3e6cb); color: #155724; border: 1px solid #b8dabc; }
-        .alert-danger { background: linear-gradient(135deg, #f8d7da, #f5c6cb); color: #721c24; border: 1px solid #f1b5bb; }
-        .alert-info { background: linear-gradient(135deg, #d1ecf1, #bee5eb); color: #0c5460; border: 1px solid #abdde5; }
+        .alert-success { background: #d4edda; color: #155724; border: 1px solid #c3e6cb; }
+        .alert-danger { background: #f8d7da; color: #721c24; border: 1px solid #f5c6cb; }
+        .alert-info { background: #d1ecf1; color: #0c5460; border: 1px solid #bee5eb; }
         
         .badge { padding: 6px 12px; border-radius: 20px; font-size: 12px; font-weight: 600; }
         .badge-success { background: #d4edda; color: #155724; }
         .badge-danger { background: #f8d7da; color: #721c24; }
         .badge-info { background: #d1ecf1; color: #0c5460; }
-        .badge-warning { background: #fff3cd; color: #856404; }
         
         .filter-form { display: flex; gap: 15px; flex-wrap: wrap; align-items: flex-end; }
         .filter-form .form-group { margin-bottom: 0; min-width: 180px; }
         
         .upload-area { border: 2px dashed #d0d0d0; padding: 50px; text-align: center; border-radius: 12px; margin: 20px 0; background: #fafbfc; transition: all 0.3s; }
         .upload-area:hover { border-color: #8B0000; background: #fff5f5; }
-        .upload-area p { color: #666; margin-bottom: 20px; font-size: 16px; }
         
         code { background: #f4f4f4; padding: 4px 8px; border-radius: 4px; font-size: 13px; color: #e83e8c; }
         
         .action-btns { display: flex; gap: 8px; }
+        
+        /* Mobile responsive */
+        @media (max-width: 992px) {
+            .nav-menu { display: none; }
+            .top-nav { padding: 0 15px; }
+            .main-content { padding: 90px 15px 20px 15px; }
+        }
     </style>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     '''
 
 def get_nav(active='dashboard'):
-    items = [
-        ('dashboard', 'fa-home', 'Dashboard'),
-        ('schools', 'fa-school', 'Schools'),
-        ('staff', 'fa-users', 'Staff'),
-        ('bulk-upload', 'fa-cloud-upload-alt', 'Bulk Upload'),
-        ('attendance', 'fa-clipboard-list', 'Attendance'),
-        ('latecomers', 'fa-clock', 'Late Staff'),
-        ('absent', 'fa-user-times', 'Absent Staff'),
-        ('overtime', 'fa-hourglass-half', 'Overtime'),
-        ('admins', 'fa-user-shield', 'Admins'),
-        ('settings', 'fa-cog', 'Settings'),
-    ]
-    
-    nav_items = ''
-    for key, icon, label in items:
-        active_class = 'active' if active == key else ''
-        url = '/dashboard' if key == 'dashboard' else f'/{key}'
-        nav_items += f'<li><a href="{url}" class="{active_class}"><i class="fas {icon}"></i> {label}</a></li>'
-    
     return f'''
-    <div class="sidebar">
-        <div class="logo-section">
+    <nav class="top-nav">
+        <div class="nav-brand">
             <img src="{LOGO_URL}" alt="Corona Schools" onerror="this.style.display='none'">
             <h1>Corona Schools</h1>
-            <span>Staff Attendance System</span>
         </div>
-        <ul class="nav-menu">
-            {nav_items}
-            <li><a href="/logout"><i class="fas fa-sign-out-alt"></i> Logout</a></li>
-        </ul>
-    </div>
+        
+        <div class="nav-menu">
+            <a href="/dashboard" class="{'active' if active=='dashboard' else ''}"><i class="fas fa-home"></i> Dashboard</a>
+            <a href="/schools" class="{'active' if active=='schools' else ''}"><i class="fas fa-school"></i> Schools</a>
+            <a href="/staff" class="{'active' if active=='staff' else ''}"><i class="fas fa-users"></i> Staff</a>
+            <a href="/bulk-upload" class="{'active' if active=='bulk-upload' else ''}"><i class="fas fa-upload"></i> Upload</a>
+            <a href="/attendance" class="{'active' if active=='attendance' else ''}"><i class="fas fa-clipboard-list"></i> Attendance</a>
+            <a href="/latecomers" class="{'active' if active=='latecomers' else ''}"><i class="fas fa-clock"></i> Late</a>
+            <a href="/absent" class="{'active' if active=='absent' else ''}"><i class="fas fa-user-times"></i> Absent</a>
+            <a href="/overtime" class="{'active' if active=='overtime' else ''}"><i class="fas fa-hourglass-half"></i> Overtime</a>
+        </div>
+        
+        <div class="nav-right">
+            <div class="dropdown">
+                <div class="user-info dropdown-toggle">
+                    <i class="fas fa-user-circle"></i>
+                    <span>{current_user.username if current_user.is_authenticated else 'Guest'}</span>
+                    <i class="fas fa-chevron-down" style="font-size:10px;"></i>
+                </div>
+                <div class="dropdown-menu">
+                    <a href="/admins"><i class="fas fa-user-shield"></i> Admins</a>
+                    <a href="/settings"><i class="fas fa-cog"></i> Settings</a>
+                    <a href="/logout" style="color:#dc3545;"><i class="fas fa-sign-out-alt"></i> Logout</a>
+                </div>
+            </div>
+        </div>
+    </nav>
     '''
 
 def page(title, content, active='dashboard'):
@@ -316,11 +336,8 @@ def dashboard():
         school_rows += f'<tr><td><strong>{s.name}</strong></td><td>{s.resumption_time}</td><td>{s.closing_time}</td><td>{sc}</td><td><span class="badge badge-success">{tc}</span></td></tr>'
     
     content = f'''
-    <div class="header">
+    <div class="page-header">
         <h1><i class="fas fa-home"></i> Dashboard</h1>
-        <div class="header-right">
-            <span class="user-badge"><i class="fas fa-user"></i> {current_user.username}</span>
-        </div>
     </div>
     
     <div class="card">
@@ -385,7 +402,7 @@ def schools():
         </tr>'''
     
     content = f'''
-    <div class="header">
+    <div class="page-header">
         <h1><i class="fas fa-school"></i> Schools</h1>
         <a href="/schools/add" class="btn btn-primary"><i class="fas fa-plus"></i> Add School</a>
     </div>
@@ -413,7 +430,7 @@ def add_school():
     time_opts_c = ''.join([f'<option value="{h:02d}:{m:02d}" {"selected" if h==16 and m==0 else ""}>{h:02d}:{m:02d}</option>' for h in range(5,23) for m in [0,30]])
     
     content = f'''
-    <div class="header"><h1><i class="fas fa-plus-circle"></i> Add New School</h1></div>
+    <div class="page-header"><h1><i class="fas fa-plus-circle"></i> Add New School</h1></div>
     <div class="card">
         <form method="POST" style="max-width: 500px;">
             <div class="form-group">
@@ -452,7 +469,7 @@ def edit_school(id):
     time_opts_c = ''.join([f'<option value="{h:02d}:{m:02d}" {"selected" if f"{h:02d}:{m:02d}"==s.closing_time else ""}>{h:02d}:{m:02d}</option>' for h in range(5,23) for m in [0,30]])
     
     content = f'''
-    <div class="header"><h1><i class="fas fa-edit"></i> Edit School</h1></div>
+    <div class="page-header"><h1><i class="fas fa-edit"></i> Edit School</h1></div>
     <div class="card">
         <form method="POST" style="max-width: 500px;">
             <div class="form-group">
@@ -536,7 +553,7 @@ def staff():
         </tr>'''
     
     content = f'''
-    <div class="header">
+    <div class="page-header">
         <h1><i class="fas fa-users"></i> Staff Management</h1>
         <a href="/staff/add" class="btn btn-primary"><i class="fas fa-plus"></i> Add Staff</a>
     </div>
@@ -572,7 +589,7 @@ def add_staff():
     school_opts = ''.join([f'<option value="{s.id}">{s.name}</option>' for s in schools])
     
     content = f'''
-    <div class="header"><h1><i class="fas fa-user-plus"></i> Add New Staff</h1></div>
+    <div class="page-header"><h1><i class="fas fa-user-plus"></i> Add New Staff</h1></div>
     <div class="card">
         <form method="POST" style="max-width: 500px;">
             <div class="form-group">
@@ -666,7 +683,7 @@ def bulk_upload():
     school_opts = ''.join([f'<option value="{s.id}">{s.name}</option>' for s in schools])
     
     content = f'''
-    <div class="header"><h1><i class="fas fa-cloud-upload-alt"></i> Bulk Staff Upload</h1></div>
+    <div class="page-header"><h1><i class="fas fa-cloud-upload-alt"></i> Bulk Staff Upload</h1></div>
     {msg}
     <div class="card">
         <h3><i class="fas fa-upload"></i> Upload Staff Records</h3>
@@ -745,7 +762,7 @@ def attendance():
         </tr>'''
     
     content = f'''
-    <div class="header">
+    <div class="page-header">
         <h1><i class="fas fa-clipboard-list"></i> Attendance Reports</h1>
         <a href="/attendance/download?school={school_filter}&from_date={from_date}&to_date={to_date}" class="btn btn-success"><i class="fas fa-download"></i> Download CSV</a>
     </div>
@@ -839,7 +856,7 @@ def latecomers():
         </tr>'''
     
     content = f'''
-    <div class="header">
+    <div class="page-header">
         <h1><i class="fas fa-clock"></i> Late Staff Report</h1>
         <a href="/latecomers/download?school={school_filter}&date={report_date}" class="btn btn-success"><i class="fas fa-download"></i> Download CSV</a>
     </div>
@@ -925,7 +942,7 @@ def absent():
         rows += f'<tr><td><strong>{s.staff_id}</strong></td><td>{s.firstname} {s.surname}</td><td>{dept}</td><td>{sch.name if sch else "Unknown"}</td></tr>'
     
     content = f'''
-    <div class="header">
+    <div class="page-header">
         <h1><i class="fas fa-user-times"></i> Absent Staff Report</h1>
         <a href="/absent/download?school={school_filter}&date={report_date}" class="btn btn-success"><i class="fas fa-download"></i> Download CSV</a>
     </div>
@@ -1020,7 +1037,7 @@ def overtime():
         </tr>'''
     
     content = f'''
-    <div class="header">
+    <div class="page-header">
         <h1><i class="fas fa-hourglass-half"></i> Overtime Report</h1>
         <a href="/overtime/download?school={school_filter}&from_date={from_date}&to_date={to_date}" class="btn btn-success"><i class="fas fa-download"></i> Download CSV</a>
     </div>
@@ -1099,7 +1116,7 @@ def admins():
         </tr>'''
     
     content = f'''
-    <div class="header">
+    <div class="page-header">
         <h1><i class="fas fa-user-shield"></i> Admin Management</h1>
         <a href="/admins/add" class="btn btn-primary"><i class="fas fa-plus"></i> Add Admin</a>
     </div>
@@ -1126,7 +1143,7 @@ def add_admin():
         return redirect(url_for('admins'))
     
     content = '''
-    <div class="header"><h1><i class="fas fa-user-plus"></i> Add New Admin</h1></div>
+    <div class="page-header"><h1><i class="fas fa-user-plus"></i> Add New Admin</h1></div>
     <div class="card">
         <form method="POST" style="max-width: 500px;">
             <div class="form-group">
@@ -1175,7 +1192,7 @@ def settings():
             msg = '<div class="alert alert-danger"><i class="fas fa-exclamation-circle"></i> Current password incorrect</div>'
     
     content = f'''
-    <div class="header"><h1><i class="fas fa-cog"></i> Settings</h1></div>
+    <div class="page-header"><h1><i class="fas fa-cog"></i> Settings</h1></div>
     {msg}
     <div class="card">
         <h3><i class="fas fa-key"></i> Change Password</h3>
