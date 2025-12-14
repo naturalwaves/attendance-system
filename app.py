@@ -116,7 +116,12 @@ def get_styles():
         .stat-card.yellow { border-left-color: #ffc107; }
         .stat-card.red { border-left-color: #dc3545; }
         .stat-card h3 { color: #666; font-size: 13px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 12px; }
-        .stat-card .number { font-size: 32px; font-weight: 700; color: #1a1a2e; }
+        .stat-card .number { font-size: 32px; font-weight: 700; }
+        .stat-card .number.maroon { color: #8B0000; }
+        .stat-card .number.blue { color: #007bff; }
+        .stat-card .number.green { color: #28a745; }
+        .stat-card .number.yellow { color: #d39e00; }
+        .stat-card .number.red { color: #dc3545; }
         .stat-card small { color: #999; font-size: 12px; }
         
         table { width: 100%; border-collapse: collapse; }
@@ -138,6 +143,7 @@ def get_styles():
         .badge-success { background: #d4edda; color: #155724; }
         .badge-danger { background: #f8d7da; color: #721c24; }
         .badge-info { background: #d1ecf1; color: #0c5460; }
+        .badge-warning { background: #fff3cd; color: #856404; }
         
         .filter-form { display: flex; gap: 15px; flex-wrap: wrap; align-items: flex-end; }
         .filter-form .form-group { margin-bottom: 0; min-width: 160px; }
@@ -318,6 +324,11 @@ def dashboard():
     school_filter = request.args.get('school', 'all')
     schools = School.query.all()
     
+    # If user is not super admin and has a school assigned, restrict to their school
+    if not current_user.is_admin and current_user.school_id:
+        school_filter = str(current_user.school_id)
+        schools = [School.query.get(current_user.school_id)]
+    
     if school_filter == 'all':
         total_staff = Staff.query.filter_by(active=True).count()
         countable_staff = Staff.query.filter_by(active=True).filter(Staff.department != 'Management').count()
@@ -349,13 +360,20 @@ def dashboard():
     
     absent_count = max(0, countable_staff - signed_in_countable)
     
-    school_opts = '<option value="all">All Schools</option>'
-    for s in schools:
-        sel = 'selected' if school_filter == str(s.id) else ''
-        school_opts += f'<option value="{s.id}" {sel}>{s.name}</option>'
+    # Build school options (only show all if super admin)
+    if current_user.is_admin:
+        school_opts = '<option value="all">All Schools</option>'
+        for s in School.query.all():
+            sel = 'selected' if school_filter == str(s.id) else ''
+            school_opts += f'<option value="{s.id}" {sel}>{s.name}</option>'
+    else:
+        school_opts = ''
+        for s in schools:
+            school_opts += f'<option value="{s.id}" selected>{s.name}</option>'
     
     school_rows = ''
-    for s in schools:
+    display_schools = School.query.all() if current_user.is_admin and school_filter == 'all' else schools
+    for s in display_schools:
         sc = Staff.query.filter_by(school_id=s.id, active=True).count()
         tc = Attendance.query.filter_by(school_id=s.id, date=today).count()
         school_rows += f'<tr><td><strong>{s.name}</strong></td><td>{s.resumption_time}</td><td>{s.closing_time}</td><td>{sc}</td><td><span class="badge badge-success">{tc}</span></td></tr>'
@@ -369,7 +387,7 @@ def dashboard():
         <form method="GET" style="max-width: 300px;">
             <div class="form-group" style="margin-bottom: 0;">
                 <label><i class="fas fa-filter"></i> Filter by School</label>
-                <select name="school" class="form-control" onchange="this.form.submit()">{school_opts}</select>
+                <select name="school" class="form-control" onchange="this.form.submit()" {'disabled' if not current_user.is_admin and current_user.school_id else ''}>{school_opts}</select>
             </div>
         </form>
     </div>
@@ -377,23 +395,23 @@ def dashboard():
     <div class="stats-grid">
         <div class="stat-card">
             <h3><i class="fas fa-school"></i> Total Schools</h3>
-            <div class="number">{len(schools)}</div>
+            <div class="number maroon">{len(display_schools)}</div>
         </div>
         <div class="stat-card blue">
             <h3><i class="fas fa-users"></i> Total Staff</h3>
-            <div class="number">{total_staff}</div>
+            <div class="number blue">{total_staff}</div>
         </div>
         <div class="stat-card green">
             <h3><i class="fas fa-check-circle"></i> Signed In Today</h3>
-            <div class="number">{len(signed_in_ids)}</div>
+            <div class="number green">{len(signed_in_ids)}</div>
         </div>
         <div class="stat-card yellow">
             <h3><i class="fas fa-clock"></i> Late Today</h3>
-            <div class="number">{late_count}</div>
+            <div class="number yellow">{late_count}</div>
         </div>
         <div class="stat-card red">
             <h3><i class="fas fa-user-times"></i> Absent Today</h3>
-            <div class="number">{absent_count}</div>
+            <div class="number red">{absent_count}</div>
             <small>Excludes Management</small>
         </div>
     </div>
@@ -411,6 +429,9 @@ def dashboard():
 @app.route('/schools')
 @login_required
 def schools():
+    if not current_user.is_admin:
+        return redirect(url_for('dashboard'))
+    
     all_schools = School.query.all()
     rows = ''
     for s in all_schools:
@@ -443,6 +464,9 @@ def schools():
 @app.route('/schools/add', methods=['GET', 'POST'])
 @login_required
 def add_school():
+    if not current_user.is_admin:
+        return redirect(url_for('dashboard'))
+    
     if request.method == 'POST':
         s = School(name=request.form.get('name'), api_key=secrets.token_hex(32), 
                    resumption_time=request.form.get('resumption_time', '08:00'),
@@ -482,6 +506,9 @@ def add_school():
 @app.route('/schools/edit/<int:id>', methods=['GET', 'POST'])
 @login_required
 def edit_school(id):
+    if not current_user.is_admin:
+        return redirect(url_for('dashboard'))
+    
     s = School.query.get_or_404(id)
     if request.method == 'POST':
         s.name = request.form.get('name')
@@ -528,6 +555,9 @@ def edit_school(id):
 @app.route('/schools/delete/<int:id>', methods=['POST'])
 @login_required
 def delete_school(id):
+    if not current_user.is_admin:
+        return redirect(url_for('dashboard'))
+    
     s = School.query.get_or_404(id)
     Staff.query.filter_by(school_id=id).delete()
     Attendance.query.filter_by(school_id=id).delete()
@@ -538,6 +568,9 @@ def delete_school(id):
 @app.route('/schools/regenerate/<int:id>', methods=['POST'])
 @login_required
 def regenerate_key(id):
+    if not current_user.is_admin:
+        return redirect(url_for('dashboard'))
+    
     s = School.query.get_or_404(id)
     s.api_key = secrets.token_hex(32)
     db.session.commit()
@@ -547,6 +580,11 @@ def regenerate_key(id):
 @login_required
 def staff():
     school_filter = request.args.get('school', 'all')
+    
+    # Restrict non-admin users to their school
+    if not current_user.is_admin and current_user.school_id:
+        school_filter = str(current_user.school_id)
+    
     schools = School.query.all()
     
     if school_filter == 'all':
@@ -554,10 +592,17 @@ def staff():
     else:
         all_staff = Staff.query.filter_by(school_id=int(school_filter)).all()
     
-    school_opts = '<option value="all">All Schools</option>'
-    for s in schools:
-        sel = 'selected' if school_filter == str(s.id) else ''
-        school_opts += f'<option value="{s.id}" {sel}>{s.name}</option>'
+    if current_user.is_admin:
+        school_opts = '<option value="all">All Schools</option>'
+        for s in schools:
+            sel = 'selected' if school_filter == str(s.id) else ''
+            school_opts += f'<option value="{s.id}" {sel}>{s.name}</option>'
+    else:
+        school_opts = ''
+        if current_user.school_id:
+            s = School.query.get(current_user.school_id)
+            if s:
+                school_opts = f'<option value="{s.id}" selected>{s.name}</option>'
     
     rows = ''
     for st in all_staff:
@@ -586,7 +631,7 @@ def staff():
         <form method="GET" class="filter-form">
             <div class="form-group">
                 <label><i class="fas fa-filter"></i> Filter by School</label>
-                <select name="school" class="form-control" onchange="this.form.submit()">{school_opts}</select>
+                <select name="school" class="form-control" onchange="this.form.submit()" {'disabled' if not current_user.is_admin and current_user.school_id else ''}>{school_opts}</select>
             </div>
         </form>
     </div>
@@ -602,11 +647,22 @@ def staff():
 @app.route('/staff/add', methods=['GET', 'POST'])
 @login_required
 def add_staff():
-    schools = School.query.all()
+    if current_user.is_admin:
+        schools = School.query.all()
+    elif current_user.school_id:
+        schools = [School.query.get(current_user.school_id)]
+    else:
+        schools = []
+    
     if request.method == 'POST':
+        school_id = request.form.get('school_id')
+        # Non-admin users can only add to their own school
+        if not current_user.is_admin and current_user.school_id:
+            school_id = current_user.school_id
+        
         st = Staff(staff_id=request.form.get('staff_id'), firstname=request.form.get('firstname'),
                    surname=request.form.get('surname'), department=request.form.get('department', ''),
-                   school_id=request.form.get('school_id'))
+                   school_id=school_id)
         db.session.add(st)
         db.session.commit()
         return redirect(url_for('staff'))
@@ -636,7 +692,7 @@ def add_staff():
             </div>
             <div class="form-group">
                 <label><i class="fas fa-school"></i> School</label>
-                <select name="school_id" class="form-control" required>
+                <select name="school_id" class="form-control" required {'disabled' if not current_user.is_admin and current_user.school_id else ''}>
                     <option value="">-- Select --</option>{school_opts}
                 </select>
             </div>
@@ -653,6 +709,10 @@ def add_staff():
 @login_required
 def toggle_staff(id):
     st = Staff.query.get_or_404(id)
+    # Check permission
+    if not current_user.is_admin and current_user.school_id != st.school_id:
+        return redirect(url_for('staff'))
+    
     st.active = not st.active
     db.session.commit()
     return redirect(url_for('staff'))
@@ -661,6 +721,10 @@ def toggle_staff(id):
 @login_required
 def delete_staff(id):
     st = Staff.query.get_or_404(id)
+    # Check permission
+    if not current_user.is_admin and current_user.school_id != st.school_id:
+        return redirect(url_for('staff'))
+    
     Attendance.query.filter_by(staff_id=id).delete()
     db.session.delete(st)
     db.session.commit()
@@ -669,11 +733,21 @@ def delete_staff(id):
 @app.route('/bulk-upload', methods=['GET', 'POST'])
 @login_required
 def bulk_upload():
-    schools = School.query.all()
+    if current_user.is_admin:
+        schools = School.query.all()
+    elif current_user.school_id:
+        schools = [School.query.get(current_user.school_id)]
+    else:
+        schools = []
+    
     msg = ''
     
     if request.method == 'POST':
         school_id = request.form.get('school_id')
+        # Non-admin users can only upload to their own school
+        if not current_user.is_admin and current_user.school_id:
+            school_id = current_user.school_id
+        
         file = request.files.get('csv_file')
         
         if not school_id or not file:
@@ -715,7 +789,7 @@ def bulk_upload():
         <form method="POST" enctype="multipart/form-data">
             <div class="form-group" style="max-width:400px;">
                 <label><i class="fas fa-school"></i> Select School</label>
-                <select name="school_id" class="form-control" required>
+                <select name="school_id" class="form-control" required {'disabled' if not current_user.is_admin and current_user.school_id else ''}>
                     <option value="">-- Select --</option>{school_opts}
                 </select>
             </div>
@@ -763,15 +837,25 @@ def attendance():
     from_date = request.args.get('from_date', date.today().isoformat())
     to_date = request.args.get('to_date', date.today().isoformat())
     
+    # Restrict non-admin users
+    if not current_user.is_admin and current_user.school_id:
+        school_filter = str(current_user.school_id)
+        schools = [School.query.get(current_user.school_id)]
+    
     query = Attendance.query.filter(Attendance.date >= from_date, Attendance.date <= to_date)
     if school_filter != 'all':
         query = query.filter_by(school_id=int(school_filter))
     records = query.order_by(Attendance.date.desc()).all()
     
-    school_opts = '<option value="all">All Schools</option>'
-    for s in schools:
-        sel = 'selected' if school_filter == str(s.id) else ''
-        school_opts += f'<option value="{s.id}" {sel}>{s.name}</option>'
+    if current_user.is_admin:
+        school_opts = '<option value="all">All Schools</option>'
+        for s in School.query.all():
+            sel = 'selected' if school_filter == str(s.id) else ''
+            school_opts += f'<option value="{s.id}" {sel}>{s.name}</option>'
+    else:
+        school_opts = ''
+        for s in schools:
+            school_opts += f'<option value="{s.id}" selected>{s.name}</option>'
     
     rows = ''
     for r in records:
@@ -795,7 +879,7 @@ def attendance():
         <form method="GET" class="filter-form">
             <div class="form-group">
                 <label><i class="fas fa-school"></i> School</label>
-                <select name="school" class="form-control">{school_opts}</select>
+                <select name="school" class="form-control" {'disabled' if not current_user.is_admin and current_user.school_id else ''}>{school_opts}</select>
             </div>
             <div class="form-group">
                 <label><i class="fas fa-calendar"></i> From</label>
@@ -825,6 +909,10 @@ def download_attendance():
     from_date = request.args.get('from_date', date.today().isoformat())
     to_date = request.args.get('to_date', date.today().isoformat())
     
+    # Restrict non-admin users
+    if not current_user.is_admin and current_user.school_id:
+        school_filter = str(current_user.school_id)
+    
     query = Attendance.query.filter(Attendance.date >= from_date, Attendance.date <= to_date)
     if school_filter != 'all':
         query = query.filter_by(school_id=int(school_filter))
@@ -849,6 +937,11 @@ def latecomers():
     from_date = request.args.get('from_date', date.today().isoformat())
     to_date = request.args.get('to_date', date.today().isoformat())
     
+    # Restrict non-admin users
+    if not current_user.is_admin and current_user.school_id:
+        school_filter = str(current_user.school_id)
+        schools = [School.query.get(current_user.school_id)]
+    
     query = Attendance.query.filter(Attendance.date >= from_date, Attendance.date <= to_date)
     if school_filter != 'all':
         query = query.filter_by(school_id=int(school_filter))
@@ -867,10 +960,15 @@ def latecomers():
                 except:
                     pass
     
-    school_opts = '<option value="all">All Schools</option>'
-    for s in schools:
-        sel = 'selected' if school_filter == str(s.id) else ''
-        school_opts += f'<option value="{s.id}" {sel}>{s.name}</option>'
+    if current_user.is_admin:
+        school_opts = '<option value="all">All Schools</option>'
+        for s in School.query.all():
+            sel = 'selected' if school_filter == str(s.id) else ''
+            school_opts += f'<option value="{s.id}" {sel}>{s.name}</option>'
+    else:
+        school_opts = ''
+        for s in schools:
+            school_opts += f'<option value="{s.id}" selected>{s.name}</option>'
     
     rows = ''
     for r in late_list:
@@ -890,7 +988,7 @@ def latecomers():
         <form method="GET" class="filter-form">
             <div class="form-group">
                 <label><i class="fas fa-school"></i> School</label>
-                <select name="school" class="form-control">{school_opts}</select>
+                <select name="school" class="form-control" {'disabled' if not current_user.is_admin and current_user.school_id else ''}>{school_opts}</select>
             </div>
             <div class="form-group">
                 <label><i class="fas fa-calendar"></i> From</label>
@@ -920,6 +1018,10 @@ def download_latecomers():
     school_filter = request.args.get('school', 'all')
     from_date = request.args.get('from_date', date.today().isoformat())
     to_date = request.args.get('to_date', date.today().isoformat())
+    
+    # Restrict non-admin users
+    if not current_user.is_admin and current_user.school_id:
+        school_filter = str(current_user.school_id)
     
     query = Attendance.query.filter(Attendance.date >= from_date, Attendance.date <= to_date)
     if school_filter != 'all':
@@ -952,6 +1054,11 @@ def absent():
     from_date = request.args.get('from_date', date.today().isoformat())
     to_date = request.args.get('to_date', date.today().isoformat())
     
+    # Restrict non-admin users
+    if not current_user.is_admin and current_user.school_id:
+        school_filter = str(current_user.school_id)
+        schools = [School.query.get(current_user.school_id)]
+    
     start = datetime.strptime(from_date, '%Y-%m-%d').date()
     end = datetime.strptime(to_date, '%Y-%m-%d').date()
     
@@ -973,10 +1080,15 @@ def absent():
         
         current += timedelta(days=1)
     
-    school_opts = '<option value="all">All Schools</option>'
-    for s in schools:
-        sel = 'selected' if school_filter == str(s.id) else ''
-        school_opts += f'<option value="{s.id}" {sel}>{s.name}</option>'
+    if current_user.is_admin:
+        school_opts = '<option value="all">All Schools</option>'
+        for s in School.query.all():
+            sel = 'selected' if school_filter == str(s.id) else ''
+            school_opts += f'<option value="{s.id}" {sel}>{s.name}</option>'
+    else:
+        school_opts = ''
+        for s in schools:
+            school_opts += f'<option value="{s.id}" selected>{s.name}</option>'
     
     rows = ''
     for r in absent_list:
@@ -992,7 +1104,7 @@ def absent():
         <form method="GET" class="filter-form">
             <div class="form-group">
                 <label><i class="fas fa-school"></i> School</label>
-                <select name="school" class="form-control">{school_opts}</select>
+                <select name="school" class="form-control" {'disabled' if not current_user.is_admin and current_user.school_id else ''}>{school_opts}</select>
             </div>
             <div class="form-group">
                 <label><i class="fas fa-calendar"></i> From</label>
@@ -1023,6 +1135,10 @@ def download_absent():
     school_filter = request.args.get('school', 'all')
     from_date = request.args.get('from_date', date.today().isoformat())
     to_date = request.args.get('to_date', date.today().isoformat())
+    
+    # Restrict non-admin users
+    if not current_user.is_admin and current_user.school_id:
+        school_filter = str(current_user.school_id)
     
     start = datetime.strptime(from_date, '%Y-%m-%d').date()
     end = datetime.strptime(to_date, '%Y-%m-%d').date()
@@ -1059,6 +1175,11 @@ def overtime():
     from_date = request.args.get('from_date', date.today().isoformat())
     to_date = request.args.get('to_date', date.today().isoformat())
     
+    # Restrict non-admin users
+    if not current_user.is_admin and current_user.school_id:
+        school_filter = str(current_user.school_id)
+        schools = [School.query.get(current_user.school_id)]
+    
     query = Attendance.query.filter(Attendance.date >= from_date, Attendance.date <= to_date)
     if school_filter != 'all':
         query = query.filter_by(school_id=int(school_filter))
@@ -1077,10 +1198,15 @@ def overtime():
                 except:
                     pass
     
-    school_opts = '<option value="all">All Schools</option>'
-    for s in schools:
-        sel = 'selected' if school_filter == str(s.id) else ''
-        school_opts += f'<option value="{s.id}" {sel}>{s.name}</option>'
+    if current_user.is_admin:
+        school_opts = '<option value="all">All Schools</option>'
+        for s in School.query.all():
+            sel = 'selected' if school_filter == str(s.id) else ''
+            school_opts += f'<option value="{s.id}" {sel}>{s.name}</option>'
+    else:
+        school_opts = ''
+        for s in schools:
+            school_opts += f'<option value="{s.id}" selected>{s.name}</option>'
     
     rows = ''
     for r in ot_list:
@@ -1101,7 +1227,7 @@ def overtime():
         <form method="GET" class="filter-form">
             <div class="form-group">
                 <label><i class="fas fa-school"></i> School</label>
-                <select name="school" class="form-control">{school_opts}</select>
+                <select name="school" class="form-control" {'disabled' if not current_user.is_admin and current_user.school_id else ''}>{school_opts}</select>
             </div>
             <div class="form-group">
                 <label><i class="fas fa-calendar"></i> From</label>
@@ -1131,6 +1257,10 @@ def download_overtime():
     school_filter = request.args.get('school', 'all')
     from_date = request.args.get('from_date', date.today().isoformat())
     to_date = request.args.get('to_date', date.today().isoformat())
+    
+    # Restrict non-admin users
+    if not current_user.is_admin and current_user.school_id:
+        school_filter = str(current_user.school_id)
     
     query = Attendance.query.filter(Attendance.date >= from_date, Attendance.date <= to_date)
     if school_filter != 'all':
@@ -1164,9 +1294,11 @@ def admins():
     users = User.query.all()
     rows = ''
     for u in users:
-        role = '<span class="badge badge-success">Super Admin</span>' if u.is_admin else '<span class="badge badge-info">User</span>'
+        role = '<span class="badge badge-success">Super Admin</span>' if u.is_admin else '<span class="badge badge-info">School Admin</span>'
+        school = School.query.get(u.school_id) if u.school_id else None
+        school_name = f'<span class="badge badge-warning">{school.name}</span>' if school else '<span style="color:#999;">All Schools</span>'
         rows += f'''<tr>
-            <td><strong>{u.username}</strong></td><td>{role}</td>
+            <td><strong>{u.username}</strong></td><td>{role}</td><td>{school_name}</td>
             <td><form method="POST" action="/admins/delete/{u.id}" style="display:inline;" onsubmit="return confirm('Delete?');">
                 <button class="btn btn-danger btn-sm"><i class="fas fa-trash"></i></button>
             </form></td>
@@ -1179,7 +1311,7 @@ def admins():
     </div>
     <div class="card">
         <table>
-            <thead><tr><th>Username</th><th>Role</th><th>Actions</th></tr></thead>
+            <thead><tr><th>Username</th><th>Role</th><th>Assigned School</th><th>Actions</th></tr></thead>
             <tbody>{rows}</tbody>
         </table>
     </div>
@@ -1192,14 +1324,23 @@ def add_admin():
     if not current_user.is_admin:
         return redirect(url_for('dashboard'))
     
+    schools = School.query.all()
+    
     if request.method == 'POST':
-        u = User(username=request.form.get('username'), password_hash=generate_password_hash(request.form.get('password')),
-                 is_admin=request.form.get('is_admin') == 'on')
+        is_super = request.form.get('is_admin') == 'on'
+        school_id = None if is_super else request.form.get('school_id')
+        
+        u = User(username=request.form.get('username'), 
+                 password_hash=generate_password_hash(request.form.get('password')),
+                 is_admin=is_super,
+                 school_id=school_id if school_id else None)
         db.session.add(u)
         db.session.commit()
         return redirect(url_for('admins'))
     
-    content = '''
+    school_opts = ''.join([f'<option value="{s.id}">{s.name}</option>' for s in schools])
+    
+    content = f'''
     <div class="page-header"><h1><i class="fas fa-user-plus"></i> Add New Admin</h1></div>
     <div class="card">
         <form method="POST" style="max-width: 500px;">
@@ -1213,9 +1354,17 @@ def add_admin():
             </div>
             <div class="form-group">
                 <label style="display:flex;align-items:center;gap:10px;cursor:pointer;">
-                    <input type="checkbox" name="is_admin" style="width:18px;height:18px;">
-                    <span>Super Admin privileges</span>
+                    <input type="checkbox" name="is_admin" id="is_admin" style="width:18px;height:18px;" onchange="toggleSchoolSelect()">
+                    <span>Super Admin (access to all schools)</span>
                 </label>
+            </div>
+            <div class="form-group" id="school_select_group">
+                <label><i class="fas fa-school"></i> Assign to School</label>
+                <select name="school_id" id="school_id" class="form-control">
+                    <option value="">-- Select School --</option>
+                    {school_opts}
+                </select>
+                <small style="color:#666;"><i class="fas fa-info-circle"></i> School admins can only manage their assigned school</small>
             </div>
             <div style="display:flex;gap:10px;">
                 <button class="btn btn-primary"><i class="fas fa-save"></i> Save</button>
@@ -1223,6 +1372,20 @@ def add_admin():
             </div>
         </form>
     </div>
+    <script>
+        function toggleSchoolSelect() {{
+            var isAdmin = document.getElementById('is_admin').checked;
+            var schoolGroup = document.getElementById('school_select_group');
+            var schoolSelect = document.getElementById('school_id');
+            if (isAdmin) {{
+                schoolGroup.style.display = 'none';
+                schoolSelect.required = false;
+            }} else {{
+                schoolGroup.style.display = 'block';
+                schoolSelect.required = true;
+            }}
+        }}
+    </script>
     '''
     return page('Add Admin', content, 'admins')
 
