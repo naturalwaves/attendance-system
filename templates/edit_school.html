@@ -1,1 +1,101 @@
 
+{% extends 'base.html' %}
+
+{% block title %}Edit School - Attendance System{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <h2>Edit School</h2>
+    <a href="{{ url_for('schools') }}" class="btn btn-secondary">
+        <i class="fas fa-arrow-left me-2"></i>Back
+    </a>
+</div>
+
+<div class="card">
+    <div class="card-body">
+        <form method="POST">
+            <div class="row">
+                <div class="col-md-6 mb-3">
+                    <label class="form-label">School Name</label>
+                    <input type="text" name="name" class="form-control" value="{{ school.name }}" required>
+                </div>
+                <div class="col-md-6 mb-3">
+                    <label class="form-label">Short Name</label>
+                    <input type="text" name="short_name" class="form-control" value="{{ school.short_name or '' }}" placeholder="e.g. VGC">
+                </div>
+            </div>
+            
+            <div class="mb-4">
+                <label class="form-label">API Key</label>
+                <div class="input-group">
+                    <input type="text" class="form-control" value="{{ school.api_key }}" readonly style="background-color: #f8f9fa;">
+                    <button type="button" class="btn btn-outline-secondary" onclick="copyToClipboard('{{ school.api_key }}')">
+                        <i class="fas fa-copy"></i> Copy
+                    </button>
+                </div>
+                <small class="text-muted">Use this key to configure the kiosk for this school.</small>
+            </div>
+            
+            <h5 class="mt-4 mb-3"><i class="fas fa-clock me-2"></i>School Schedule</h5>
+            
+            <div class="row">
+                <div class="col-md-4 mb-3">
+                    <label class="form-label">Monday</label>
+                    <div class="input-group">
+                        <input type="time" name="schedule_mon_start" class="form-control" value="{{ school.schedule_mon_start }}">
+                        <span class="input-group-text">to</span>
+                        <input type="time" name="schedule_mon_end" class="form-control" value="{{ school.schedule_mon_end }}">
+                    </div>
+                </div>
+                <div class="col-md-4 mb-3">
+                    <label class="form-label">Tuesday</label>
+                    <div class="input-group">
+                        <input type="time" name="schedule_tue_start" class="form-control" value="{{ school.schedule_tue_start }}">
+                        <span class="input-group-text">to</span>
+                        <input type="time" name="schedule_tue_end" class="form-control" value="{{ school.schedule_tue_end }}">
+                    </div>
+                </div>
+                <div class="col-md-4 mb-3">
+                    <label class="form-label">Wednesday</label>
+                    <div class="input-group">
+                        <input type="time" name="schedule_wed_start" class="form-control" value="{{ school.schedule_wed_start }}">
+                        <span class="input-group-text">to</span>
+                        <input type="time" name="schedule_wed_end" class="form-control" value="{{ school.schedule_wed_end }}">
+                    </div>
+                </div>
+                <div class="col-md-4 mb-3">
+                    <label class="form-label">Thursday</label>
+                    <div class="input-group">
+                        <input type="time" name="schedule_thu_start" class="form-control" value="{{ school.schedule_thu_start }}">
+                        <span class="input-group-text">to</span>
+                        <input type="time" name="schedule_thu_end" class="form-control" value="{{ school.schedule_thu_end }}">
+                    </div>
+                </div>
+                <div class="col-md-4 mb-3">
+                    <label class="form-label">Friday</label>
+                    <div class="input-group">
+                        <input type="time" name="schedule_fri_start" class="form-control" value="{{ school.schedule_fri_start }}">
+                        <span class="input-group-text">to</span>
+                        <input type="time" name="schedule_fri_end" class="form-control" value="{{ school.schedule_fri_end }}">
+                    </div>
+                </div>
+            </div>
+            
+            <div class="mt-4">
+                <button type="submit" class="btn btn-primary">
+                    <i class="fas fa-save me-2"></i>Save Changes
+                </button>
+                <a href="{{ url_for('schools') }}" class="btn btn-secondary ms-2">Cancel</a>
+            </div>
+        </form>
+    </div>
+</div>
+
+<script>
+function copyToClipboard(text) {
+    navigator.clipboard.writeText(text).then(function() {
+        alert('API Key copied to clipboard!');
+    });
+}
+</script>
+{% endblock %}
