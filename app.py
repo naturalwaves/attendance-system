@@ -2,7 +2,7 @@ from flask import Flask, request, redirect, url_for, jsonify, Response, session
 from flask_sqlalchemy import SQLAlchemy
 from flask_login import LoginManager, UserMixin, login_user, logout_user, login_required, current_user
 from werkzeug.security import generate_password_hash, check_password_hash
-from datetime import datetime, date
+from datetime import datetime, date, timedelta
 import os
 import secrets
 import csv
@@ -64,33 +64,29 @@ def get_styles():
         * { margin: 0; padding: 0; box-sizing: border-box; }
         body { font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; background: #f0f2f5; min-height: 100vh; }
         
-        /* Top Navigation */
         .top-nav { background: linear-gradient(135deg, #8B0000 0%, #6d0000 100%); padding: 0 30px; display: flex; align-items: center; justify-content: space-between; position: fixed; top: 0; left: 0; right: 0; height: 70px; z-index: 1000; box-shadow: 0 2px 15px rgba(0,0,0,0.2); }
         .nav-brand { display: flex; align-items: center; gap: 12px; }
         .nav-brand img { height: 45px; width: auto; border-radius: 6px; }
         .nav-brand h1 { color: #fff; font-size: 18px; font-weight: 600; }
         
         .nav-menu { display: flex; align-items: center; gap: 5px; }
-        .nav-menu a { color: rgba(255,255,255,0.85); text-decoration: none; padding: 10px 16px; border-radius: 6px; font-size: 14px; font-weight: 500; transition: all 0.3s; display: flex; align-items: center; gap: 6px; }
+        .nav-menu a { color: rgba(255,255,255,0.85); text-decoration: none; padding: 10px 14px; border-radius: 6px; font-size: 13px; font-weight: 500; transition: all 0.3s; display: flex; align-items: center; gap: 6px; }
         .nav-menu a:hover { background: rgba(255,255,255,0.15); color: #fff; }
         .nav-menu a.active { background: rgba(255,255,255,0.2); color: #fff; }
         
         .nav-right { display: flex; align-items: center; gap: 15px; }
-        .user-info { color: rgba(255,255,255,0.9); font-size: 14px; display: flex; align-items: center; gap: 8px; }
-        .user-info i { font-size: 16px; }
-        .btn-logout { background: rgba(255,255,255,0.15); color: #fff; padding: 8px 16px; border-radius: 6px; text-decoration: none; font-size: 14px; font-weight: 500; transition: all 0.3s; display: flex; align-items: center; gap: 6px; }
-        .btn-logout:hover { background: rgba(255,255,255,0.25); }
-        
-        /* Dropdown Menu */
         .dropdown { position: relative; }
-        .dropdown-toggle { cursor: pointer; }
-        .dropdown-menu { position: absolute; top: 100%; right: 0; background: #fff; border-radius: 8px; box-shadow: 0 5px 25px rgba(0,0,0,0.15); min-width: 180px; display: none; overflow: hidden; margin-top: 10px; }
-        .dropdown:hover .dropdown-menu { display: block; }
-        .dropdown-menu a { color: #333; padding: 12px 20px; display: flex; align-items: center; gap: 10px; font-size: 14px; }
-        .dropdown-menu a:hover { background: #f5f5f5; }
+        .dropdown-toggle { cursor: pointer; color: #fff; padding: 10px 16px; border-radius: 6px; font-size: 14px; display: flex; align-items: center; gap: 8px; background: rgba(255,255,255,0.1); transition: all 0.3s; }
+        .dropdown-toggle:hover { background: rgba(255,255,255,0.2); }
+        .dropdown-menu { position: absolute; top: calc(100% + 5px); right: 0; background: #fff; border-radius: 8px; box-shadow: 0 5px 25px rgba(0,0,0,0.15); min-width: 200px; display: none; overflow: hidden; z-index: 1001; }
+        .dropdown-menu.show { display: block; }
+        .dropdown-menu a { color: #333; padding: 14px 20px; display: flex; align-items: center; gap: 12px; font-size: 14px; text-decoration: none; border-bottom: 1px solid #f0f0f0; }
+        .dropdown-menu a:last-child { border-bottom: none; }
+        .dropdown-menu a:hover { background: #f8f9fa; }
         .dropdown-menu a i { width: 18px; color: #666; }
+        .dropdown-menu a.logout-link { color: #dc3545; }
+        .dropdown-menu a.logout-link i { color: #dc3545; }
         
-        /* Main Content */
         .main-content { padding: 100px 30px 30px 30px; max-width: 1400px; margin: 0 auto; }
         
         .page-header { background: #fff; padding: 25px 30px; border-radius: 12px; margin-bottom: 25px; display: flex; justify-content: space-between; align-items: center; box-shadow: 0 2px 12px rgba(0,0,0,0.04); }
@@ -105,6 +101,7 @@ def get_styles():
         .btn-danger { background: linear-gradient(135deg, #dc3545, #e04555); color: #fff; }
         .btn-danger:hover { transform: translateY(-2px); }
         .btn-secondary { background: #6c757d; color: #fff; }
+        .btn-info { background: #17a2b8; color: #fff; }
         .btn-sm { padding: 8px 16px; font-size: 13px; }
         
         .card { background: #fff; border-radius: 12px; padding: 25px; margin-bottom: 25px; box-shadow: 0 2px 12px rgba(0,0,0,0.04); }
@@ -116,6 +113,7 @@ def get_styles():
         .stat-card.green { border-left-color: #28a745; }
         .stat-card.blue { border-left-color: #007bff; }
         .stat-card.orange { border-left-color: #fd7e14; }
+        .stat-card.yellow { border-left-color: #ffc107; }
         .stat-card.red { border-left-color: #dc3545; }
         .stat-card h3 { color: #666; font-size: 13px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 12px; }
         .stat-card .number { font-size: 32px; font-weight: 700; color: #1a1a2e; }
@@ -142,7 +140,7 @@ def get_styles():
         .badge-info { background: #d1ecf1; color: #0c5460; }
         
         .filter-form { display: flex; gap: 15px; flex-wrap: wrap; align-items: flex-end; }
-        .filter-form .form-group { margin-bottom: 0; min-width: 180px; }
+        .filter-form .form-group { margin-bottom: 0; min-width: 160px; }
         
         .upload-area { border: 2px dashed #d0d0d0; padding: 50px; text-align: center; border-radius: 12px; margin: 20px 0; background: #fafbfc; transition: all 0.3s; }
         .upload-area:hover { border-color: #8B0000; background: #fff5f5; }
@@ -151,7 +149,6 @@ def get_styles():
         
         .action-btns { display: flex; gap: 8px; }
         
-        /* Mobile responsive */
         @media (max-width: 992px) {
             .nav-menu { display: none; }
             .top-nav { padding: 0 15px; }
@@ -159,9 +156,37 @@ def get_styles():
         }
     </style>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            var dropdownToggle = document.querySelector('.dropdown-toggle');
+            var dropdownMenu = document.querySelector('.dropdown-menu');
+            
+            if (dropdownToggle && dropdownMenu) {
+                dropdownToggle.addEventListener('click', function(e) {
+                    e.stopPropagation();
+                    dropdownMenu.classList.toggle('show');
+                });
+                
+                document.addEventListener('click', function(e) {
+                    if (!dropdownMenu.contains(e.target)) {
+                        dropdownMenu.classList.remove('show');
+                    }
+                });
+            }
+        });
+        
+        function setToday() {
+            var today = new Date().toISOString().split('T')[0];
+            var fromDate = document.querySelector('input[name="from_date"]');
+            var toDate = document.querySelector('input[name="to_date"]');
+            if (fromDate) fromDate.value = today;
+            if (toDate) toDate.value = today;
+        }
+    </script>
     '''
 
 def get_nav(active='dashboard'):
+    username = current_user.username if current_user.is_authenticated else 'Guest'
     return f'''
     <nav class="top-nav">
         <div class="nav-brand">
@@ -182,15 +207,15 @@ def get_nav(active='dashboard'):
         
         <div class="nav-right">
             <div class="dropdown">
-                <div class="user-info dropdown-toggle">
+                <div class="dropdown-toggle">
                     <i class="fas fa-user-circle"></i>
-                    <span>{current_user.username if current_user.is_authenticated else 'Guest'}</span>
+                    <span>{username}</span>
                     <i class="fas fa-chevron-down" style="font-size:10px;"></i>
                 </div>
                 <div class="dropdown-menu">
                     <a href="/admins"><i class="fas fa-user-shield"></i> Admins</a>
                     <a href="/settings"><i class="fas fa-cog"></i> Settings</a>
-                    <a href="/logout" style="color:#dc3545;"><i class="fas fa-sign-out-alt"></i> Logout</a>
+                    <a href="/logout" class="logout-link"><i class="fas fa-sign-out-alt"></i> Logout</a>
                 </div>
             </div>
         </div>
@@ -354,15 +379,15 @@ def dashboard():
             <h3><i class="fas fa-school"></i> Total Schools</h3>
             <div class="number">{len(schools)}</div>
         </div>
-        <div class="stat-card green">
+        <div class="stat-card blue">
             <h3><i class="fas fa-users"></i> Total Staff</h3>
             <div class="number">{total_staff}</div>
         </div>
-        <div class="stat-card blue">
+        <div class="stat-card green">
             <h3><i class="fas fa-check-circle"></i> Signed In Today</h3>
             <div class="number">{len(signed_in_ids)}</div>
         </div>
-        <div class="stat-card orange">
+        <div class="stat-card yellow">
             <h3><i class="fas fa-clock"></i> Late Today</h3>
             <div class="number">{late_count}</div>
         </div>
@@ -781,6 +806,7 @@ def attendance():
                 <input type="date" name="to_date" class="form-control" value="{to_date}">
             </div>
             <button class="btn btn-primary"><i class="fas fa-filter"></i> Filter</button>
+            <button type="button" class="btn btn-info" onclick="setToday()"><i class="fas fa-calendar-day"></i> Today</button>
         </form>
     </div>
     <div class="card">
@@ -820,15 +846,15 @@ def download_attendance():
 def latecomers():
     schools = School.query.all()
     school_filter = request.args.get('school', 'all')
-    report_date = request.args.get('date', date.today().isoformat())
+    from_date = request.args.get('from_date', date.today().isoformat())
+    to_date = request.args.get('to_date', date.today().isoformat())
     
-    if school_filter == 'all':
-        records = Attendance.query.filter_by(date=report_date).all()
-    else:
-        records = Attendance.query.filter_by(date=report_date, school_id=int(school_filter)).all()
+    query = Attendance.query.filter(Attendance.date >= from_date, Attendance.date <= to_date)
+    if school_filter != 'all':
+        query = query.filter_by(school_id=int(school_filter))
     
     late_list = []
-    for a in records:
+    for a in query.all():
         if a.sign_in:
             st = Staff.query.get(a.staff_id)
             sch = School.query.get(a.school_id)
@@ -837,7 +863,7 @@ def latecomers():
                     res = datetime.strptime(sch.resumption_time, '%H:%M').time()
                     if a.sign_in.time() > res:
                         mins = (datetime.combine(date.today(), a.sign_in.time()) - datetime.combine(date.today(), res)).seconds // 60
-                        late_list.append({'staff': st, 'school': sch, 'sign_in': a.sign_in, 'mins': mins})
+                        late_list.append({'date': a.date, 'staff': st, 'school': sch, 'sign_in': a.sign_in, 'mins': mins})
                 except:
                     pass
     
@@ -850,7 +876,7 @@ def latecomers():
     for r in late_list:
         dept = f'<span class="badge badge-info">{r["staff"].department}</span>' if r["staff"].department else '-'
         rows += f'''<tr>
-            <td><strong>{r["staff"].staff_id}</strong></td><td>{r["staff"].firstname} {r["staff"].surname}</td>
+            <td>{r["date"]}</td><td><strong>{r["staff"].staff_id}</strong></td><td>{r["staff"].firstname} {r["staff"].surname}</td>
             <td>{dept}</td><td>{r["school"].name}</td><td>{r["school"].resumption_time}</td>
             <td>{r["sign_in"].strftime("%H:%M:%S")}</td><td><span class="badge badge-danger">{r["mins"]} mins</span></td>
         </tr>'''
@@ -858,7 +884,7 @@ def latecomers():
     content = f'''
     <div class="page-header">
         <h1><i class="fas fa-clock"></i> Late Staff Report</h1>
-        <a href="/latecomers/download?school={school_filter}&date={report_date}" class="btn btn-success"><i class="fas fa-download"></i> Download CSV</a>
+        <a href="/latecomers/download?school={school_filter}&from_date={from_date}&to_date={to_date}" class="btn btn-success"><i class="fas fa-download"></i> Download CSV</a>
     </div>
     <div class="card">
         <form method="GET" class="filter-form">
@@ -867,17 +893,22 @@ def latecomers():
                 <select name="school" class="form-control">{school_opts}</select>
             </div>
             <div class="form-group">
-                <label><i class="fas fa-calendar"></i> Date</label>
-                <input type="date" name="date" class="form-control" value="{report_date}">
+                <label><i class="fas fa-calendar"></i> From</label>
+                <input type="date" name="from_date" class="form-control" value="{from_date}">
+            </div>
+            <div class="form-group">
+                <label><i class="fas fa-calendar"></i> To</label>
+                <input type="date" name="to_date" class="form-control" value="{to_date}">
             </div>
             <button class="btn btn-primary"><i class="fas fa-filter"></i> Filter</button>
+            <button type="button" class="btn btn-info" onclick="setToday()"><i class="fas fa-calendar-day"></i> Today</button>
         </form>
     </div>
     <div class="card">
-        <h3><i class="fas fa-exclamation-triangle" style="color:#fd7e14;"></i> {len(late_list)} late staff found</h3>
+        <h3><i class="fas fa-exclamation-triangle" style="color:#fd7e14;"></i> {len(late_list)} late records found</h3>
         <table>
-            <thead><tr><th>Staff ID</th><th>Name</th><th>Dept</th><th>School</th><th>Expected</th><th>Arrived</th><th>Late By</th></tr></thead>
-            <tbody>{rows if rows else '<tr><td colspan="7" style="text-align:center;color:#999;">No late arrivals</td></tr>'}</tbody>
+            <thead><tr><th>Date</th><th>Staff ID</th><th>Name</th><th>Dept</th><th>School</th><th>Expected</th><th>Arrived</th><th>Late By</th></tr></thead>
+            <tbody>{rows if rows else '<tr><td colspan="8" style="text-align:center;color:#999;">No late arrivals</td></tr>'}</tbody>
         </table>
     </div>
     '''
@@ -887,18 +918,18 @@ def latecomers():
 @login_required
 def download_latecomers():
     school_filter = request.args.get('school', 'all')
-    report_date = request.args.get('date', date.today().isoformat())
+    from_date = request.args.get('from_date', date.today().isoformat())
+    to_date = request.args.get('to_date', date.today().isoformat())
     
-    if school_filter == 'all':
-        records = Attendance.query.filter_by(date=report_date).all()
-    else:
-        records = Attendance.query.filter_by(date=report_date, school_id=int(school_filter)).all()
+    query = Attendance.query.filter(Attendance.date >= from_date, Attendance.date <= to_date)
+    if school_filter != 'all':
+        query = query.filter_by(school_id=int(school_filter))
     
     output = io.StringIO()
     writer = csv.writer(output)
-    writer.writerow(['Staff ID', 'First Name', 'Surname', 'Department', 'School', 'Expected', 'Arrived', 'Late By (mins)'])
+    writer.writerow(['Date', 'Staff ID', 'First Name', 'Surname', 'Department', 'School', 'Expected', 'Arrived', 'Late By (mins)'])
     
-    for a in records:
+    for a in query.all():
         if a.sign_in:
             st = Staff.query.get(a.staff_id)
             sch = School.query.get(a.school_id)
@@ -907,28 +938,40 @@ def download_latecomers():
                     res = datetime.strptime(sch.resumption_time, '%H:%M').time()
                     if a.sign_in.time() > res:
                         mins = (datetime.combine(date.today(), a.sign_in.time()) - datetime.combine(date.today(), res)).seconds // 60
-                        writer.writerow([st.staff_id, st.firstname, st.surname, st.department or '', sch.name, sch.resumption_time, a.sign_in.strftime('%H:%M:%S'), mins])
+                        writer.writerow([a.date, st.staff_id, st.firstname, st.surname, st.department or '', sch.name, sch.resumption_time, a.sign_in.strftime('%H:%M:%S'), mins])
                 except:
                     pass
     output.seek(0)
-    return Response(output.getvalue(), mimetype='text/csv', headers={'Content-Disposition': f'attachment; filename=latecomers_{report_date}.csv'})
+    return Response(output.getvalue(), mimetype='text/csv', headers={'Content-Disposition': f'attachment; filename=latecomers_{from_date}_to_{to_date}.csv'})
 
 @app.route('/absent')
 @login_required
 def absent():
     schools = School.query.all()
     school_filter = request.args.get('school', 'all')
-    report_date = request.args.get('date', date.today().isoformat())
+    from_date = request.args.get('from_date', date.today().isoformat())
+    to_date = request.args.get('to_date', date.today().isoformat())
     
-    if school_filter == 'all':
-        all_staff = Staff.query.filter_by(active=True).filter(Staff.department != 'Management').all()
-        signed_in = Attendance.query.filter_by(date=report_date).all()
-    else:
-        all_staff = Staff.query.filter_by(school_id=int(school_filter), active=True).filter(Staff.department != 'Management').all()
-        signed_in = Attendance.query.filter_by(date=report_date, school_id=int(school_filter)).all()
+    start = datetime.strptime(from_date, '%Y-%m-%d').date()
+    end = datetime.strptime(to_date, '%Y-%m-%d').date()
     
-    signed_ids = set(a.staff_id for a in signed_in)
-    absent_staff = [s for s in all_staff if s.id not in signed_ids]
+    absent_list = []
+    current = start
+    while current <= end:
+        if school_filter == 'all':
+            all_staff = Staff.query.filter_by(active=True).filter(Staff.department != 'Management').all()
+            signed_in = Attendance.query.filter_by(date=current).all()
+        else:
+            all_staff = Staff.query.filter_by(school_id=int(school_filter), active=True).filter(Staff.department != 'Management').all()
+            signed_in = Attendance.query.filter_by(date=current, school_id=int(school_filter)).all()
+        
+        signed_ids = set(a.staff_id for a in signed_in)
+        for s in all_staff:
+            if s.id not in signed_ids:
+                sch = School.query.get(s.school_id)
+                absent_list.append({'date': current, 'staff': s, 'school': sch})
+        
+        current += timedelta(days=1)
     
     school_opts = '<option value="all">All Schools</option>'
     for s in schools:
@@ -936,15 +979,14 @@ def absent():
         school_opts += f'<option value="{s.id}" {sel}>{s.name}</option>'
     
     rows = ''
-    for s in absent_staff:
-        sch = School.query.get(s.school_id)
-        dept = f'<span class="badge badge-info">{s.department}</span>' if s.department else '-'
-        rows += f'<tr><td><strong>{s.staff_id}</strong></td><td>{s.firstname} {s.surname}</td><td>{dept}</td><td>{sch.name if sch else "Unknown"}</td></tr>'
+    for r in absent_list:
+        dept = f'<span class="badge badge-info">{r["staff"].department}</span>' if r["staff"].department else '-'
+        rows += f'<tr><td>{r["date"]}</td><td><strong>{r["staff"].staff_id}</strong></td><td>{r["staff"].firstname} {r["staff"].surname}</td><td>{dept}</td><td>{r["school"].name if r["school"] else "Unknown"}</td></tr>'
     
     content = f'''
     <div class="page-header">
         <h1><i class="fas fa-user-times"></i> Absent Staff Report</h1>
-        <a href="/absent/download?school={school_filter}&date={report_date}" class="btn btn-success"><i class="fas fa-download"></i> Download CSV</a>
+        <a href="/absent/download?school={school_filter}&from_date={from_date}&to_date={to_date}" class="btn btn-success"><i class="fas fa-download"></i> Download CSV</a>
     </div>
     <div class="card">
         <form method="GET" class="filter-form">
@@ -953,18 +995,23 @@ def absent():
                 <select name="school" class="form-control">{school_opts}</select>
             </div>
             <div class="form-group">
-                <label><i class="fas fa-calendar"></i> Date</label>
-                <input type="date" name="date" class="form-control" value="{report_date}">
+                <label><i class="fas fa-calendar"></i> From</label>
+                <input type="date" name="from_date" class="form-control" value="{from_date}">
+            </div>
+            <div class="form-group">
+                <label><i class="fas fa-calendar"></i> To</label>
+                <input type="date" name="to_date" class="form-control" value="{to_date}">
             </div>
             <button class="btn btn-primary"><i class="fas fa-filter"></i> Filter</button>
+            <button type="button" class="btn btn-info" onclick="setToday()"><i class="fas fa-calendar-day"></i> Today</button>
         </form>
     </div>
     <div class="card">
         <div class="alert alert-info"><i class="fas fa-info-circle"></i> "Management" staff are excluded from this report</div>
-        <h3><i class="fas fa-user-times" style="color:#dc3545;"></i> {len(absent_staff)} absent staff found</h3>
+        <h3><i class="fas fa-user-times" style="color:#dc3545;"></i> {len(absent_list)} absent records found</h3>
         <table>
-            <thead><tr><th>Staff ID</th><th>Name</th><th>Dept</th><th>School</th></tr></thead>
-            <tbody>{rows if rows else '<tr><td colspan="4" style="text-align:center;color:#999;">Everyone present!</td></tr>'}</tbody>
+            <thead><tr><th>Date</th><th>Staff ID</th><th>Name</th><th>Dept</th><th>School</th></tr></thead>
+            <tbody>{rows if rows else '<tr><td colspan="5" style="text-align:center;color:#999;">Everyone present!</td></tr>'}</tbody>
         </table>
     </div>
     '''
@@ -974,26 +1021,35 @@ def absent():
 @login_required
 def download_absent():
     school_filter = request.args.get('school', 'all')
-    report_date = request.args.get('date', date.today().isoformat())
+    from_date = request.args.get('from_date', date.today().isoformat())
+    to_date = request.args.get('to_date', date.today().isoformat())
     
-    if school_filter == 'all':
-        all_staff = Staff.query.filter_by(active=True).filter(Staff.department != 'Management').all()
-        signed_in = Attendance.query.filter_by(date=report_date).all()
-    else:
-        all_staff = Staff.query.filter_by(school_id=int(school_filter), active=True).filter(Staff.department != 'Management').all()
-        signed_in = Attendance.query.filter_by(date=report_date, school_id=int(school_filter)).all()
-    
-    signed_ids = set(a.staff_id for a in signed_in)
-    absent_staff = [s for s in all_staff if s.id not in signed_ids]
+    start = datetime.strptime(from_date, '%Y-%m-%d').date()
+    end = datetime.strptime(to_date, '%Y-%m-%d').date()
     
     output = io.StringIO()
     writer = csv.writer(output)
-    writer.writerow(['Staff ID', 'First Name', 'Surname', 'Department', 'School'])
-    for s in absent_staff:
-        sch = School.query.get(s.school_id)
-        writer.writerow([s.staff_id, s.firstname, s.surname, s.department or '', sch.name if sch else ''])
+    writer.writerow(['Date', 'Staff ID', 'First Name', 'Surname', 'Department', 'School'])
+    
+    current = start
+    while current <= end:
+        if school_filter == 'all':
+            all_staff = Staff.query.filter_by(active=True).filter(Staff.department != 'Management').all()
+            signed_in = Attendance.query.filter_by(date=current).all()
+        else:
+            all_staff = Staff.query.filter_by(school_id=int(school_filter), active=True).filter(Staff.department != 'Management').all()
+            signed_in = Attendance.query.filter_by(date=current, school_id=int(school_filter)).all()
+        
+        signed_ids = set(a.staff_id for a in signed_in)
+        for s in all_staff:
+            if s.id not in signed_ids:
+                sch = School.query.get(s.school_id)
+                writer.writerow([current, s.staff_id, s.firstname, s.surname, s.department or '', sch.name if sch else ''])
+        
+        current += timedelta(days=1)
+    
     output.seek(0)
-    return Response(output.getvalue(), mimetype='text/csv', headers={'Content-Disposition': f'attachment; filename=absent_{report_date}.csv'})
+    return Response(output.getvalue(), mimetype='text/csv', headers={'Content-Disposition': f'attachment; filename=absent_{from_date}_to_{to_date}.csv'})
 
 @app.route('/overtime')
 @login_required
@@ -1056,6 +1112,7 @@ def overtime():
                 <input type="date" name="to_date" class="form-control" value="{to_date}">
             </div>
             <button class="btn btn-primary"><i class="fas fa-filter"></i> Filter</button>
+            <button type="button" class="btn btn-info" onclick="setToday()"><i class="fas fa-calendar-day"></i> Today</button>
         </form>
     </div>
     <div class="card">
