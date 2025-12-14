@@ -148,24 +148,6 @@ def login():
             login_user(user)
             return redirect(url_for('dashboard'))
         flash('Invalid username or password', 'error')
-    content = '''
-    <div style="max-width: 400px; margin: 4rem auto;">
-        <div class="card">
-            <h2 style="text-align: center;">Staff Attendance System</h2>
-            <form method="POST" style="margin-top: 1rem;">
-                <div class="form-group">
-                    <label>Username</label>
-                    <input type="text" name="username" required style="width: 100%;">
-                </div>
-                <div class="form-group">
-                    <label>Password</label>
-                    <input type="password" name="password" required style="width: 100%;">
-                </div>
-                <button type="submit" class="btn btn-primary" style="width: 100%;">Login</button>
-            </form>
-        </div>
-    </div>
-    '''
     return render_template_string('''
     <!DOCTYPE html>
     <html>
@@ -227,12 +209,18 @@ def dashboard():
     stats_html = ''
     for school in schools:
         total_staff = Staff.query.filter_by(school_id=school.id, active=True).count()
+        today = datetime.now().date()
+        signed_in_today = db.session.query(Attendance.staff_id).filter(
+            Attendance.school_id == school.id,
+            db.func.date(Attendance.timestamp) == today,
+            Attendance.action == 'IN'
+        ).distinct().count()
         stats_html += f'''
         <div class="stat-card">
             <h3>{school.name}</h3>
-            <div class="number">0</div>
-            <div>Currently On Site</div>
-            <div style="margin-top: 0.5rem; font-size: 0.9rem; color: #888;">0 signed in today / {total_staff} total staff</div>
+            <div class="number">{signed_in_today}</div>
+            <div>Signed In Today</div>
+            <div style="margin-top: 0.5rem; font-size: 0.9rem; color: #888;">{total_staff} total staff</div>
         </div>
         '''
     content = f'''
@@ -254,14 +242,18 @@ def schools():
             <td>{school.name}</td>
             <td>{school.code}</td>
             <td><code>{school.api_key[:20]}...</code></td>
-            <td>{school.last_sync or 'Never'}</td>
+            <td>{school.last_sync.strftime('%Y-%m-%d %H:%M') if school.last_sync else 'Never'}</td>
             <td>
                 <a href="{url_for('edit_school', school_id=school.id)}" class="btn btn-secondary">Edit</a>
+                <form method="POST" action="{url_for('delete_school', school_id=school.id)}" style="display:inline;" onsubmit="return confirm('Are you sure you want to delete this school? All staff and attendance data will be lost.');">
+                    <button type="submit" class="btn btn-danger">Delete</button>
+                </form>
             </td>
         </tr>
         '''
     content = f'''
     <h2 style="margin-bottom: 1.5rem;">Schools</h2>
+    <a href="{url_for('add_school')}" class="btn btn-success" style="margin-bottom: 1rem;">+ Add School</a>
     <div class="card">
         <table>
             <thead>
@@ -273,9 +265,46 @@ def schools():
     '''
     return render('Schools', content)
 
+@app.route('/schools/add', methods=['GET', 'POST'])
+@login_required
+def add_school():
+    if current_user.role != 'superadmin':
+        return redirect(url_for('dashboard'))
+    if request.method == 'POST':
+        name = request.form.get('name')
+        code = request.form.get('code')
+        if School.query.filter_by(code=code).first():
+            flash('School code already exists', 'error')
+        else:
+            new_school = School(name=name, code=code, api_key=secrets.token_hex(32))
+            db.session.add(new_school)
+            db.session.commit()
+            flash('School added successfully', 'success')
+            return redirect(url_for('schools'))
+    content = f'''
+    <h2 style="margin-bottom: 1.5rem;">Add School</h2>
+    <div class="card" style="max-width: 500px;">
+        <form method="POST">
+            <div class="form-group">
+                <label>School Name</label>
+                <input type="text" name="name" required style="width: 100%;" placeholder="e.g. Sunshine Primary School">
+            </div>
+            <div class="form-group">
+                <label>School Code</label>
+                <input type="text" name="code" required style="width: 100%;" placeholder="e.g. SPS001">
+            </div>
+            <button type="submit" class="btn btn-success">Add School</button>
+            <a href="{url_for('schools')}" class="btn btn-secondary">Cancel</a>
+        </form>
+    </div>
+    '''
+    return render('Add School', content)
+
 @app.route('/schools/<int:school_id>/edit', methods=['GET', 'POST'])
 @login_required
 def edit_school(school_id):
+    if current_user.role != 'superadmin':
+        return redirect(url_for('dashboard'))
     school = School.query.get_or_404(school_id)
     if request.method == 'POST':
         school.name = request.form.get('name')
@@ -291,15 +320,48 @@ def edit_school(school_id):
                 <input type="text" name="name" value="{school.name}" required style="width: 100%;">
             </div>
             <div class="form-group">
-                <label>API Key</label>
-                <input type="text" value="{school.api_key}" readonly style="width: 100%;">
+                <label>School Code</label>
+                <input type="text" value="{school.code}" readonly style="width: 100%;">
+            </div>
+            <div class="form-group">
+                <label>API Key (for kiosk setup)</label>
+                <input type="text" value="{school.api_key}" readonly style="width: 100%;" onclick="this.select();">
             </div>
             <button type="submit" class="btn btn-primary">Save</button>
             <a href="{url_for('schools')}" class="btn btn-secondary">Cancel</a>
         </form>
+        <hr style="margin: 1.5rem 0; border-color: #0f3460;">
+        <form method="POST" action="{url_for('regenerate_api_key', school_id=school.id)}" onsubmit="return confirm('Are you sure? The kiosk will need to be reconfigured with the new key.');">
+            <button type="submit" class="btn btn-danger">Regenerate API Key</button>
+        </form>
     </div>
     '''
     return render('Edit School', content)
+
+@app.route('/schools/<int:school_id>/delete', methods=['POST'])
+@login_required
+def delete_school(school_id):
+    if current_user.role != 'superadmin':
+        return redirect(url_for('dashboard'))
+    school = School.query.get_or_404(school_id)
+    Staff.query.filter_by(school_id=school_id).delete()
+    Attendance.query.filter_by(school_id=school_id).delete()
+    User.query.filter_by(school_id=school_id).delete()
+    db.session.delete(school)
+    db.session.commit()
+    flash('School deleted', 'success')
+    return redirect(url_for('schools'))
+
+@app.route('/schools/<int:school_id>/regenerate-key', methods=['POST'])
+@login_required
+def regenerate_api_key(school_id):
+    if current_user.role != 'superadmin':
+        return redirect(url_for('dashboard'))
+    school = School.query.get_or_404(school_id)
+    school.api_key = secrets.token_hex(32)
+    db.session.commit()
+    flash('API key regenerated', 'success')
+    return redirect(url_for('edit_school', school_id=school_id))
 
 @app.route('/staff')
 @login_required
@@ -321,7 +383,7 @@ def staff():
                 <form method="POST" action="{url_for('toggle_staff', id=s.id)}" style="display:inline;">
                     <button type="submit" class="btn btn-secondary">Toggle</button>
                 </form>
-                <form method="POST" action="{url_for('delete_staff', id=s.id)}" style="display:inline;">
+                <form method="POST" action="{url_for('delete_staff', id=s.id)}" style="display:inline;" onsubmit="return confirm('Delete this staff member?');">
                     <button type="submit" class="btn btn-danger">Delete</button>
                 </form>
             </td>
@@ -398,10 +460,61 @@ def delete_staff(id):
 @app.route('/attendance')
 @login_required
 def attendance():
-    content = '''
+    schools = School.query.all() if current_user.role == 'superadmin' else School.query.filter_by(id=current_user.school_id).all()
+    school_id = request.args.get('school_id', type=int)
+    date_from = request.args.get('date_from', (datetime.now() - timedelta(days=7)).strftime('%Y-%m-%d'))
+    date_to = request.args.get('date_to', datetime.now().strftime('%Y-%m-%d'))
+    
+    query = Attendance.query.filter(
+        db.func.date(Attendance.timestamp) >= date_from,
+        db.func.date(Attendance.timestamp) <= date_to
+    )
+    if school_id:
+        query = query.filter(Attendance.school_id == school_id)
+    elif current_user.role != 'superadmin':
+        query = query.filter(Attendance.school_id == current_user.school_id)
+    
+    records = query.order_by(Attendance.timestamp.desc()).all()
+    
+    rows = ''
+    for r in records:
+        staff = Staff.query.filter_by(staff_id=r.staff_id, school_id=r.school_id).first()
+        school = School.query.get(r.school_id)
+        action_badge = '<span class="badge badge-success">IN</span>' if r.action == 'IN' else '<span class="badge badge-danger">OUT</span>'
+        rows += f'''
+        <tr>
+            <td>{r.timestamp.strftime('%Y-%m-%d')}</td>
+            <td>{r.timestamp.strftime('%H:%M:%S')}</td>
+            <td>{r.staff_id}</td>
+            <td>{staff.name if staff else 'Unknown'}</td>
+            <td>{school.name if school else '-'}</td>
+            <td>{action_badge}</td>
+        </tr>
+        '''
+    
+    school_options = ''.join([f'<option value="{s.id}" {"selected" if school_id == s.id else ""}>{s.name}</option>' for s in schools])
+    
+    content = f'''
     <h2 style="margin-bottom: 1.5rem;">Attendance Reports</h2>
     <div class="card">
-        <p>Attendance records will appear here once staff start signing in.</p>
+        <form method="GET" style="display: flex; gap: 1rem; flex-wrap: wrap; align-items: center;">
+            <select name="school_id" style="padding: 0.5rem;">
+                <option value="">All Schools</option>
+                {school_options}
+            </select>
+            <input type="date" name="date_from" value="{date_from}">
+            <span>to</span>
+            <input type="date" name="date_to" value="{date_to}">
+            <button type="submit" class="btn btn-primary">Filter</button>
+        </form>
+    </div>
+    <div class="card">
+        <table>
+            <thead>
+                <tr><th>Date</th><th>Time</th><th>Staff ID</th><th>Name</th><th>School</th><th>Action</th></tr>
+            </thead>
+            <tbody>{rows if rows else '<tr><td colspan="6" style="text-align: center;">No records found</td></tr>'}</tbody>
+        </table>
     </div>
     '''
     return render('Attendance', content)
@@ -409,10 +522,39 @@ def attendance():
 @app.route('/today')
 @login_required
 def today():
-    content = '''
-    <h2 style="margin-bottom: 1.5rem;">Today's Activity</h2>
+    schools = School.query.all() if current_user.role == 'superadmin' else School.query.filter_by(id=current_user.school_id).all()
+    today_date = datetime.now().date()
+    
+    query = Attendance.query.filter(db.func.date(Attendance.timestamp) == today_date)
+    if current_user.role != 'superadmin':
+        query = query.filter(Attendance.school_id == current_user.school_id)
+    
+    records = query.order_by(Attendance.timestamp.desc()).all()
+    
+    rows = ''
+    for r in records:
+        staff = Staff.query.filter_by(staff_id=r.staff_id, school_id=r.school_id).first()
+        school = School.query.get(r.school_id)
+        action_badge = '<span class="badge badge-success">IN</span>' if r.action == 'IN' else '<span class="badge badge-danger">OUT</span>'
+        rows += f'''
+        <tr>
+            <td>{r.timestamp.strftime('%H:%M:%S')}</td>
+            <td>{r.staff_id}</td>
+            <td>{staff.name if staff else 'Unknown'}</td>
+            <td>{school.name if school else '-'}</td>
+            <td>{action_badge}</td>
+        </tr>
+        '''
+    
+    content = f'''
+    <h2 style="margin-bottom: 1.5rem;">Today's Activity - {today_date.strftime('%A, %d %B %Y')}</h2>
     <div class="card">
-        <p>Today's sign-ins will appear here.</p>
+        <table>
+            <thead>
+                <tr><th>Time</th><th>Staff ID</th><th>Name</th><th>School</th><th>Action</th></tr>
+            </thead>
+            <tbody>{rows if rows else '<tr><td colspan="5" style="text-align: center;">No activity today</td></tr>'}</tbody>
+        </table>
     </div>
     '''
     return render('Today', content)
@@ -433,7 +575,7 @@ def admins():
             <td>{admin.role}</td>
             <td>{school.name if school else 'All Schools'}</td>
             <td>
-                {'<form method="POST" action="' + url_for('delete_admin', id=admin.id) + '" style="display:inline;"><button type="submit" class="btn btn-danger">Delete</button></form>' if admin.id != current_user.id else ''}
+                {'<form method="POST" action="' + url_for('delete_admin', id=admin.id) + '" style="display:inline;" onsubmit="return confirm(\'Delete this admin?\');"><button type="submit" class="btn btn-danger">Delete</button></form>' if admin.id != current_user.id else ''}
             </td>
         </tr>
         '''
