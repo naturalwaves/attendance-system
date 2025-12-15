@@ -6,32 +6,32 @@
 <h2 class="mb-4">Dashboard</h2>
 
 <div class="row mb-4">
-    <div class="col-md mb-3">
-        <div class="stat-card red">
+    <div class="col mb-3">
+        <div class="stat-card red h-100">
             <h3>{{ schools|length }}</h3>
             <p class="mb-0"><i class="fas fa-school me-2"></i>Schools</p>
         </div>
     </div>
-    <div class="col-md mb-3">
-        <div class="stat-card blue">
+    <div class="col mb-3">
+        <div class="stat-card blue h-100">
             <h3>{{ total_staff }}</h3>
             <p class="mb-0"><i class="fas fa-users me-2"></i>Total Staff</p>
         </div>
     </div>
-    <div class="col-md mb-3">
-        <div class="stat-card green">
+    <div class="col mb-3">
+        <div class="stat-card green h-100">
             <h3>{{ today_attendance }}</h3>
             <p class="mb-0"><i class="fas fa-check-circle me-2"></i>Present Today</p>
         </div>
     </div>
-    <div class="col-md mb-3">
-        <div class="stat-card orange">
+    <div class="col mb-3">
+        <div class="stat-card yellow h-100">
             <h3>{{ late_today }}</h3>
             <p class="mb-0"><i class="fas fa-clock me-2"></i>Late Today</p>
         </div>
     </div>
-    <div class="col-md mb-3">
-        <div class="stat-card dark">
+    <div class="col mb-3">
+        <div class="stat-card black h-100">
             <h3>{{ absent_today }}</h3>
             <p class="mb-0"><i class="fas fa-user-times me-2"></i>Absent Today</p>
         </div>
@@ -63,8 +63,8 @@
                         <td>{{ school.short_name or '-' }}</td>
                         <td>{{ school.staff_count }}</td>
                         <td><span class="badge bg-success">{{ school.present_today }}</span></td>
-                        <td><span class="badge bg-warning">{{ school.late_today }}</span></td>
-                        <td><span class="badge bg-danger">{{ school.absent_today }}</span></td>
+                        <td><span class="badge bg-warning text-dark">{{ school.late_today }}</span></td>
+                        <td><span class="badge bg-dark">{{ school.absent_today }}</span></td>
                     </tr>
                     {% endfor %}
                 </tbody>
