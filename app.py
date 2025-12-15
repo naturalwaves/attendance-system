@@ -110,6 +110,23 @@ def get_school_schedule(school, day_of_week):
         return start, end
     return None, None
 
+def get_staff_data_for_api(school):
+    """Helper function to format staff data for API responses"""
+    staff = Staff.query.filter_by(school_id=school.id, is_active=True).all()
+    staff_list_data = []
+    for s in staff:
+        name_parts = s.name.split(' ', 1)
+        first_name = name_parts[0]
+        last_name = name_parts[1] if len(name_parts) > 1 else ''
+        staff_list_data.append({
+            'staff_id': s.staff_id,
+            'first_name': first_name,
+            'last_name': last_name,
+            'name': s.name,
+            'department': s.department
+        })
+    return staff_list_data
+
 @app.route('/')
 def index():
     if current_user.is_authenticated:
@@ -150,21 +167,96 @@ def dashboard():
     if current_user.role in ['super_admin', 'hr_viewer', 'ceo_viewer']:
         schools = School.query.all()
         total_staff = Staff.query.filter_by(is_active=True).count()
-        today_attendance = Attendance.query.filter_by(date=today).count()
-        late_today = Attendance.query.filter_by(date=today, is_late=True).count()
+        
+        # Get staff IDs for attendance calculation
+        all_staff = Staff.query.filter_by(is_active=True).all()
+        all_staff_ids = [s.id for s in all_staff]
+        
+        today_attendance = Attendance.query.filter(
+            Attendance.staff_id.in_(all_staff_ids),
+            Attendance.date == today
+        ).count() if all_staff_ids else 0
+        
+        late_today = Attendance.query.filter(
+            Attendance.staff_id.in_(all_staff_ids),
+            Attendance.date == today,
+            Attendance.is_late == True
+        ).count() if all_staff_ids else 0
+        
+        # Calculate absent (excluding Management)
+        non_mgmt_staff = [s for s in all_staff if s.department != 'Management']
+        non_mgmt_ids = [s.id for s in non_mgmt_staff]
+        present_ids = [a.staff_id for a in Attendance.query.filter(
+            Attendance.staff_id.in_(non_mgmt_ids),
+            Attendance.date == today
+        ).all()] if non_mgmt_ids else []
+        absent_today = len([s for s in non_mgmt_staff if s.id not in present_ids])
+        
+        # School-level stats
+        school_stats = []
+        for school in schools:
+            school_staff = Staff.query.filter_by(school_id=school.id, is_active=True).all()
+            school_staff_ids = [s.id for s in school_staff]
+            
+            school_present = Attendance.query.filter(
+                Attendance.staff_id.in_(school_staff_ids),
+                Attendance.date == today
+            ).count() if school_staff_ids else 0
+            
+            school_late = Attendance.query.filter(
+                Attendance.staff_id.in_(school_staff_ids),
+                Attendance.date == today,
+                Attendance.is_late == True
+            ).count() if school_staff_ids else 0
+            
+            school_stats.append({
+                'school': school,
+                'total_staff': len(school_staff),
+                'present': school_present,
+                'late': school_late
+            })
     else:
         schools = [current_user.school] if current_user.school else []
         if current_user.school:
-            total_staff = Staff.query.filter_by(school_id=current_user.school_id, is_active=True).count()
-            staff_ids = [s.id for s in Staff.query.filter_by(school_id=current_user.school_id).all()]
-            today_attendance = Attendance.query.filter(Attendance.staff_id.in_(staff_ids), Attendance.date == today).count() if staff_ids else 0
-            late_today = Attendance.query.filter(Attendance.staff_id.in_(staff_ids), Attendance.date == today, Attendance.is_late == True).count() if staff_ids else 0
+            school_staff = Staff.query.filter_by(school_id=current_user.school_id, is_active=True).all()
+            total_staff = len(school_staff)
+            staff_ids = [s.id for s in school_staff]
+            
+            today_attendance = Attendance.query.filter(
+                Attendance.staff_id.in_(staff_ids),
+                Attendance.date == today
+            ).count() if staff_ids else 0
+            
+            late_today = Attendance.query.filter(
+                Attendance.staff_id.in_(staff_ids),
+                Attendance.date == today,
+                Attendance.is_late == True
+            ).count() if staff_ids else 0
+            
+            # Calculate absent (excluding Management)
+            non_mgmt_staff = [s for s in school_staff if s.department != 'Management']
+            non_mgmt_ids = [s.id for s in non_mgmt_staff]
+            present_ids = [a.staff_id for a in Attendance.query.filter(
+                Attendance.staff_id.in_(non_mgmt_ids),
+                Attendance.date == today
+            ).all()] if non_mgmt_ids else []
+            absent_today = len([s for s in non_mgmt_staff if s.id not in present_ids])
         else:
             total_staff = 0
             today_attendance = 0
             late_today = 0
+            absent_today = 0
+        
+        school_stats = []
     
-    return render_template('dashboard.html', schools=schools, total_staff=total_staff, today_attendance=today_attendance, late_today=late_today)
+    return render_template('dashboard.html', 
+                         schools=schools,
+                         school_stats=school_stats if current_user.role in ['super_admin', 'hr_viewer', 'ceo_viewer'] else [],
+                         total_schools=len(schools),
+                         total_staff=total_staff, 
+                         today_attendance=today_attendance, 
+                         late_today=late_today,
+                         absent_today=absent_today)
 
 @app.route('/schools')
 @login_required
@@ -974,6 +1066,7 @@ def download_overtime_report():
 # API for Kiosk
 @app.route('/api/sync', methods=['GET', 'POST', 'OPTIONS'])
 def api_sync():
+    # Handle CORS preflight
     if request.method == 'OPTIONS':
         response = jsonify({'status': 'ok'})
         response.headers.add('Access-Control-Allow-Origin', '*')
@@ -981,11 +1074,13 @@ def api_sync():
         response.headers.add('Access-Control-Allow-Methods', 'GET, POST, OPTIONS')
         return response
     
+    # Handle GET request (for testing)
     if request.method == 'GET':
         response = jsonify({'status': 'API is working', 'message': 'Use POST with X-API-Key header'})
         response.headers.add('Access-Control-Allow-Origin', '*')
         return response
     
+    # POST request - require API key
     api_key = request.headers.get('X-API-Key')
     
     if not api_key:
@@ -1009,10 +1104,117 @@ def api_sync():
     
     action = data.get('action')
     
+    # Handle connection request (empty records array - used by kiosk to connect)
+    if action is None and 'records' in data:
+        records = data.get('records', [])
+        
+        # If records is empty, this is a connection/refresh request
+        if len(records) == 0:
+            staff_list_data = get_staff_data_for_api(school)
+            response = jsonify({
+                'success': True,
+                'staff': staff_list_data,
+                'school': {
+                    'name': school.name,
+                    'short_name': school.short_name or ''
+                }
+            })
+            response.headers.add('Access-Control-Allow-Origin', '*')
+            return response
+        
+        # Otherwise, sync the attendance records
+        synced = 0
+        errors = []
+        
+        for record in records:
+            try:
+                staff = Staff.query.filter_by(staff_id=record['staff_id'], school_id=school.id).first()
+                
+                if not staff:
+                    errors.append(f"Staff {record['staff_id']} not found")
+                    continue
+                
+                record_date = datetime.strptime(record['date'], '%Y-%m-%d').date()
+                
+                # Check for existing attendance
+                attendance = Attendance.query.filter_by(staff_id=staff.id, date=record_date).first()
+                
+                sign_in_time = record.get('sign_in_time')
+                sign_out_time = record.get('sign_out_time')
+                
+                if sign_in_time and not attendance:
+                    # Create new attendance record
+                    sign_in_datetime = datetime.strptime(f"{record['date']} {sign_in_time}", '%Y-%m-%d %H:%M:%S')
+                    
+                    day_of_week = record_date.weekday()
+                    start_time, end_time = get_school_schedule(school, day_of_week)
+                    
+                    is_late = False
+                    late_minutes = 0
+                    
+                    if start_time:
+                        scheduled_start = datetime.strptime(start_time, '%H:%M').time()
+                        if sign_in_datetime.time() > scheduled_start:
+                            is_late = True
+                            delta = datetime.combine(record_date, sign_in_datetime.time()) - datetime.combine(record_date, scheduled_start)
+                            late_minutes = int(delta.total_seconds() / 60)
+                            staff.times_late += 1
+                    
+                    attendance = Attendance(
+                        staff_id=staff.id,
+                        date=record_date,
+                        sign_in_time=sign_in_datetime,
+                        is_late=is_late,
+                        late_minutes=late_minutes
+                    )
+                    db.session.add(attendance)
+                    synced += 1
+                
+                if sign_out_time and attendance and not attendance.sign_out_time:
+                    # Update sign out time
+                    sign_out_datetime = datetime.strptime(f"{record['date']} {sign_out_time}", '%Y-%m-%d %H:%M:%S')
+                    attendance.sign_out_time = sign_out_datetime
+                    
+                    day_of_week = record_date.weekday()
+                    start_time, end_time = get_school_schedule(school, day_of_week)
+                    
+                    if end_time:
+                        scheduled_end = datetime.strptime(end_time, '%H:%M').time()
+                        if sign_out_datetime.time() > scheduled_end:
+                            delta = datetime.combine(record_date, sign_out_datetime.time()) - datetime.combine(record_date, scheduled_end)
+                            attendance.overtime_minutes = int(delta.total_seconds() / 60)
+                    
+                    synced += 1
+            
+            except Exception as e:
+                errors.append(str(e))
+        
+        db.session.commit()
+        
+        # Return updated staff list after sync
+        staff_list_data = get_staff_data_for_api(school)
+        response = jsonify({
+            'success': True,
+            'synced': synced,
+            'errors': errors,
+            'staff': staff_list_data,
+            'school': {
+                'name': school.name,
+                'short_name': school.short_name or ''
+            }
+        })
+        response.headers.add('Access-Control-Allow-Origin', '*')
+        return response
+    
     if action == 'get_staff':
-        staff = Staff.query.filter_by(school_id=school.id, is_active=True).all()
-        staff_list_data = [{'id': s.staff_id, 'name': s.name, 'department': s.department} for s in staff]
-        response = jsonify({'staff': staff_list_data, 'school_name': school.name})
+        staff_list_data = get_staff_data_for_api(school)
+        response = jsonify({
+            'staff': staff_list_data,
+            'school': {
+                'name': school.name,
+                'short_name': school.short_name or ''
+            }
+        })
         response.headers.add('Access-Control-Allow-Origin', '*')
         return response
     
@@ -1080,7 +1282,17 @@ def api_sync():
         
         db.session.commit()
         
-        response = jsonify({'success': True, 'synced': synced, 'errors': errors})
+        staff_list_data = get_staff_data_for_api(school)
+        response = jsonify({
+            'success': True,
+            'synced': synced,
+            'errors': errors,
+            'staff': staff_list_data,
+            'school': {
+                'name': school.name,
+                'short_name': school.short_name or ''
+            }
+        })
         response.headers.add('Access-Control-Allow-Origin', '*')
         return response
     
@@ -1104,7 +1316,17 @@ def api_sync():
         else:
             status = 'not_signed_in'
         
-        response = jsonify({'staff_name': staff.name, 'status': status})
+        name_parts = staff.name.split(' ', 1)
+        first_name = name_parts[0]
+        last_name = name_parts[1] if len(name_parts) > 1 else ''
+        
+        response = jsonify({
+            'staff_id': staff.staff_id,
+            'first_name': first_name,
+            'last_name': last_name,
+            'name': staff.name,
+            'status': status
+        })
         response.headers.add('Access-Control-Allow-Origin', '*')
         return response
     
