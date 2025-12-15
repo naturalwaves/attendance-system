@@ -1,4 +1,5 @@
 import os
+import base64
 from flask import Flask, render_template, request, redirect, url_for, flash, jsonify, Response
 from flask_sqlalchemy import SQLAlchemy
 from flask_login import LoginManager, UserMixin, login_user, login_required, logout_user, current_user
@@ -23,12 +24,29 @@ db = SQLAlchemy()
 login_manager = LoginManager()
 login_manager.login_view = 'login'
 
+# System Settings Model
+class SystemSettings(db.Model):
+    __tablename__ = 'system_settings'
+    id = db.Column(db.Integer, primary_key=True)
+    company_name = db.Column(db.String(100), default='Wakato Technologies')
+    company_logo_url = db.Column(db.String(500), nullable=True)
+    
+    @staticmethod
+    def get_settings():
+        settings = SystemSettings.query.first()
+        if not settings:
+            settings = SystemSettings(company_name='Wakato Technologies')
+            db.session.add(settings)
+            db.session.commit()
+        return settings
+
 # Models
 class School(db.Model):
     __tablename__ = 'schools'
     id = db.Column(db.Integer, primary_key=True)
     name = db.Column(db.String(100), nullable=False)
     short_name = db.Column(db.String(20), nullable=True)
+    logo_url = db.Column(db.String(500), nullable=True)
     api_key = db.Column(db.String(64), unique=True, nullable=False)
     schedule_mon_start = db.Column(db.String(5), default='08:00')
     schedule_mon_end = db.Column(db.String(5), default='17:00')
@@ -57,6 +75,9 @@ class User(db.Model, UserMixin):
 
     def check_password(self, password):
         return check_password_hash(self.password_hash, password)
+    
+    def get_initials(self):
+        return self.username[0].upper() if self.username else 'U'
 
 class Staff(db.Model):
     __tablename__ = 'staff'
@@ -87,6 +108,14 @@ login_manager.init_app(app)
 @login_manager.user_loader
 def load_user(user_id):
     return User.query.get(int(user_id))
+
+# Context processor to make settings available in all templates
+@app.context_processor
+def inject_settings():
+    if current_user.is_authenticated:
+        settings = SystemSettings.get_settings()
+        return {'system_settings': settings}
+    return {'system_settings': None}
 
 def role_required(*roles):
     def decorator(f):
@@ -158,6 +187,21 @@ def logout():
     logout_user()
     flash('Logged out successfully.', 'success')
     return redirect(url_for('login'))
+
+@app.route('/settings', methods=['GET', 'POST'])
+@login_required
+@role_required('super_admin')
+def settings():
+    settings = SystemSettings.get_settings()
+    
+    if request.method == 'POST':
+        settings.company_name = request.form.get('company_name', 'Wakato Technologies')
+        settings.company_logo_url = request.form.get('company_logo_url', '').strip() or None
+        db.session.commit()
+        flash('Settings updated successfully!', 'success')
+        return redirect(url_for('settings'))
+    
+    return render_template('settings.html', settings=settings)
 
 @app.route('/dashboard')
 @login_required
@@ -272,9 +316,10 @@ def add_school():
     if request.method == 'POST':
         name = request.form.get('name')
         short_name = request.form.get('short_name')
+        logo_url = request.form.get('logo_url', '').strip() or None
         api_key = secrets.token_hex(32)
         
-        school = School(name=name, short_name=short_name, api_key=api_key)
+        school = School(name=name, short_name=short_name, logo_url=logo_url, api_key=api_key)
         
         for day in ['mon', 'tue', 'wed', 'thu', 'fri']:
             start = request.form.get(f'schedule_{day}_start', '08:00')
@@ -298,6 +343,7 @@ def edit_school(id):
     if request.method == 'POST':
         school.name = request.form.get('name')
         school.short_name = request.form.get('short_name')
+        school.logo_url = request.form.get('logo_url', '').strip() or None
         
         for day in ['mon', 'tue', 'wed', 'thu', 'fri']:
             start = request.form.get(f'schedule_{day}_start', '08:00')
@@ -1116,7 +1162,8 @@ def api_sync():
                 'staff': staff_list_data,
                 'school': {
                     'name': school.name,
-                    'short_name': school.short_name or ''
+                    'short_name': school.short_name or '',
+                    'logo_url': school.logo_url or ''
                 }
             })
             response.headers.add('Access-Control-Allow-Origin', '*')
@@ -1200,7 +1247,8 @@ def api_sync():
             'staff': staff_list_data,
             'school': {
                 'name': school.name,
-                'short_name': school.short_name or ''
+                'short_name': school.short_name or '',
+                'logo_url': school.logo_url or ''
             }
         })
         response.headers.add('Access-Control-Allow-Origin', '*')
@@ -1212,7 +1260,8 @@ def api_sync():
             'staff': staff_list_data,
             'school': {
                 'name': school.name,
-                'short_name': school.short_name or ''
+                'short_name': school.short_name or '',
+                'logo_url': school.logo_url or ''
             }
         })
         response.headers.add('Access-Control-Allow-Origin', '*')
@@ -1290,7 +1339,8 @@ def api_sync():
             'staff': staff_list_data,
             'school': {
                 'name': school.name,
-                'short_name': school.short_name or ''
+                'short_name': school.short_name or '',
+                'logo_url': school.logo_url or ''
             }
         })
         response.headers.add('Access-Control-Allow-Origin', '*')
@@ -1338,11 +1388,19 @@ def api_sync():
 def init_db():
     try:
         db.create_all()
+        
+        # Create default settings if not exists
+        if not SystemSettings.query.first():
+            settings = SystemSettings(company_name='Wakato Technologies')
+            db.session.add(settings)
+        
+        # Create default admin if not exists
         if not User.query.filter_by(username='admin').first():
             admin = User(username='admin', role='super_admin')
             admin.set_password('admin123')
             db.session.add(admin)
-            db.session.commit()
+        
+        db.session.commit()
         return 'Database initialized successfully!'
     except Exception as e:
         return f'Error: {str(e)}'
@@ -1351,3 +1409,337 @@ if __name__ == '__main__':
     with app.app_context():
         db.create_all()
     app.run(debug=True, host='0.0.0.0', port=int(os.environ.get('PORT', 5000)))
+File 2: templates/base.html (Complete replacement)
+Copy<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{% block title %}Attendance System{% endblock %}</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+    <style>
+        :root {
+            --primary-red: #dc3545;
+            --primary-red-dark: #c82333;
+            --white: #ffffff;
+            --light-gray: #f8f9fa;
+            --dark-gray: #6c757d;
+        }
+        
+        body {
+            background-color: var(--light-gray);
+            min-height: 100vh;
+        }
+        
+        .navbar {
+            background: linear-gradient(135deg, var(--primary-red) 0%, var(--primary-red-dark) 100%);
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+            padding: 0.5rem 1rem;
+        }
+        
+        .navbar-brand {
+            color: var(--white) !important;
+            font-weight: 700;
+            font-size: 1.25rem;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+        
+        .navbar-brand img {
+            height: 40px;
+            width: 40px;
+            object-fit: contain;
+            border-radius: 8px;
+            background: white;
+            padding: 2px;
+        }
+        
+        .navbar-brand .brand-logo-placeholder {
+            height: 40px;
+            width: 40px;
+            border-radius: 8px;
+            background: white;
+            color: var(--primary-red);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: 700;
+            font-size: 1.2rem;
+        }
+        
+        .nav-link {
+            color: rgba(255,255,255,0.9) !important;
+            font-weight: 500;
+            padding: 0.5rem 1rem !important;
+            margin: 0 0.15rem;
+            border-radius: 6px;
+            transition: all 0.2s;
+        }
+        
+        .nav-link:hover {
+            color: var(--white) !important;
+            background: rgba(255,255,255,0.15);
+        }
+        
+        .nav-link.active {
+            background: rgba(255,255,255,0.2);
+        }
+        
+        .dropdown-menu {
+            border: none;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.15);
+            border-radius: 8px;
+        }
+        
+        .dropdown-item {
+            padding: 0.5rem 1rem;
+            transition: all 0.2s;
+        }
+        
+        .dropdown-item:hover {
+            background-color: var(--light-gray);
+        }
+        
+        .dropdown-item i {
+            width: 20px;
+            text-align: center;
+        }
+        
+        .main-content {
+            padding: 2rem;
+        }
+        
+        .card {
+            border: none;
+            border-radius: 12px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.05);
+            background: var(--white);
+        }
+        
+        .card-header {
+            background: var(--white);
+            border-bottom: 1px solid rgba(0,0,0,0.05);
+            font-weight: 600;
+            padding: 1rem 1.25rem;
+            border-radius: 12px 12px 0 0 !important;
+        }
+        
+        .btn-primary {
+            background: linear-gradient(135deg, var(--primary-red) 0%, var(--primary-red-dark) 100%);
+            border: none;
+            padding: 0.5rem 1.5rem;
+            border-radius: 8px;
+            font-weight: 500;
+            transition: all 0.2s;
+        }
+        
+        .btn-primary:hover {
+            transform: translateY(-1px);
+            box-shadow: 0 4px 12px rgba(220, 53, 69, 0.3);
+            background: linear-gradient(135deg, var(--primary-red-dark) 0%, var(--primary-red) 100%);
+        }
+        
+        .btn-outline-primary {
+            color: var(--primary-red);
+            border-color: var(--primary-red);
+        }
+        
+        .btn-outline-primary:hover {
+            background: var(--primary-red);
+            border-color: var(--primary-red);
+        }
+        
+        .table {
+            margin-bottom: 0;
+        }
+        
+        .table th {
+            border-top: none;
+            font-weight: 600;
+            color: var(--dark-gray);
+            text-transform: uppercase;
+            font-size: 0.75rem;
+            letter-spacing: 0.5px;
+        }
+        
+        .badge {
+            padding: 0.5em 0.75em;
+            font-weight: 500;
+            border-radius: 6px;
+        }
+        
+        .alert {
+            border: none;
+            border-radius: 8px;
+        }
+        
+        .form-control, .form-select {
+            border-radius: 8px;
+            padding: 0.6rem 1rem;
+            border: 1px solid #dee2e6;
+        }
+        
+        .form-control:focus, .form-select:focus {
+            border-color: var(--primary-red);
+            box-shadow: 0 0 0 0.2rem rgba(220, 53, 69, 0.15);
+        }
+        
+        .stat-card {
+            transition: transform 0.2s, box-shadow 0.2s;
+            cursor: pointer;
+        }
+        
+        .stat-card:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 8px 25px rgba(0,0,0,0.15);
+        }
+        
+        .stat-schools { background: linear-gradient(135deg, #dc3545, #c82333); }
+        .stat-staff { background: linear-gradient(135deg, #007bff, #0056b3); }
+        .stat-present { background: linear-gradient(135deg, #28a745, #1e7e34); }
+        .stat-late { background: linear-gradient(135deg, #ffc107, #d39e00); }
+        .stat-absent { background: linear-gradient(135deg, #343a40, #1d2124); }
+        
+        .table-success-light {
+            background-color: rgba(40, 167, 69, 0.08) !important;
+        }
+        .table-danger-light {
+            background-color: rgba(220, 53, 69, 0.08) !important;
+        }
+        .table-success-light:hover {
+            background-color: rgba(40, 167, 69, 0.15) !important;
+        }
+        .table-danger-light:hover {
+            background-color: rgba(220, 53, 69, 0.15) !important;
+        }
+        
+        footer {
+            text-align: center;
+            padding: 1rem;
+            color: var(--dark-gray);
+            font-size: 0.85rem;
+        }
+    </style>
+</head>
+<body>
+    {% if current_user.is_authenticated %}
+    <nav class="navbar navbar-expand-lg navbar-dark">
+        <div class="container-fluid">
+            <a class="navbar-brand" href="{{ url_for('dashboard') }}">
+                {% if current_user.role == 'school_admin' and current_user.school %}
+                    {% if current_user.school.logo_url %}
+                        <img src="{{ current_user.school.logo_url }}" alt="Logo">
+                    {% else %}
+                        <div class="brand-logo-placeholder">{{ current_user.school.name[0] }}</div>
+                    {% endif %}
+                    <span>{{ current_user.school.name }}</span>
+                {% else %}
+                    {% if system_settings and system_settings.company_logo_url %}
+                        <img src="{{ system_settings.company_logo_url }}" alt="Logo">
+                    {% else %}
+                        <div class="brand-logo-placeholder">W</div>
+                    {% endif %}
+                    <span>{{ system_settings.company_name if system_settings else 'Wakato Technologies' }}</span>
+                {% endif %}
+            </a>
+            
+            <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav">
+                <span class="navbar-toggler-icon"></span>
+            </button>
+            
+            <div class="collapse navbar-collapse" id="navbarNav">
+                <ul class="navbar-nav me-auto">
+                    <li class="nav-item">
+                        <a class="nav-link {% if request.endpoint == 'dashboard' %}active{% endif %}" href="{{ url_for('dashboard') }}">
+                            <i class="fas fa-tachometer-alt me-1"></i> Dashboard
+                        </a>
+                    </li>
+                    
+                    {% if current_user.role == 'super_admin' %}
+                    <li class="nav-item">
+                        <a class="nav-link {% if request.endpoint == 'schools' %}active{% endif %}" href="{{ url_for('schools') }}">
+                            <i class="fas fa-school me-1"></i> Schools
+                        </a>
+                    </li>
+                    {% endif %}
+                    
+                    {% if current_user.role in ['super_admin', 'school_admin', 'hr_viewer', 'ceo_viewer'] %}
+                    <li class="nav-item">
+                        <a class="nav-link {% if request.endpoint == 'staff_list' %}active{% endif %}" href="{{ url_for('staff_list') }}">
+                            <i class="fas fa-users me-1"></i> Staff
+                        </a>
+                    </li>
+                    {% endif %}
+                    
+                    {% if current_user.role == 'super_admin' %}
+                    <li class="nav-item">
+                        <a class="nav-link {% if request.endpoint == 'users' %}active{% endif %}" href="{{ url_for('users') }}">
+                            <i class="fas fa-user-cog me-1"></i> Users
+                        </a>
+                    </li>
+                    {% endif %}
+                    
+                    <li class="nav-item dropdown">
+                        <a class="nav-link dropdown-toggle" href="#" id="reportsDropdown" role="button" data-bs-toggle="dropdown">
+                            <i class="fas fa-chart-bar me-1"></i> Reports
+                        </a>
+                        <ul class="dropdown-menu">
+                            <li><a class="dropdown-item" href="{{ url_for('attendance_report') }}"><i class="fas fa-clipboard-list me-2"></i>Attendance</a></li>
+                            <li><a class="dropdown-item" href="{{ url_for('late_report') }}"><i class="fas fa-clock me-2"></i>Late Report</a></li>
+                            <li><a class="dropdown-item" href="{{ url_for('absent_report') }}"><i class="fas fa-user-times me-2"></i>Absent Report</a></li>
+                            <li><a class="dropdown-item" href="{{ url_for('overtime_report') }}"><i class="fas fa-business-time me-2"></i>Overtime</a></li>
+                        </ul>
+                    </li>
+                    
+                    {% if current_user.role == 'super_admin' %}
+                    <li class="nav-item">
+                        <a class="nav-link {% if request.endpoint == 'settings' %}active{% endif %}" href="{{ url_for('settings') }}">
+                            <i class="fas fa-cog me-1"></i> Settings
+                        </a>
+                    </li>
+                    {% endif %}
+                </ul>
+                
+                <ul class="navbar-nav">
+                    <li class="nav-item dropdown">
+                        <a class="nav-link dropdown-toggle" href="#" id="userDropdown" role="button" data-bs-toggle="dropdown">
+                            <i class="fas fa-user-circle me-1"></i> {{ current_user.username }}
+                        </a>
+                        <ul class="dropdown-menu dropdown-menu-end">
+                            <li><span class="dropdown-item-text text-muted small">{{ current_user.role | replace('_', ' ') | title }}</span></li>
+                            <li><hr class="dropdown-divider"></li>
+                            <li><a class="dropdown-item" href="{{ url_for('logout') }}"><i class="fas fa-sign-out-alt me-2"></i>Logout</a></li>
+                        </ul>
+                    </li>
+                </ul>
+            </div>
+        </div>
+    </nav>
+    {% endif %}
+    
+    <div class="main-content">
+        <div class="container-fluid">
+            {% with messages = get_flashed_messages(with_categories=true) %}
+                {% if messages %}
+                    {% for category, message in messages %}
+                        <div class="alert alert-{{ category }} alert-dismissible fade show" role="alert">
+                            {{ message }}
+                            <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+                        </div>
+                    {% endfor %}
+                {% endif %}
+            {% endwith %}
+            
+            {% block content %}{% endblock %}
+        </div>
+    </div>
+    
+    <footer>
+        <p>&copy; 2025 Wakato Technologies. All rights reserved.</p>
+    </footer>
+    
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/js/bootstrap.bundle.min.js"></script>
+</body>
+</html>
