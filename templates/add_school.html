@@ -4,7 +4,7 @@
 
 {% block content %}
 <div class="d-flex justify-content-between align-items-center mb-4">
-    <h2>Add School</h2>
+    <h2><i class="fas fa-plus me-2"></i>Add School</h2>
     <a href="{{ url_for('schools') }}" class="btn btn-secondary">
         <i class="fas fa-arrow-left me-2"></i>Back
     </a>
@@ -16,15 +16,22 @@
             <div class="row">
                 <div class="col-md-6 mb-3">
                     <label class="form-label">School Name</label>
-                    <input type="text" name="name" class="form-control" placeholder="e.g. Corona Secondary School Victoria Island" required>
+                    <input type="text" name="name" class="form-control" placeholder="e.g. Corona School Lekki" required>
                 </div>
                 <div class="col-md-6 mb-3">
                     <label class="form-label">Short Name</label>
-                    <input type="text" name="short_name" class="form-control" placeholder="e.g. VGC">
+                    <input type="text" name="short_name" class="form-control" placeholder="e.g. CSL">
                 </div>
             </div>
             
-            <h5 class="mt-4 mb-3"><i class="fas fa-clock me-2"></i>School Schedule</h5>
+            <div class="mb-3">
+                <label class="form-label">Logo URL</label>
+                <input type="url" name="logo_url" class="form-control" placeholder="https://example.com/school-logo.png">
+                <small class="text-muted">Paste a direct link to the school's logo. This will appear on their dashboard and kiosk.</small>
+            </div>
+            
+            <hr class="my-4">
+            <h5 class="mb-3"><i class="fas fa-clock me-2"></i>Daily Schedule</h5>
             
             <div class="row">
                 <div class="col-md-4 mb-3">
@@ -51,6 +58,9 @@
                         <input type="time" name="schedule_wed_end" class="form-control" value="17:00">
                     </div>
                 </div>
+            </div>
+            
+            <div class="row">
                 <div class="col-md-4 mb-3">
                     <label class="form-label">Thursday</label>
                     <div class="input-group">
@@ -79,4 +89,3 @@
     </div>
 </div>
 {% endblock %}
-
