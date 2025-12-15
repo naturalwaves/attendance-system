@@ -4,7 +4,7 @@
 
 {% block content %}
 <div class="d-flex justify-content-between align-items-center mb-4">
-    <h2>Edit School</h2>
+    <h2><i class="fas fa-edit me-2"></i>Edit School</h2>
     <a href="{{ url_for('schools') }}" class="btn btn-secondary">
         <i class="fas fa-arrow-left me-2"></i>Back
     </a>
@@ -20,22 +20,41 @@
                 </div>
                 <div class="col-md-6 mb-3">
                     <label class="form-label">Short Name</label>
-                    <input type="text" name="short_name" class="form-control" value="{{ school.short_name or '' }}" placeholder="e.g. VGC">
+                    <input type="text" name="short_name" class="form-control" value="{{ school.short_name or '' }}">
                 </div>
             </div>
             
-            <div class="mb-4">
+            <div class="row">
+                <div class="col-md-6 mb-3">
+                    <label class="form-label">Logo URL</label>
+                    <input type="url" name="logo_url" class="form-control" value="{{ school.logo_url or '' }}" placeholder="https://example.com/school-logo.png">
+                    <small class="text-muted">Paste a direct link to the school's logo.</small>
+                </div>
+                <div class="col-md-6 mb-3">
+                    <label class="form-label">Logo Preview</label>
+                    <div>
+                        {% if school.logo_url %}
+                        <img src="{{ school.logo_url }}" alt="Logo Preview" style="max-height: 60px; border-radius: 8px; border: 1px solid #dee2e6; padding: 5px;">
+                        {% else %}
+                        <span class="text-muted">No logo set</span>
+                        {% endif %}
+                    </div>
+                </div>
+            </div>
+            
+            <div class="mb-3">
                 <label class="form-label">API Key</label>
                 <div class="input-group">
-                    <input type="text" class="form-control" value="{{ school.api_key }}" readonly style="background-color: #f8f9fa;">
+                    <input type="text" class="form-control" value="{{ school.api_key }}" readonly>
                     <button type="button" class="btn btn-outline-secondary" onclick="copyToClipboard('{{ school.api_key }}')">
                         <i class="fas fa-copy"></i> Copy
                     </button>
                 </div>
-                <small class="text-muted">Use this key to configure the kiosk for this school.</small>
+                <small class="text-muted">Use this key in the kiosk to connect to this school.</small>
             </div>
             
-            <h5 class="mt-4 mb-3"><i class="fas fa-clock me-2"></i>School Schedule</h5>
+            <hr class="my-4">
+            <h5 class="mb-3"><i class="fas fa-clock me-2"></i>Daily Schedule</h5>
             
             <div class="row">
                 <div class="col-md-4 mb-3">
@@ -62,6 +81,9 @@
                         <input type="time" name="schedule_wed_end" class="form-control" value="{{ school.schedule_wed_end }}">
                     </div>
                 </div>
+            </div>
+            
+            <div class="row">
                 <div class="col-md-4 mb-3">
                     <label class="form-label">Thursday</label>
                     <div class="input-group">
