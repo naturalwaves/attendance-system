@@ -4,35 +4,36 @@
 
 {% block content %}
 <div class="d-flex justify-content-between align-items-center mb-4">
-    <h2>Attendance Report</h2>
+    <h2><i class="fas fa-clipboard-list me-2"></i>Attendance Report</h2>
     <a href="{{ url_for('download_attendance', date_from=date_from, date_to=date_to, school_id=school_id) }}" class="btn btn-success">
         <i class="fas fa-download me-2"></i>Download CSV
     </a>
 </div>
 
+<!-- Filters -->
 <div class="card mb-4">
     <div class="card-body">
         <form method="GET" class="row g-3 align-items-end">
             <div class="col-md-2">
-                <a href="{{ url_for('attendance_report', date_from=today, date_to=today, school_id=school_id) }}" class="btn btn-primary w-100">
+                <a href="{{ url_for('attendance_report', today='1') }}" class="btn btn-primary w-100">
                     <i class="fas fa-calendar-day me-2"></i>Today
                 </a>
             </div>
-            <div class="col-md-3">
+            <div class="col-md-2">
                 <label class="form-label">From Date</label>
                 <input type="date" name="date_from" class="form-control" value="{{ date_from }}">
             </div>
-            <div class="col-md-3">
+            <div class="col-md-2">
                 <label class="form-label">To Date</label>
                 <input type="date" name="date_to" class="form-control" value="{{ date_to }}">
             </div>
             {% if current_user.role in ['super_admin', 'hr_viewer', 'ceo_viewer'] %}
-            <div class="col-md-2">
+            <div class="col-md-3">
                 <label class="form-label">School</label>
                 <select name="school_id" class="form-select">
                     <option value="">All Schools</option>
                     {% for school in schools %}
-                    <option value="{{ school.id }}" {% if school_id == school.id|string %}selected{% endif %}>{{ school.short_name or school.name }}</option>
+                    <option value="{{ school.id }}" {% if school_id == school.id|string %}selected{% endif %}>{{ school.name }}</option>
                     {% endfor %}
                 </select>
             </div>
@@ -46,10 +47,29 @@
     </div>
 </div>
 
-<div class="card">
-    <div class="card-header">
-        <i class="fas fa-clipboard-list me-2"></i>Attendance Records ({{ attendance|length }} total)
+<!-- Summary Stats -->
+{% set late_count = attendance|selectattr('is_late')|list|length %}
+{% set ontime_count = attendance|length - late_count %}
+<div class="row mb-4">
+    <div class="col-md-4">
+        <div class="alert alert-info mb-0 text-center">
+            <strong>{{ attendance|length }}</strong> Total Records
+        </div>
     </div>
+    <div class="col-md-4">
+        <div class="alert alert-success mb-0 text-center">
+            <strong>{{ ontime_count }}</strong> On Time
+        </div>
+    </div>
+    <div class="col-md-4">
+        <div class="alert alert-warning mb-0 text-center">
+            <strong>{{ late_count }}</strong> Late
+        </div>
+    </div>
+</div>
+
+<!-- Attendance Table -->
+<div class="card">
     <div class="card-body">
         <div class="table-responsive">
             <table class="table table-hover">
@@ -68,28 +88,29 @@
                     </tr>
                 </thead>
                 <tbody>
-                    {% for record in attendance %}
-                    <tr>
-                        <td>{{ record.date.strftime('%d/%m/%Y') }}</td>
-                        <td>{{ record.staff.staff_id }}</td>
-                        <td>{{ record.staff.name }}</td>
-                        <td>{{ record.staff.school.short_name or record.staff.school.name }}</td>
-                        <td>{{ record.staff.department }}</td>
-                        <td>{{ record.sign_in_time.strftime('%H:%M') if record.sign_in_time else '-' }}</td>
-                        <td>{{ record.sign_out_time.strftime('%H:%M') if record.sign_out_time else '-' }}</td>
+                    {% for a in attendance %}
+                    <tr class="{{ 'table-danger-light' if a.is_late else 'table-success-light' }}">
+                        <td>{{ a.date.strftime('%d/%m/%Y') }}</td>
+                        <td>{{ a.staff.staff_id }}</td>
+                        <td>{{ a.staff.name }}</td>
+                        <td>{{ a.staff.school.short_name or a.staff.school.name }}</td>
+                        <td>{{ a.staff.department }}</td>
+                        <td>{{ a.sign_in_time.strftime('%H:%M') if a.sign_in_time else '-' }}</td>
+                        <td>{{ a.sign_out_time.strftime('%H:%M') if a.sign_out_time else '-' }}</td>
                         <td>
-                            {% if record.is_late %}
-                            <span class="badge bg-danger">Late</span>
-                            {% else %}
-                            <span class="badge bg-success">On Time</span>
-                            {% endif %}
+                            <span class="badge bg-{{ 'warning text-dark' if a.is_late else 'success' }}">
+                                {{ 'Late' if a.is_late else 'On Time' }}
+                            </span>
                         </td>
-                        <td>{{ record.late_minutes }}</td>
-                        <td>{{ record.overtime_minutes }}</td>
+                        <td>{{ a.late_minutes if a.late_minutes else '-' }}</td>
+                        <td>{{ a.overtime_minutes if a.overtime_minutes else '-' }}</td>
                     </tr>
                     {% else %}
                     <tr>
-                        <td colspan="10" class="text-center text-muted">No attendance records found for this period.</td>
+                        <td colspan="10" class="text-center text-muted py-4">
+                            <i class="fas fa-inbox fa-3x mb-3 d-block"></i>
+                            No attendance records found for the selected criteria.
+                        </td>
                     </tr>
                     {% endfor %}
                 </tbody>
@@ -97,4 +118,19 @@
         </div>
     </div>
 </div>
+
+<style>
+    .table-success-light {
+        background-color: rgba(40, 167, 69, 0.08) !important;
+    }
+    .table-danger-light {
+        background-color: rgba(220, 53, 69, 0.08) !important;
+    }
+    .table-success-light:hover {
+        background-color: rgba(40, 167, 69, 0.15) !important;
+    }
+    .table-danger-light:hover {
+        background-color: rgba(220, 53, 69, 0.15) !important;
+    }
+</style>
 {% endblock %}
