@@ -165,46 +165,64 @@ def org_admin_required(f):
 @app.route('/init-db')
 def init_db():
     try:
+        # Create all new tables (like organizations)
         db.create_all()
         
-        # Add missing columns to users table
-        try:
-            db.session.execute(db.text('ALTER TABLE users ADD COLUMN created_at TIMESTAMP DEFAULT NOW()'))
-            db.session.commit()
-        except:
-            db.session.rollback()
+        # List of all columns to add to existing tables
+        alter_statements = [
+            # Users table
+            'ALTER TABLE users ADD COLUMN created_at TIMESTAMP DEFAULT NOW()',
+            'ALTER TABLE users ADD COLUMN organization_id INTEGER',
+            # Schools table
+            'ALTER TABLE schools ADD COLUMN created_at TIMESTAMP DEFAULT NOW()',
+            'ALTER TABLE schools ADD COLUMN organization_id INTEGER',
+            'ALTER TABLE schools ADD COLUMN logo_url VARCHAR(500)',
+            'ALTER TABLE schools ADD COLUMN short_name VARCHAR(20)',
+            'ALTER TABLE schools ADD COLUMN monday_start VARCHAR(5)',
+            'ALTER TABLE schools ADD COLUMN monday_end VARCHAR(5)',
+            'ALTER TABLE schools ADD COLUMN tuesday_start VARCHAR(5)',
+            'ALTER TABLE schools ADD COLUMN tuesday_end VARCHAR(5)',
+            'ALTER TABLE schools ADD COLUMN wednesday_start VARCHAR(5)',
+            'ALTER TABLE schools ADD COLUMN wednesday_end VARCHAR(5)',
+            'ALTER TABLE schools ADD COLUMN thursday_start VARCHAR(5)',
+            'ALTER TABLE schools ADD COLUMN thursday_end VARCHAR(5)',
+            'ALTER TABLE schools ADD COLUMN friday_start VARCHAR(5)',
+            'ALTER TABLE schools ADD COLUMN friday_end VARCHAR(5)',
+            'ALTER TABLE schools ADD COLUMN saturday_start VARCHAR(5)',
+            'ALTER TABLE schools ADD COLUMN saturday_end VARCHAR(5)',
+            'ALTER TABLE schools ADD COLUMN sunday_start VARCHAR(5)',
+            'ALTER TABLE schools ADD COLUMN sunday_end VARCHAR(5)',
+            # Staff table
+            'ALTER TABLE staff ADD COLUMN created_at TIMESTAMP DEFAULT NOW()',
+            'ALTER TABLE staff ADD COLUMN times_late INTEGER DEFAULT 0',
+            'ALTER TABLE staff ADD COLUMN position VARCHAR(50)',
+            'ALTER TABLE staff ADD COLUMN is_active BOOLEAN DEFAULT TRUE',
+            # Attendance records table
+            'ALTER TABLE attendance_records ADD COLUMN late_minutes INTEGER DEFAULT 0',
+            'ALTER TABLE attendance_records ADD COLUMN overtime_minutes INTEGER DEFAULT 0',
+        ]
         
-        try:
-            db.session.execute(db.text('ALTER TABLE users ADD COLUMN organization_id INTEGER REFERENCES organizations(id)'))
-            db.session.commit()
-        except:
-            db.session.rollback()
-        
-        # Add missing columns to schools table
-        try:
-            db.session.execute(db.text('ALTER TABLE schools ADD COLUMN organization_id INTEGER REFERENCES organizations(id)'))
-            db.session.commit()
-        except:
-            db.session.rollback()
-        
-        try:
-            db.session.execute(db.text('ALTER TABLE schools ADD COLUMN logo_url VARCHAR(500)'))
-            db.session.commit()
-        except:
-            db.session.rollback()
+        # Execute each ALTER statement, ignoring errors for columns that already exist
+        for statement in alter_statements:
+            try:
+                db.session.execute(db.text(statement))
+                db.session.commit()
+            except Exception:
+                db.session.rollback()
         
         # Create system_settings if not exists
         if not SystemSettings.query.first():
             settings = SystemSettings(company_name='Wakato Technologies')
             db.session.add(settings)
+            db.session.commit()
         
         # Create default admin if not exists
         if not User.query.filter_by(username='admin').first():
             admin = User(username='admin', role='super_admin')
             admin.set_password('admin123')
             db.session.add(admin)
+            db.session.commit()
         
-        db.session.commit()
         return 'Database initialized successfully!'
     except Exception as e:
         return f'Error: {str(e)}'
