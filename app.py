@@ -54,6 +54,7 @@ class School(db.Model):
     short_name = db.Column(db.String(20), nullable=True)
     logo_url = db.Column(db.String(500), nullable=True)
     api_key = db.Column(db.String(64), unique=True, nullable=False)
+    organization_id = db.Column(db.Integer, db.ForeignKey('organizations.id'), nullable=True)
     schedule_mon_start = db.Column(db.String(5), default='08:00')
     schedule_mon_end = db.Column(db.String(5), default='17:00')
     schedule_tue_start = db.Column(db.String(5), default='08:00')
@@ -1406,4 +1407,5 @@ if __name__ == '__main__':
     with app.app_context():
         db.create_all()
     app.run(debug=True, host='0.0.0.0', port=int(os.environ.get('PORT', 5000)))
+
 
