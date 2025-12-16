@@ -39,6 +39,12 @@ class SystemSettings(db.Model):
             db.session.commit()
         return settings
 
+# User-Schools Association Table (NEW)
+user_schools = db.Table('user_schools',
+    db.Column('user_id', db.Integer, db.ForeignKey('users.id'), primary_key=True),
+    db.Column('school_id', db.Integer, db.ForeignKey('schools.id'), primary_key=True)
+)
+
 # Models
 class School(db.Model):
     __tablename__ = 'schools'
@@ -68,6 +74,9 @@ class User(db.Model, UserMixin):
     role = db.Column(db.String(20), nullable=False, default='school_admin')
     school_id = db.Column(db.Integer, db.ForeignKey('schools.id'), nullable=True)
     is_active = db.Column(db.Boolean, default=True)
+    # NEW: Relationship for multiple schools
+    allowed_schools = db.relationship('School', secondary=user_schools, lazy='subquery',
+        backref=db.backref('allowed_users', lazy=True))
 
     def set_password(self, password):
         self.password_hash = generate_password_hash(password)
@@ -77,6 +86,20 @@ class User(db.Model, UserMixin):
     
     def get_initials(self):
         return self.username[0].upper() if self.username else 'U'
+    
+    # NEW: Get all schools this user can access
+    def get_accessible_schools(self):
+        if self.role == 'super_admin':
+            return School.query.all()
+        elif self.allowed_schools:
+            return self.allowed_schools
+        elif self.school_id:
+            return [self.school]
+        return []
+    
+    # NEW: Get school IDs this user can access
+    def get_accessible_school_ids(self):
+        return [s.id for s in self.get_accessible_schools()]
 
 class Staff(db.Model):
     __tablename__ = 'staff'
@@ -206,11 +229,21 @@ def settings():
 def dashboard():
     today = date.today()
     
-    if current_user.role in ['super_admin', 'hr_viewer', 'ceo_viewer']:
+    # NEW: Use accessible schools instead of role check
+    accessible_school_ids = current_user.get_accessible_school_ids()
+    
+    if current_user.role == 'super_admin':
         schools = School.query.all()
-        total_staff = Staff.query.filter_by(is_active=True).count()
+    else:
+        schools = current_user.get_accessible_schools()
+    
+    if current_user.role == 'super_admin' or accessible_school_ids:
+        if current_user.role == 'super_admin':
+            all_staff = Staff.query.filter_by(is_active=True).all()
+        else:
+            all_staff = Staff.query.filter(Staff.school_id.in_(accessible_school_ids), Staff.is_active==True).all()
         
-        all_staff = Staff.query.filter_by(is_active=True).all()
+        total_staff = len(all_staff)
         all_staff_ids = [s.id for s in all_staff]
         
         today_attendance = Attendance.query.filter(
@@ -255,41 +288,15 @@ def dashboard():
                 'late': school_late
             })
     else:
-        schools = [current_user.school] if current_user.school else []
-        if current_user.school:
-            school_staff = Staff.query.filter_by(school_id=current_user.school_id, is_active=True).all()
-            total_staff = len(school_staff)
-            staff_ids = [s.id for s in school_staff]
-            
-            today_attendance = Attendance.query.filter(
-                Attendance.staff_id.in_(staff_ids),
-                Attendance.date == today
-            ).count() if staff_ids else 0
-            
-            late_today = Attendance.query.filter(
-                Attendance.staff_id.in_(staff_ids),
-                Attendance.date == today,
-                Attendance.is_late == True
-            ).count() if staff_ids else 0
-            
-            non_mgmt_staff = [s for s in school_staff if s.department != 'Management']
-            non_mgmt_ids = [s.id for s in non_mgmt_staff]
-            present_ids = [a.staff_id for a in Attendance.query.filter(
-                Attendance.staff_id.in_(non_mgmt_ids),
-                Attendance.date == today
-            ).all()] if non_mgmt_ids else []
-            absent_today = len([s for s in non_mgmt_staff if s.id not in present_ids])
-        else:
-            total_staff = 0
-            today_attendance = 0
-            late_today = 0
-            absent_today = 0
-        
+        total_staff = 0
+        today_attendance = 0
+        late_today = 0
+        absent_today = 0
         school_stats = []
     
     return render_template('dashboard.html', 
                          schools=schools,
-                         school_stats=school_stats if current_user.role in ['super_admin', 'hr_viewer', 'ceo_viewer'] else [],
+                         school_stats=school_stats,
                          total_schools=len(schools),
                          total_staff=total_staff, 
                          today_attendance=today_attendance, 
@@ -376,10 +383,15 @@ def regenerate_api_key(id):
 def staff_list():
     today = date.today()
     
-    if current_user.role in ['super_admin', 'hr_viewer', 'ceo_viewer']:
+    # NEW: Use accessible schools
+    accessible_school_ids = current_user.get_accessible_school_ids()
+    
+    if current_user.role == 'super_admin':
         staff = Staff.query.all()
+    elif accessible_school_ids:
+        staff = Staff.query.filter(Staff.school_id.in_(accessible_school_ids)).all()
     else:
-        staff = Staff.query.filter_by(school_id=current_user.school_id).all()
+        staff = []
     
     staff_with_status = []
     for s in staff:
@@ -546,15 +558,23 @@ def add_user():
         username = request.form.get('username')
         password = request.form.get('password')
         role = request.form.get('role')
-        school_id = request.form.get('school_id') or None
+        school_ids = request.form.getlist('school_ids')  # NEW: Get multiple schools
         
         existing = User.query.filter_by(username=username).first()
         if existing:
             flash('Username already exists!', 'danger')
             return redirect(url_for('add_user'))
         
-        user = User(username=username, role=role, school_id=school_id)
+        user = User(username=username, role=role)
         user.set_password(password)
+        
+        # NEW: Add selected schools to user
+        if school_ids:
+            for school_id in school_ids:
+                school = School.query.get(int(school_id))
+                if school:
+                    user.allowed_schools.append(school)
+        
         db.session.add(user)
         db.session.commit()
         flash('User added successfully!', 'success')
@@ -563,6 +583,37 @@ def add_user():
     schools = School.query.all()
     roles = ['super_admin', 'hr_viewer', 'ceo_viewer', 'school_admin', 'staff']
     return render_template('add_user.html', schools=schools, roles=roles)
+
+@app.route('/users/edit/<int:id>', methods=['GET', 'POST'])
+@login_required
+@role_required('super_admin')
+def edit_user(id):
+    user = User.query.get_or_404(id)
+    
+    if request.method == 'POST':
+        user.username = request.form.get('username')
+        user.role = request.form.get('role')
+        school_ids = request.form.getlist('school_ids')  # NEW: Get multiple schools
+        
+        password = request.form.get('password')
+        if password:
+            user.set_password(password)
+        
+        # NEW: Update allowed schools
+        user.allowed_schools = []
+        if school_ids:
+            for school_id in school_ids:
+                school = School.query.get(int(school_id))
+                if school:
+                    user.allowed_schools.append(school)
+        
+        db.session.commit()
+        flash('User updated successfully!', 'success')
+        return redirect(url_for('users'))
+    
+    schools = School.query.all()
+    roles = ['super_admin', 'hr_viewer', 'ceo_viewer', 'school_admin', 'staff']
+    return render_template('edit_user.html', user=user, schools=schools, roles=roles)
 
 @app.route('/users/delete/<int:id>')
 @login_required
@@ -605,15 +656,23 @@ def attendance_report():
     
     query = Attendance.query.filter(Attendance.date >= start_date, Attendance.date <= end_date)
     
+    # NEW: Use accessible schools
+    accessible_school_ids = current_user.get_accessible_school_ids()
+    
     if school_id:
         staff_ids = [s.id for s in Staff.query.filter_by(school_id=school_id).all()]
         query = query.filter(Attendance.staff_id.in_(staff_ids)) if staff_ids else query.filter(False)
-    elif current_user.role == 'school_admin':
-        staff_ids = [s.id for s in Staff.query.filter_by(school_id=current_user.school_id).all()]
+    elif current_user.role != 'super_admin' and accessible_school_ids:
+        staff_ids = [s.id for s in Staff.query.filter(Staff.school_id.in_(accessible_school_ids)).all()]
         query = query.filter(Attendance.staff_id.in_(staff_ids)) if staff_ids else query.filter(False)
     
     attendance = query.order_by(Attendance.date.desc()).all()
-    schools = School.query.all() if current_user.role in ['super_admin', 'hr_viewer', 'ceo_viewer'] else []
+    
+    # NEW: Show only accessible schools in filter
+    if current_user.role == 'super_admin':
+        schools = School.query.all()
+    else:
+        schools = current_user.get_accessible_schools()
     
     return render_template('attendance_report.html', 
                          attendance=attendance, 
@@ -646,11 +705,14 @@ def download_attendance():
     
     query = Attendance.query.filter(Attendance.date >= start_date, Attendance.date <= end_date)
     
+    # NEW: Use accessible schools
+    accessible_school_ids = current_user.get_accessible_school_ids()
+    
     if school_id:
         staff_ids = [s.id for s in Staff.query.filter_by(school_id=school_id).all()]
         query = query.filter(Attendance.staff_id.in_(staff_ids)) if staff_ids else query.filter(False)
-    elif current_user.role == 'school_admin':
-        staff_ids = [s.id for s in Staff.query.filter_by(school_id=current_user.school_id).all()]
+    elif current_user.role != 'super_admin' and accessible_school_ids:
+        staff_ids = [s.id for s in Staff.query.filter(Staff.school_id.in_(accessible_school_ids)).all()]
         query = query.filter(Attendance.staff_id.in_(staff_ids)) if staff_ids else query.filter(False)
     
     attendance = query.order_by(Attendance.date.desc()).all()
@@ -703,12 +765,15 @@ def late_report():
         except:
             pass
     
+    # NEW: Use accessible schools
+    accessible_school_ids = current_user.get_accessible_school_ids()
+    
     staff_query = Staff.query.filter_by(is_active=True)
     
     if school_id:
         staff_query = staff_query.filter_by(school_id=school_id)
-    elif current_user.role == 'school_admin':
-        staff_query = staff_query.filter_by(school_id=current_user.school_id)
+    elif current_user.role != 'super_admin' and accessible_school_ids:
+        staff_query = staff_query.filter(Staff.school_id.in_(accessible_school_ids))
     
     staff_list_data = staff_query.all()
     
@@ -762,7 +827,12 @@ def late_report():
             })
     
     late_staff.sort(key=lambda x: x['times_late'], reverse=True)
-    schools = School.query.all() if current_user.role in ['super_admin', 'hr_viewer', 'ceo_viewer'] else []
+    
+    # NEW: Show only accessible schools in filter
+    if current_user.role == 'super_admin':
+        schools = School.query.all()
+    else:
+        schools = current_user.get_accessible_schools()
     
     return render_template('late_report.html', 
                          late_staff=late_staff, 
@@ -791,12 +861,15 @@ def download_late_report():
         except:
             pass
     
+    # NEW: Use accessible schools
+    accessible_school_ids = current_user.get_accessible_school_ids()
+    
     staff_query = Staff.query.filter_by(is_active=True)
     
     if school_id:
         staff_query = staff_query.filter_by(school_id=school_id)
-    elif current_user.role == 'school_admin':
-        staff_query = staff_query.filter_by(school_id=current_user.school_id)
+    elif current_user.role != 'super_admin' and accessible_school_ids:
+        staff_query = staff_query.filter(Staff.school_id.in_(accessible_school_ids))
     
     staff_list_data = staff_query.all()
     
@@ -906,12 +979,15 @@ def absent_report():
         start_date = today
         end_date = today
     
+    # NEW: Use accessible schools
+    accessible_school_ids = current_user.get_accessible_school_ids()
+    
     staff_query = Staff.query.filter_by(is_active=True)
     
     if school_id:
         staff_query = staff_query.filter_by(school_id=school_id)
-    elif current_user.role == 'school_admin':
-        staff_query = staff_query.filter_by(school_id=current_user.school_id)
+    elif current_user.role != 'super_admin' and accessible_school_ids:
+        staff_query = staff_query.filter(Staff.school_id.in_(accessible_school_ids))
     
     all_staff = staff_query.all()
     
@@ -931,7 +1007,11 @@ def absent_report():
                     })
         current_date += timedelta(days=1)
     
-    schools = School.query.all() if current_user.role in ['super_admin', 'hr_viewer', 'ceo_viewer'] else []
+    # NEW: Show only accessible schools in filter
+    if current_user.role == 'super_admin':
+        schools = School.query.all()
+    else:
+        schools = current_user.get_accessible_schools()
     
     return render_template('absent_report.html', 
                          absent_records=absent_records, 
@@ -962,12 +1042,15 @@ def download_absent_report():
         start_date = today
         end_date = today
     
+    # NEW: Use accessible schools
+    accessible_school_ids = current_user.get_accessible_school_ids()
+    
     staff_query = Staff.query.filter_by(is_active=True)
     
     if school_id:
         staff_query = staff_query.filter_by(school_id=school_id)
-    elif current_user.role == 'school_admin':
-        staff_query = staff_query.filter_by(school_id=current_user.school_id)
+    elif current_user.role != 'super_admin' and accessible_school_ids:
+        staff_query = staff_query.filter(Staff.school_id.in_(accessible_school_ids))
     
     all_staff = staff_query.all()
     
@@ -1029,15 +1112,23 @@ def overtime_report():
         Attendance.overtime_minutes > 0
     )
     
+    # NEW: Use accessible schools
+    accessible_school_ids = current_user.get_accessible_school_ids()
+    
     if school_id:
         staff_ids = [s.id for s in Staff.query.filter_by(school_id=school_id).all()]
         query = query.filter(Attendance.staff_id.in_(staff_ids)) if staff_ids else query.filter(False)
-    elif current_user.role == 'school_admin':
-        staff_ids = [s.id for s in Staff.query.filter_by(school_id=current_user.school_id).all()]
+    elif current_user.role != 'super_admin' and accessible_school_ids:
+        staff_ids = [s.id for s in Staff.query.filter(Staff.school_id.in_(accessible_school_ids)).all()]
         query = query.filter(Attendance.staff_id.in_(staff_ids)) if staff_ids else query.filter(False)
     
     overtime = query.order_by(Attendance.date.desc()).all()
-    schools = School.query.all() if current_user.role in ['super_admin', 'hr_viewer', 'ceo_viewer'] else []
+    
+    # NEW: Show only accessible schools in filter
+    if current_user.role == 'super_admin':
+        schools = School.query.all()
+    else:
+        schools = current_user.get_accessible_schools()
     
     return render_template('overtime_report.html', 
                          overtime=overtime, 
@@ -1074,11 +1165,14 @@ def download_overtime_report():
         Attendance.overtime_minutes > 0
     )
     
+    # NEW: Use accessible schools
+    accessible_school_ids = current_user.get_accessible_school_ids()
+    
     if school_id:
         staff_ids = [s.id for s in Staff.query.filter_by(school_id=school_id).all()]
         query = query.filter(Attendance.staff_id.in_(staff_ids)) if staff_ids else query.filter(False)
-    elif current_user.role == 'school_admin':
-        staff_ids = [s.id for s in Staff.query.filter_by(school_id=current_user.school_id).all()]
+    elif current_user.role != 'super_admin' and accessible_school_ids:
+        staff_ids = [s.id for s in Staff.query.filter(Staff.school_id.in_(accessible_school_ids)).all()]
         query = query.filter(Attendance.staff_id.in_(staff_ids)) if staff_ids else query.filter(False)
     
     overtime = query.order_by(Attendance.date.desc()).all()
@@ -1399,6 +1493,3 @@ if __name__ == '__main__':
     with app.app_context():
         db.create_all()
     app.run(debug=True, host='0.0.0.0', port=int(os.environ.get('PORT', 5000)))
-
-
-
