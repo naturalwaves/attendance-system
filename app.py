@@ -164,68 +164,83 @@ def org_admin_required(f):
 
 @app.route('/init-db')
 def init_db():
+    results = []
     try:
-        # Create all new tables (like organizations)
+        # Create all new tables
         db.create_all()
+        results.append("Tables created")
         
-        # List of all columns to add to existing tables
+        # List of all columns to add
         alter_statements = [
-            # Users table
-            'ALTER TABLE users ADD COLUMN created_at TIMESTAMP DEFAULT NOW()',
-            'ALTER TABLE users ADD COLUMN organization_id INTEGER',
-            # Schools table
-            'ALTER TABLE schools ADD COLUMN created_at TIMESTAMP DEFAULT NOW()',
-            'ALTER TABLE schools ADD COLUMN organization_id INTEGER',
-            'ALTER TABLE schools ADD COLUMN logo_url VARCHAR(500)',
-            'ALTER TABLE schools ADD COLUMN short_name VARCHAR(20)',
-            'ALTER TABLE schools ADD COLUMN monday_start VARCHAR(5)',
-            'ALTER TABLE schools ADD COLUMN monday_end VARCHAR(5)',
-            'ALTER TABLE schools ADD COLUMN tuesday_start VARCHAR(5)',
-            'ALTER TABLE schools ADD COLUMN tuesday_end VARCHAR(5)',
-            'ALTER TABLE schools ADD COLUMN wednesday_start VARCHAR(5)',
-            'ALTER TABLE schools ADD COLUMN wednesday_end VARCHAR(5)',
-            'ALTER TABLE schools ADD COLUMN thursday_start VARCHAR(5)',
-            'ALTER TABLE schools ADD COLUMN thursday_end VARCHAR(5)',
-            'ALTER TABLE schools ADD COLUMN friday_start VARCHAR(5)',
-            'ALTER TABLE schools ADD COLUMN friday_end VARCHAR(5)',
-            'ALTER TABLE schools ADD COLUMN saturday_start VARCHAR(5)',
-            'ALTER TABLE schools ADD COLUMN saturday_end VARCHAR(5)',
-            'ALTER TABLE schools ADD COLUMN sunday_start VARCHAR(5)',
-            'ALTER TABLE schools ADD COLUMN sunday_end VARCHAR(5)',
-            # Staff table
-            'ALTER TABLE staff ADD COLUMN created_at TIMESTAMP DEFAULT NOW()',
-            'ALTER TABLE staff ADD COLUMN times_late INTEGER DEFAULT 0',
-            'ALTER TABLE staff ADD COLUMN position VARCHAR(50)',
-            'ALTER TABLE staff ADD COLUMN is_active BOOLEAN DEFAULT TRUE',
-            # Attendance records table
-            'ALTER TABLE attendance_records ADD COLUMN late_minutes INTEGER DEFAULT 0',
-            'ALTER TABLE attendance_records ADD COLUMN overtime_minutes INTEGER DEFAULT 0',
+            ('users', 'created_at', 'ALTER TABLE users ADD COLUMN created_at TIMESTAMP DEFAULT NOW()'),
+            ('users', 'organization_id', 'ALTER TABLE users ADD COLUMN organization_id INTEGER'),
+            ('schools', 'created_at', 'ALTER TABLE schools ADD COLUMN created_at TIMESTAMP DEFAULT NOW()'),
+            ('schools', 'organization_id', 'ALTER TABLE schools ADD COLUMN organization_id INTEGER'),
+            ('schools', 'logo_url', 'ALTER TABLE schools ADD COLUMN logo_url VARCHAR(500)'),
+            ('schools', 'short_name', 'ALTER TABLE schools ADD COLUMN short_name VARCHAR(20)'),
+            ('schools', 'address', 'ALTER TABLE schools ADD COLUMN address VARCHAR(200)'),
+            ('schools', 'monday_start', 'ALTER TABLE schools ADD COLUMN monday_start VARCHAR(5) DEFAULT \'08:00\''),
+            ('schools', 'monday_end', 'ALTER TABLE schools ADD COLUMN monday_end VARCHAR(5) DEFAULT \'17:00\''),
+            ('schools', 'tuesday_start', 'ALTER TABLE schools ADD COLUMN tuesday_start VARCHAR(5) DEFAULT \'08:00\''),
+            ('schools', 'tuesday_end', 'ALTER TABLE schools ADD COLUMN tuesday_end VARCHAR(5) DEFAULT \'17:00\''),
+            ('schools', 'wednesday_start', 'ALTER TABLE schools ADD COLUMN wednesday_start VARCHAR(5) DEFAULT \'08:00\''),
+            ('schools', 'wednesday_end', 'ALTER TABLE schools ADD COLUMN wednesday_end VARCHAR(5) DEFAULT \'17:00\''),
+            ('schools', 'thursday_start', 'ALTER TABLE schools ADD COLUMN thursday_start VARCHAR(5) DEFAULT \'08:00\''),
+            ('schools', 'thursday_end', 'ALTER TABLE schools ADD COLUMN thursday_end VARCHAR(5) DEFAULT \'17:00\''),
+            ('schools', 'friday_start', 'ALTER TABLE schools ADD COLUMN friday_start VARCHAR(5) DEFAULT \'08:00\''),
+            ('schools', 'friday_end', 'ALTER TABLE schools ADD COLUMN friday_end VARCHAR(5) DEFAULT \'17:00\''),
+            ('schools', 'saturday_start', 'ALTER TABLE schools ADD COLUMN saturday_start VARCHAR(5)'),
+            ('schools', 'saturday_end', 'ALTER TABLE schools ADD COLUMN saturday_end VARCHAR(5)'),
+            ('schools', 'sunday_start', 'ALTER TABLE schools ADD COLUMN sunday_start VARCHAR(5)'),
+            ('schools', 'sunday_end', 'ALTER TABLE schools ADD COLUMN sunday_end VARCHAR(5)'),
+            ('staff', 'created_at', 'ALTER TABLE staff ADD COLUMN created_at TIMESTAMP DEFAULT NOW()'),
+            ('staff', 'times_late', 'ALTER TABLE staff ADD COLUMN times_late INTEGER DEFAULT 0'),
+            ('staff', 'position', 'ALTER TABLE staff ADD COLUMN position VARCHAR(50)'),
+            ('staff', 'is_active', 'ALTER TABLE staff ADD COLUMN is_active BOOLEAN DEFAULT TRUE'),
+            ('attendance_records', 'late_minutes', 'ALTER TABLE attendance_records ADD COLUMN late_minutes INTEGER DEFAULT 0'),
+            ('attendance_records', 'overtime_minutes', 'ALTER TABLE attendance_records ADD COLUMN overtime_minutes INTEGER DEFAULT 0'),
         ]
         
-        # Execute each ALTER statement, ignoring errors for columns that already exist
-        for statement in alter_statements:
+        for table, column, statement in alter_statements:
             try:
                 db.session.execute(db.text(statement))
                 db.session.commit()
-            except Exception:
+                results.append(f"Added {table}.{column}")
+            except Exception as e:
                 db.session.rollback()
+                if 'already exists' in str(e).lower() or 'duplicate' in str(e).lower():
+                    results.append(f"EXISTS: {table}.{column}")
+                else:
+                    results.append(f"FAILED {table}.{column}: {str(e)[:100]}")
         
         # Create system_settings if not exists
-        if not SystemSettings.query.first():
-            settings = SystemSettings(company_name='Wakato Technologies')
-            db.session.add(settings)
-            db.session.commit()
+        try:
+            if not SystemSettings.query.first():
+                settings = SystemSettings(company_name='Wakato Technologies')
+                db.session.add(settings)
+                db.session.commit()
+                results.append("Created system_settings")
+            else:
+                results.append("system_settings exists")
+        except Exception as e:
+            results.append(f"system_settings error: {str(e)[:50]}")
         
         # Create default admin if not exists
-        if not User.query.filter_by(username='admin').first():
-            admin = User(username='admin', role='super_admin')
-            admin.set_password('admin123')
-            db.session.add(admin)
-            db.session.commit()
+        try:
+            if not User.query.filter_by(username='admin').first():
+                admin = User(username='admin', role='super_admin')
+                admin.set_password('admin123')
+                db.session.add(admin)
+                db.session.commit()
+                results.append("Created admin user")
+            else:
+                results.append("admin user exists")
+        except Exception as e:
+            results.append(f"admin error: {str(e)[:50]}")
         
-        return 'Database initialized successfully!'
+        return '<br>'.join(results)
     except Exception as e:
-        return f'Error: {str(e)}'
+        return f'Error: {str(e)}<br><br>Results so far:<br>' + '<br>'.join(results)
 
 @app.route('/')
 def index():
