@@ -1,5 +1,4 @@
 import os
-import base64
 from flask import Flask, render_template, request, redirect, url_for, flash, jsonify, Response
 from flask_sqlalchemy import SQLAlchemy
 from flask_login import LoginManager, UserMixin, login_user, login_required, logout_user, current_user
@@ -140,7 +139,6 @@ def get_school_schedule(school, day_of_week):
     return None, None
 
 def get_staff_data_for_api(school):
-    """Helper function to format staff data for API responses"""
     staff = Staff.query.filter_by(school_id=school.id, is_active=True).all()
     staff_list_data = []
     for s in staff:
@@ -212,7 +210,6 @@ def dashboard():
         schools = School.query.all()
         total_staff = Staff.query.filter_by(is_active=True).count()
         
-        # Get staff IDs for attendance calculation
         all_staff = Staff.query.filter_by(is_active=True).all()
         all_staff_ids = [s.id for s in all_staff]
         
@@ -227,7 +224,6 @@ def dashboard():
             Attendance.is_late == True
         ).count() if all_staff_ids else 0
         
-        # Calculate absent (excluding Management)
         non_mgmt_staff = [s for s in all_staff if s.department != 'Management']
         non_mgmt_ids = [s.id for s in non_mgmt_staff]
         present_ids = [a.staff_id for a in Attendance.query.filter(
@@ -236,7 +232,6 @@ def dashboard():
         ).all()] if non_mgmt_ids else []
         absent_today = len([s for s in non_mgmt_staff if s.id not in present_ids])
         
-        # School-level stats
         school_stats = []
         for school in schools:
             school_staff = Staff.query.filter_by(school_id=school.id, is_active=True).all()
@@ -277,7 +272,6 @@ def dashboard():
                 Attendance.is_late == True
             ).count() if staff_ids else 0
             
-            # Calculate absent (excluding Management)
             non_mgmt_staff = [s for s in school_staff if s.department != 'Management']
             non_mgmt_ids = [s.id for s in non_mgmt_staff]
             present_ids = [a.staff_id for a in Attendance.query.filter(
@@ -583,7 +577,6 @@ def delete_user(id):
     flash('User deleted successfully!', 'success')
     return redirect(url_for('users'))
 
-# Reports
 @app.route('/reports/attendance')
 @login_required
 def attendance_report():
@@ -1112,7 +1105,6 @@ def download_overtime_report():
 # API for Kiosk
 @app.route('/api/sync', methods=['GET', 'POST', 'OPTIONS'])
 def api_sync():
-    # Handle CORS preflight
     if request.method == 'OPTIONS':
         response = jsonify({'status': 'ok'})
         response.headers.add('Access-Control-Allow-Origin', '*')
@@ -1120,13 +1112,11 @@ def api_sync():
         response.headers.add('Access-Control-Allow-Methods', 'GET, POST, OPTIONS')
         return response
     
-    # Handle GET request (for testing)
     if request.method == 'GET':
         response = jsonify({'status': 'API is working', 'message': 'Use POST with X-API-Key header'})
         response.headers.add('Access-Control-Allow-Origin', '*')
         return response
     
-    # POST request - require API key
     api_key = request.headers.get('X-API-Key')
     
     if not api_key:
@@ -1150,11 +1140,9 @@ def api_sync():
     
     action = data.get('action')
     
-    # Handle connection request (empty records array - used by kiosk to connect)
     if action is None and 'records' in data:
         records = data.get('records', [])
         
-        # If records is empty, this is a connection/refresh request
         if len(records) == 0:
             staff_list_data = get_staff_data_for_api(school)
             response = jsonify({
@@ -1169,7 +1157,6 @@ def api_sync():
             response.headers.add('Access-Control-Allow-Origin', '*')
             return response
         
-        # Otherwise, sync the attendance records
         synced = 0
         errors = []
         
@@ -1183,14 +1170,12 @@ def api_sync():
                 
                 record_date = datetime.strptime(record['date'], '%Y-%m-%d').date()
                 
-                # Check for existing attendance
                 attendance = Attendance.query.filter_by(staff_id=staff.id, date=record_date).first()
                 
                 sign_in_time = record.get('sign_in_time')
                 sign_out_time = record.get('sign_out_time')
                 
                 if sign_in_time and not attendance:
-                    # Create new attendance record
                     sign_in_datetime = datetime.strptime(f"{record['date']} {sign_in_time}", '%Y-%m-%d %H:%M:%S')
                     
                     day_of_week = record_date.weekday()
@@ -1218,7 +1203,6 @@ def api_sync():
                     synced += 1
                 
                 if sign_out_time and attendance and not attendance.sign_out_time:
-                    # Update sign out time
                     sign_out_datetime = datetime.strptime(f"{record['date']} {sign_out_time}", '%Y-%m-%d %H:%M:%S')
                     attendance.sign_out_time = sign_out_datetime
                     
@@ -1238,7 +1222,6 @@ def api_sync():
         
         db.session.commit()
         
-        # Return updated staff list after sync
         staff_list_data = get_staff_data_for_api(school)
         response = jsonify({
             'success': True,
@@ -1389,7 +1372,14 @@ def init_db():
     try:
         db.create_all()
         
-        # Create default settings if not exists
+        # Add logo_url column to schools if it doesn't exist
+        try:
+            db.session.execute(db.text('ALTER TABLE schools ADD COLUMN logo_url VARCHAR(500)'))
+            db.session.commit()
+        except:
+            db.session.rollback()
+        
+        # Create system_settings table data if not exists
         if not SystemSettings.query.first():
             settings = SystemSettings(company_name='Wakato Technologies')
             db.session.add(settings)
@@ -1409,5 +1399,3 @@ if __name__ == '__main__':
     with app.app_context():
         db.create_all()
     app.run(debug=True, host='0.0.0.0', port=int(os.environ.get('PORT', 5000)))
-    
-    
