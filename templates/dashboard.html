@@ -1,116 +1,123 @@
+
 {% extends 'base.html' %}
 
 {% block title %}Dashboard - Attendance System{% endblock %}
 
 {% block content %}
 <div class="d-flex justify-content-between align-items-center mb-4">
-    <h2>Dashboard</h2>
-    <span class="text-muted">{{ now.strftime('%A, %B %d, %Y') if now else '' }}</span>
+    <h2><i class="fas fa-tachometer-alt me-2"></i>Dashboard</h2>
+    <span class="text-muted">{{ now().strftime('%A, %d %B %Y') if now is defined else '' }}</span>
 </div>
 
 <!-- Stats Cards -->
 <div class="row mb-4">
-    {% if current_user.role == 'super_admin' %}
-    <div class="col-md-3 mb-3">
-        <a href="{{ url_for('organizations') }}" class="text-decoration-none">
-            <div class="stat-card primary">
-                <h3>{{ total_organizations }}</h3>
-                <p><i class="bi bi-building me-2"></i>Organizations</p>
-            </div>
-        </a>
-    </div>
-    {% endif %}
-    
-    <div class="col-md-3 mb-3">
+    <div class="col-md">
         <a href="{{ url_for('schools') }}" class="text-decoration-none">
-            <div class="stat-card primary">
-                <h3>{{ total_schools }}</h3>
-                <p><i class="bi bi-houses me-2"></i>Schools</p>
+            <div class="card stat-card stat-schools h-100">
+                <div class="card-body text-center text-white">
+                    <i class="fas fa-school fa-2x mb-2"></i>
+                    <h3 class="mb-0">{{ total_schools }}</h3>
+                    <small>Schools</small>
+                </div>
             </div>
         </a>
     </div>
-    
-    <div class="col-md-3 mb-3">
-        <a href="{{ url_for('staff') }}" class="text-decoration-none">
-            <div class="stat-card success">
-                <h3>{{ total_staff }}</h3>
-                <p><i class="bi bi-people me-2"></i>Total Staff</p>
+    <div class="col-md">
+        <a href="{{ url_for('staff_list') }}" class="text-decoration-none">
+            <div class="card stat-card stat-staff h-100">
+                <div class="card-body text-center text-white">
+                    <i class="fas fa-users fa-2x mb-2"></i>
+                    <h3 class="mb-0">{{ total_staff }}</h3>
+                    <small>Total Staff</small>
+                </div>
             </div>
         </a>
     </div>
-    
-    <div class="col-md-3 mb-3">
-        <a href="{{ url_for('attendance_report') }}" class="text-decoration-none">
-            <div class="stat-card success">
-                <h3>{{ present_today }}</h3>
-                <p><i class="bi bi-check-circle me-2"></i>Present Today</p>
+    <div class="col-md">
+        <a href="{{ url_for('attendance_report', today='1') }}" class="text-decoration-none">
+            <div class="card stat-card stat-present h-100">
+                <div class="card-body text-center text-white">
+                    <i class="fas fa-user-check fa-2x mb-2"></i>
+                    <h3 class="mb-0">{{ today_attendance }}</h3>
+                    <small>Present Today</small>
+                </div>
             </div>
         </a>
     </div>
-    
-    <div class="col-md-3 mb-3">
-        <a href="{{ url_for('late_report') }}" class="text-decoration-none">
-            <div class="stat-card warning">
-                <h3>{{ late_today }}</h3>
-                <p><i class="bi bi-clock me-2"></i>Late Today</p>
+    <div class="col-md">
+        <a href="{{ url_for('late_report', today='1') }}" class="text-decoration-none">
+            <div class="card stat-card stat-late h-100">
+                <div class="card-body text-center text-white">
+                    <i class="fas fa-user-clock fa-2x mb-2"></i>
+                    <h3 class="mb-0">{{ late_today }}</h3>
+                    <small>Late Today</small>
+                </div>
             </div>
         </a>
     </div>
-    
-    <div class="col-md-3 mb-3">
-        <a href="{{ url_for('absent_report') }}" class="text-decoration-none">
-            <div class="stat-card danger">
-                <h3>{{ absent_today }}</h3>
-                <p><i class="bi bi-x-circle me-2"></i>Absent Today</p>
+    <div class="col-md">
+        <a href="{{ url_for('absent_report', today='1') }}" class="text-decoration-none">
+            <div class="card stat-card stat-absent h-100">
+                <div class="card-body text-center text-white">
+                    <i class="fas fa-user-times fa-2x mb-2"></i>
+                    <h3 class="mb-0">{{ absent_today }}</h3>
+                    <small>Absent Today</small>
+                </div>
             </div>
         </a>
     </div>
 </div>
 
-<!-- Recent Activity -->
+<!-- Schools Overview Table -->
+{% if current_user.role in ['super_admin', 'hr_viewer', 'ceo_viewer'] and school_stats %}
 <div class="card">
     <div class="card-header">
-        <h5 class="mb-0"><i class="bi bi-activity me-2"></i>Recent Activity</h5>
+        <i class="fas fa-chart-bar me-2"></i>Schools Overview
     </div>
     <div class="card-body">
-        {% if recent_activity %}
         <div class="table-responsive">
             <table class="table table-hover">
                 <thead>
                     <tr>
-                        <th>Staff</th>
                         <th>School</th>
-                        <th>Date</th>
-                        <th>Sign In</th>
-                        <th>Sign Out</th>
-                        <th>Status</th>
+                        <th>Short Name</th>
+                        <th>Total Staff</th>
+                        <th>Present Today</th>
+                        <th>Late Today</th>
                     </tr>
                 </thead>
                 <tbody>
-                    {% for record in recent_activity %}
+                    {% for stat in school_stats %}
                     <tr>
-                        <td>{{ record.staff.name }}</td>
-                        <td>{{ record.staff.school.name }}</td>
-                        <td>{{ record.date.strftime('%Y-%m-%d') }}</td>
-                        <td>{{ record.sign_in_time.strftime('%H:%M') if record.sign_in_time else '-' }}</td>
-                        <td>{{ record.sign_out_time.strftime('%H:%M') if record.sign_out_time else '-' }}</td>
-                        <td>
-                            {% if record.status == 'present' %}
-                                <span class="badge bg-success">Present</span>
-                            {% elif record.status == 'late' %}
-                                <span class="badge bg-warning">Late ({{ record.late_minutes }} min)</span>
-                            {% else %}
-                                <span class="badge bg-secondary">{{ record.status or 'Unknown' }}</span>
-                            {% endif %}
-                        </td>
+                        <td>{{ stat.school.name }}</td>
+                        <td>{{ stat.school.short_name or '-' }}</td>
+                        <td>{{ stat.total_staff }}</td>
+                        <td><span class="badge bg-success">{{ stat.present }}</span></td>
+                        <td><span class="badge bg-warning text-dark">{{ stat.late }}</span></td>
                     </tr>
                     {% endfor %}
                 </tbody>
             </table>
         </div>
-        {% else %}
-        <p class="text-muted text-center py-4">No recent activity</p>
-        {% endif %}
     </div>
 </div>
+{% endif %}
+
+<style>
+    .stat-card {
+        transition: transform 0.2s, box-shadow 0.2s;
+        cursor: pointer;
+    }
+    
+    .stat-card:hover {
+        transform: translateY(-5px);
+        box-shadow: 0 8px 25px rgba(0,0,0,0.15);
+    }
+    
+    .stat-schools { background: linear-gradient(135deg, #dc3545, #c82333); }
+    .stat-staff { background: linear-gradient(135deg, #007bff, #0056b3); }
+    .stat-present { background: linear-gradient(135deg, #28a745, #1e7e34); }
+    .stat-late { background: linear-gradient(135deg, #ffc107, #d39e00); }
+    .stat-absent { background: linear-gradient(135deg, #343a40, #1d2124); }
+</style>
 {% endblock %}
