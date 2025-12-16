@@ -48,7 +48,6 @@ class School(db.Model):
     organization_id = db.Column(db.Integer, db.ForeignKey('organizations.id'), nullable=True)
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
     
-    # Schedule fields
     monday_start = db.Column(db.String(5), default='08:00')
     monday_end = db.Column(db.String(5), default='17:00')
     tuesday_start = db.Column(db.String(5), default='08:00')
@@ -72,7 +71,7 @@ class User(UserMixin, db.Model):
     id = db.Column(db.Integer, primary_key=True)
     username = db.Column(db.String(80), unique=True, nullable=False)
     password_hash = db.Column(db.String(256), nullable=False)
-    role = db.Column(db.String(20), nullable=False)  # super_admin, org_admin, hr_viewer, ceo_viewer, school_admin
+    role = db.Column(db.String(20), nullable=False)
     school_id = db.Column(db.Integer, db.ForeignKey('schools.id'), nullable=True)
     organization_id = db.Column(db.Integer, db.ForeignKey('organizations.id'), nullable=True)
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
@@ -104,7 +103,7 @@ class AttendanceRecord(db.Model):
     date = db.Column(db.Date, nullable=False)
     sign_in_time = db.Column(db.DateTime)
     sign_out_time = db.Column(db.DateTime)
-    status = db.Column(db.String(20))  # present, late, absent
+    status = db.Column(db.String(20))
     late_minutes = db.Column(db.Integer, default=0)
     overtime_minutes = db.Column(db.Integer, default=0)
     
@@ -114,7 +113,6 @@ class AttendanceRecord(db.Model):
 def load_user(user_id):
     return User.query.get(int(user_id))
 
-# Helper function to get schools based on user role
 def get_user_schools():
     if current_user.role == 'super_admin':
         return School.query.all()
@@ -128,18 +126,15 @@ def get_user_schools():
         return []
     return []
 
-# Helper function to get school IDs for current user
 def get_user_school_ids():
     schools = get_user_schools()
     return [s.id for s in schools]
 
-# Helper function to check if user can access a school
 def can_access_school(school_id):
     if current_user.role == 'super_admin':
         return True
     return school_id in get_user_school_ids()
 
-# Decorators
 def admin_required(f):
     @wraps(f)
     def decorated_function(*args, **kwargs):
@@ -167,27 +162,31 @@ def org_admin_required(f):
         return f(*args, **kwargs)
     return decorated_function
 
-# Routes
 @app.route('/init-db')
 def init_db():
     try:
         db.create_all()
         
-        # Add organization_id column to schools if it doesn't exist
+        # Add missing columns to users table
         try:
-            db.session.execute(db.text('ALTER TABLE schools ADD COLUMN organization_id INTEGER REFERENCES organizations(id)'))
+            db.session.execute(db.text('ALTER TABLE users ADD COLUMN created_at TIMESTAMP DEFAULT NOW()'))
             db.session.commit()
         except:
             db.session.rollback()
         
-        # Add organization_id column to users if it doesn't exist
         try:
             db.session.execute(db.text('ALTER TABLE users ADD COLUMN organization_id INTEGER REFERENCES organizations(id)'))
             db.session.commit()
         except:
             db.session.rollback()
         
-        # Add logo_url column to schools if it doesn't exist
+        # Add missing columns to schools table
+        try:
+            db.session.execute(db.text('ALTER TABLE schools ADD COLUMN organization_id INTEGER REFERENCES organizations(id)'))
+            db.session.commit()
+        except:
+            db.session.rollback()
+        
         try:
             db.session.execute(db.text('ALTER TABLE schools ADD COLUMN logo_url VARCHAR(500)'))
             db.session.commit()
@@ -287,7 +286,6 @@ def dashboard():
                          absent_today=absent_today,
                          recent_activity=recent_activity)
 
-# Organization routes
 @app.route('/organizations')
 @login_required
 @super_admin_required
@@ -339,7 +337,6 @@ def edit_organization(id):
 def delete_organization(id):
     org = Organization.query.get_or_404(id)
     
-    # Check if organization has schools
     if org.schools:
         flash('Cannot delete organization with schools. Remove schools first.', 'danger')
         return redirect(url_for('organizations'))
@@ -349,7 +346,6 @@ def delete_organization(id):
     flash('Organization deleted successfully!', 'success')
     return redirect(url_for('organizations'))
 
-# School routes
 @app.route('/schools')
 @login_required
 def schools():
@@ -476,7 +472,6 @@ def edit_school(id):
 def delete_school(id):
     school = School.query.get_or_404(id)
     
-    # Delete related records first
     Staff.query.filter_by(school_id=id).delete()
     
     db.session.delete(school)
@@ -484,7 +479,6 @@ def delete_school(id):
     flash('School deleted successfully!', 'success')
     return redirect(url_for('schools'))
 
-# Staff routes
 @app.route('/staff')
 @login_required
 def staff():
@@ -629,7 +623,6 @@ def upload_staff():
     
     return render_template('upload_staff.html', schools=schools, settings=settings)
 
-# User management routes
 @app.route('/users')
 @login_required
 @org_admin_required
@@ -703,7 +696,6 @@ def edit_user(id):
     settings = SystemSettings.query.first()
     user = User.query.get_or_404(id)
     
-    # Check permission
     if current_user.role != 'super_admin':
         if user.organization_id != current_user.organization_id:
             flash('Access denied.', 'danger')
@@ -777,7 +769,6 @@ def delete_user(id):
     flash('User deleted successfully!', 'success')
     return redirect(url_for('users'))
 
-# Settings route
 @app.route('/settings', methods=['GET', 'POST'])
 @login_required
 @super_admin_required
@@ -797,7 +788,6 @@ def settings():
     
     return render_template('settings.html', settings=system_settings)
 
-# Report routes
 @app.route('/reports/attendance')
 @login_required
 def attendance_report():
@@ -946,7 +936,6 @@ def reset_late_counts():
     flash('Late counts reset successfully!', 'success')
     return redirect(url_for('staff_lateness_report'))
 
-# CSV Download
 @app.route('/reports/download/<report_type>')
 @login_required
 def download_report(report_type):
@@ -991,7 +980,6 @@ def download_report(report_type):
         download_name=f'{report_type}_report_{datetime.now().strftime("%Y%m%d")}.csv'
     )
 
-# API Routes
 def get_staff_data_for_api(school):
     staff = Staff.query.filter_by(school_id=school.id, is_active=True).all()
     staff_list_data = []
@@ -1010,7 +998,6 @@ def get_staff_data_for_api(school):
 
 @app.route('/api/sync', methods=['GET', 'POST', 'OPTIONS'])
 def api_sync():
-    # Handle CORS preflight
     if request.method == 'OPTIONS':
         response = jsonify({'status': 'ok'})
         response.headers.add('Access-Control-Allow-Origin', '*')
@@ -1023,7 +1010,6 @@ def api_sync():
         response.headers.add('Access-Control-Allow-Origin', '*')
         return response
     
-    # POST request
     api_key = request.headers.get('X-API-Key')
     if not api_key:
         response = jsonify({'error': 'API key required'})
@@ -1040,7 +1026,6 @@ def api_sync():
     action = data.get('action')
     records = data.get('records', [])
     
-    # Handle get_staff action
     if action == 'get_staff':
         staff_list_data = get_staff_data_for_api(school)
         response = jsonify({
@@ -1054,7 +1039,6 @@ def api_sync():
         response.headers.add('Access-Control-Allow-Origin', '*')
         return response
     
-    # Handle connection request (empty records)
     if action is None and len(records) == 0:
         staff_list_data = get_staff_data_for_api(school)
         response = jsonify({
@@ -1068,7 +1052,6 @@ def api_sync():
         response.headers.add('Access-Control-Allow-Origin', '*')
         return response
     
-    # Process attendance records
     processed = 0
     for record in records:
         staff_id_str = record.get('staffId')
@@ -1091,7 +1074,6 @@ def api_sync():
             if not attendance.sign_in_time:
                 attendance.sign_in_time = record_time
                 
-                # Calculate late status
                 day_name = record_date.strftime('%A').lower()
                 start_time_str = getattr(school, f'{day_name}_start', '08:00')
                 
@@ -1114,7 +1096,6 @@ def api_sync():
             if attendance and attendance.sign_in_time:
                 attendance.sign_out_time = record_time
                 
-                # Calculate overtime
                 day_name = record_date.strftime('%A').lower()
                 end_time_str = getattr(school, f'{day_name}_end', '17:00')
                 
