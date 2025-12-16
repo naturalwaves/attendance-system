@@ -33,14 +33,22 @@
                         {% endfor %}
                     </select>
                 </div>
-                <div class="col-md-6 mb-3">
-                    <label class="form-label">School (for School Admin/Staff)</label>
-                    <select name="school_id" class="form-select">
-                        <option value="">-- No School --</option>
-                        {% for school in schools %}
-                        <option value="{{ school.id }}">{{ school.name }}</option>
-                        {% endfor %}
-                    </select>
+            </div>
+            
+            <div class="mb-3">
+                <label class="form-label">Allowed Schools</label>
+                <p class="text-muted small">Select one or more schools this user can access. Super Admin has access to all schools automatically.</p>
+                <div class="row">
+                    {% for school in schools %}
+                    <div class="col-md-4 mb-2">
+                        <div class="form-check">
+                            <input class="form-check-input" type="checkbox" name="school_ids" value="{{ school.id }}" id="school_{{ school.id }}">
+                            <label class="form-check-label" for="school_{{ school.id }}">
+                                {{ school.name }}
+                            </label>
+                        </div>
+                    </div>
+                    {% endfor %}
                 </div>
             </div>
             
@@ -48,9 +56,9 @@
                 <strong>Role Descriptions:</strong>
                 <ul class="mb-0 mt-2">
                     <li><strong>Super Admin:</strong> Full access to all features and all schools</li>
-                    <li><strong>HR Viewer:</strong> View-only access to all schools' data</li>
-                    <li><strong>CEO Viewer:</strong> View-only access to all schools' data</li>
-                    <li><strong>School Admin:</strong> Manage staff and view reports for assigned school</li>
+                    <li><strong>HR Viewer:</strong> View-only access to selected schools' data</li>
+                    <li><strong>CEO Viewer:</strong> View-only access to selected schools' data</li>
+                    <li><strong>School Admin:</strong> Manage staff and view reports for selected schools</li>
                     <li><strong>Staff:</strong> View own attendance records only</li>
                 </ul>
             </div>
@@ -65,4 +73,3 @@
     </div>
 </div>
 {% endblock %}
-
