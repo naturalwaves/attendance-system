@@ -1,0 +1,77 @@
+{% extends 'base.html' %}
+
+{% block title %}Edit User - Attendance System{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <h2>Edit User</h2>
+    <a href="{{ url_for('users') }}" class="btn btn-secondary">
+        <i class="fas fa-arrow-left me-2"></i>Back
+    </a>
+</div>
+
+<div class="card">
+    <div class="card-body">
+        <form method="POST">
+            <div class="row">
+                <div class="col-md-6 mb-3">
+                    <label class="form-label">Username</label>
+                    <input type="text" name="username" class="form-control" value="{{ user.username }}" required>
+                </div>
+                <div class="col-md-6 mb-3">
+                    <label class="form-label">Password</label>
+                    <input type="password" name="password" class="form-control" placeholder="Leave blank to keep current">
+                    <small class="text-muted">Leave blank to keep current password</small>
+                </div>
+            </div>
+            
+            <div class="row">
+                <div class="col-md-6 mb-3">
+                    <label class="form-label">Role</label>
+                    <select name="role" class="form-select" required>
+                        {% for role in roles %}
+                        <option value="{{ role }}" {% if user.role == role %}selected{% endif %}>{{ role | replace('_', ' ') | title }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+            </div>
+            
+            <div class="mb-3">
+                <label class="form-label">Allowed Schools</label>
+                <p class="text-muted small">Select one or more schools this user can access. Super Admin has access to all schools automatically.</p>
+                <div class="row">
+                    {% for school in schools %}
+                    <div class="col-md-4 mb-2">
+                        <div class="form-check">
+                            <input class="form-check-input" type="checkbox" name="school_ids" value="{{ school.id }}" id="school_{{ school.id }}"
+                                {% if school in user.allowed_schools %}checked{% endif %}>
+                            <label class="form-check-label" for="school_{{ school.id }}">
+                                {{ school.name }}
+                            </label>
+                        </div>
+                    </div>
+                    {% endfor %}
+                </div>
+            </div>
+            
+            <div class="alert alert-info">
+                <strong>Role Descriptions:</strong>
+                <ul class="mb-0 mt-2">
+                    <li><strong>Super Admin:</strong> Full access to all features and all schools</li>
+                    <li><strong>HR Viewer:</strong> View-only access to selected schools' data</li>
+                    <li><strong>CEO Viewer:</strong> View-only access to selected schools' data</li>
+                    <li><strong>School Admin:</strong> Manage staff and view reports for selected schools</li>
+                    <li><strong>Staff:</strong> View own attendance records only</li>
+                </ul>
+            </div>
+            
+            <div class="mt-4">
+                <button type="submit" class="btn btn-primary">
+                    <i class="fas fa-save me-2"></i>Save Changes
+                </button>
+                <a href="{{ url_for('users') }}" class="btn btn-secondary ms-2">Cancel</a>
+            </div>
+        </form>
+    </div>
+</div>
+{% endblock %}
