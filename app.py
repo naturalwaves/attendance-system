@@ -39,13 +39,21 @@ class SystemSettings(db.Model):
             db.session.commit()
         return settings
 
-# User-Schools Association Table (NEW)
+# Organization Model (NEW)
+class Organization(db.Model):
+    __tablename__ = 'organizations'
+    id = db.Column(db.Integer, primary_key=True)
+    name = db.Column(db.String(100), nullable=False)
+    logo_url = db.Column(db.String(500), nullable=True)
+    branches = db.relationship('School', backref='organization', lazy=True)
+
+# User-Schools Association Table
 user_schools = db.Table('user_schools',
     db.Column('user_id', db.Integer, db.ForeignKey('users.id'), primary_key=True),
     db.Column('school_id', db.Integer, db.ForeignKey('schools.id'), primary_key=True)
 )
 
-# Models
+# Models (School is now Branch)
 class School(db.Model):
     __tablename__ = 'schools'
     id = db.Column(db.Integer, primary_key=True)
@@ -53,6 +61,7 @@ class School(db.Model):
     short_name = db.Column(db.String(20), nullable=True)
     logo_url = db.Column(db.String(500), nullable=True)
     api_key = db.Column(db.String(64), unique=True, nullable=False)
+    organization_id = db.Column(db.Integer, db.ForeignKey('organizations.id'), nullable=True)
     schedule_mon_start = db.Column(db.String(5), default='08:00')
     schedule_mon_end = db.Column(db.String(5), default='17:00')
     schedule_tue_start = db.Column(db.String(5), default='08:00')
@@ -74,7 +83,6 @@ class User(db.Model, UserMixin):
     role = db.Column(db.String(20), nullable=False, default='school_admin')
     school_id = db.Column(db.Integer, db.ForeignKey('schools.id'), nullable=True)
     is_active = db.Column(db.Boolean, default=True)
-    # NEW: Relationship for multiple schools
     allowed_schools = db.relationship('School', secondary=user_schools, lazy='subquery',
         backref=db.backref('allowed_users', lazy=True))
 
@@ -87,7 +95,6 @@ class User(db.Model, UserMixin):
     def get_initials(self):
         return self.username[0].upper() if self.username else 'U'
     
-    # NEW: Get all schools this user can access
     def get_accessible_schools(self):
         if self.role == 'super_admin':
             return School.query.all()
@@ -97,9 +104,24 @@ class User(db.Model, UserMixin):
             return [self.school]
         return []
     
-    # NEW: Get school IDs this user can access
     def get_accessible_school_ids(self):
         return [s.id for s in self.get_accessible_schools()]
+    
+    # NEW: Get organization for dashboard display
+    def get_display_organization(self):
+        if self.role == 'super_admin':
+            return None  # Super admin sees company branding
+        
+        schools = self.get_accessible_schools()
+        if not schools:
+            return None
+        
+        # Get the first school's organization
+        first_school = schools[0]
+        if first_school.organization:
+            return first_school.organization
+        
+        return None
 
 class Staff(db.Model):
     __tablename__ = 'staff'
@@ -131,13 +153,17 @@ login_manager.init_app(app)
 def load_user(user_id):
     return User.query.get(int(user_id))
 
-# Context processor to make settings available in all templates
+# Context processor to make settings and organization available in all templates
 @app.context_processor
 def inject_settings():
     if current_user.is_authenticated:
         settings = SystemSettings.get_settings()
-        return {'system_settings': settings}
-    return {'system_settings': None}
+        user_org = current_user.get_display_organization()
+        return {
+            'system_settings': settings,
+            'user_organization': user_org
+        }
+    return {'system_settings': None, 'user_organization': None}
 
 def role_required(*roles):
     def decorator(f):
@@ -214,6 +240,7 @@ def logout():
 @role_required('super_admin')
 def settings():
     settings = SystemSettings.get_settings()
+    organizations = Organization.query.all()
     
     if request.method == 'POST':
         settings.company_name = request.form.get('company_name', 'Wakato Technologies')
@@ -222,14 +249,61 @@ def settings():
         flash('Settings updated successfully!', 'success')
         return redirect(url_for('settings'))
     
-    return render_template('settings.html', settings=settings)
+    return render_template('settings.html', settings=settings, organizations=organizations)
+
+# Organization Routes (NEW)
+@app.route('/organizations/add', methods=['GET', 'POST'])
+@login_required
+@role_required('super_admin')
+def add_organization():
+    if request.method == 'POST':
+        name = request.form.get('name')
+        logo_url = request.form.get('logo_url', '').strip() or None
+        
+        org = Organization(name=name, logo_url=logo_url)
+        db.session.add(org)
+        db.session.commit()
+        flash('Organization added successfully!', 'success')
+        return redirect(url_for('settings'))
+    
+    return render_template('add_organization.html')
+
+@app.route('/organizations/edit/<int:id>', methods=['GET', 'POST'])
+@login_required
+@role_required('super_admin')
+def edit_organization(id):
+    org = Organization.query.get_or_404(id)
+    
+    if request.method == 'POST':
+        org.name = request.form.get('name')
+        org.logo_url = request.form.get('logo_url', '').strip() or None
+        db.session.commit()
+        flash('Organization updated successfully!', 'success')
+        return redirect(url_for('settings'))
+    
+    return render_template('edit_organization.html', organization=org)
+
+@app.route('/organizations/delete/<int:id>')
+@login_required
+@role_required('super_admin')
+def delete_organization(id):
+    org = Organization.query.get_or_404(id)
+    
+    # Check if organization has branches
+    if org.branches:
+        flash('Cannot delete organization with branches. Remove branches first.', 'danger')
+        return redirect(url_for('settings'))
+    
+    db.session.delete(org)
+    db.session.commit()
+    flash('Organization deleted successfully!', 'success')
+    return redirect(url_for('settings'))
 
 @app.route('/dashboard')
 @login_required
 def dashboard():
     today = date.today()
     
-    # NEW: Use accessible schools instead of role check
     accessible_school_ids = current_user.get_accessible_school_ids()
     
     if current_user.role == 'super_admin':
@@ -318,9 +392,10 @@ def add_school():
         name = request.form.get('name')
         short_name = request.form.get('short_name')
         logo_url = request.form.get('logo_url', '').strip() or None
+        organization_id = request.form.get('organization_id') or None
         api_key = secrets.token_hex(32)
         
-        school = School(name=name, short_name=short_name, logo_url=logo_url, api_key=api_key)
+        school = School(name=name, short_name=short_name, logo_url=logo_url, api_key=api_key, organization_id=organization_id)
         
         for day in ['mon', 'tue', 'wed', 'thu', 'fri']:
             start = request.form.get(f'schedule_{day}_start', '08:00')
@@ -330,10 +405,11 @@ def add_school():
         
         db.session.add(school)
         db.session.commit()
-        flash('School added successfully!', 'success')
+        flash('Branch added successfully!', 'success')
         return redirect(url_for('schools'))
     
-    return render_template('add_school.html')
+    organizations = Organization.query.all()
+    return render_template('add_school.html', organizations=organizations)
 
 @app.route('/schools/edit/<int:id>', methods=['GET', 'POST'])
 @login_required
@@ -345,6 +421,7 @@ def edit_school(id):
         school.name = request.form.get('name')
         school.short_name = request.form.get('short_name')
         school.logo_url = request.form.get('logo_url', '').strip() or None
+        school.organization_id = request.form.get('organization_id') or None
         
         for day in ['mon', 'tue', 'wed', 'thu', 'fri']:
             start = request.form.get(f'schedule_{day}_start', '08:00')
@@ -353,10 +430,11 @@ def edit_school(id):
             setattr(school, f'schedule_{day}_end', end)
         
         db.session.commit()
-        flash('School updated successfully!', 'success')
+        flash('Branch updated successfully!', 'success')
         return redirect(url_for('schools'))
     
-    return render_template('edit_school.html', school=school)
+    organizations = Organization.query.all()
+    return render_template('edit_school.html', school=school, organizations=organizations)
 
 @app.route('/schools/delete/<int:id>')
 @login_required
@@ -365,7 +443,7 @@ def delete_school(id):
     school = School.query.get_or_404(id)
     db.session.delete(school)
     db.session.commit()
-    flash('School deleted successfully!', 'success')
+    flash('Branch deleted successfully!', 'success')
     return redirect(url_for('schools'))
 
 @app.route('/schools/regenerate-key/<int:id>')
@@ -383,7 +461,6 @@ def regenerate_api_key(id):
 def staff_list():
     today = date.today()
     
-    # NEW: Use accessible schools
     accessible_school_ids = current_user.get_accessible_school_ids()
     
     if current_user.role == 'super_admin':
@@ -558,7 +635,7 @@ def add_user():
         username = request.form.get('username')
         password = request.form.get('password')
         role = request.form.get('role')
-        school_ids = request.form.getlist('school_ids')  # NEW: Get multiple schools
+        school_ids = request.form.getlist('school_ids')
         
         existing = User.query.filter_by(username=username).first()
         if existing:
@@ -568,7 +645,6 @@ def add_user():
         user = User(username=username, role=role)
         user.set_password(password)
         
-        # NEW: Add selected schools to user
         if school_ids:
             for school_id in school_ids:
                 school = School.query.get(int(school_id))
@@ -593,13 +669,12 @@ def edit_user(id):
     if request.method == 'POST':
         user.username = request.form.get('username')
         user.role = request.form.get('role')
-        school_ids = request.form.getlist('school_ids')  # NEW: Get multiple schools
+        school_ids = request.form.getlist('school_ids')
         
         password = request.form.get('password')
         if password:
             user.set_password(password)
         
-        # NEW: Update allowed schools
         user.allowed_schools = []
         if school_ids:
             for school_id in school_ids:
@@ -656,7 +731,6 @@ def attendance_report():
     
     query = Attendance.query.filter(Attendance.date >= start_date, Attendance.date <= end_date)
     
-    # NEW: Use accessible schools
     accessible_school_ids = current_user.get_accessible_school_ids()
     
     if school_id:
@@ -668,7 +742,6 @@ def attendance_report():
     
     attendance = query.order_by(Attendance.date.desc()).all()
     
-    # NEW: Show only accessible schools in filter
     if current_user.role == 'super_admin':
         schools = School.query.all()
     else:
@@ -705,7 +778,6 @@ def download_attendance():
     
     query = Attendance.query.filter(Attendance.date >= start_date, Attendance.date <= end_date)
     
-    # NEW: Use accessible schools
     accessible_school_ids = current_user.get_accessible_school_ids()
     
     if school_id:
@@ -719,7 +791,7 @@ def download_attendance():
     
     output = io.StringIO()
     writer = csv.writer(output)
-    writer.writerow(['Date', 'Staff ID', 'Name', 'School', 'Department', 'Sign In', 'Sign Out', 'Status', 'Late Minutes', 'Overtime Minutes'])
+    writer.writerow(['Date', 'Staff ID', 'Name', 'Branch', 'Department', 'Sign In', 'Sign Out', 'Status', 'Late Minutes', 'Overtime Minutes'])
     
     for a in attendance:
         writer.writerow([
@@ -765,7 +837,6 @@ def late_report():
         except:
             pass
     
-    # NEW: Use accessible schools
     accessible_school_ids = current_user.get_accessible_school_ids()
     
     staff_query = Staff.query.filter_by(is_active=True)
@@ -828,7 +899,6 @@ def late_report():
     
     late_staff.sort(key=lambda x: x['times_late'], reverse=True)
     
-    # NEW: Show only accessible schools in filter
     if current_user.role == 'super_admin':
         schools = School.query.all()
     else:
@@ -861,7 +931,6 @@ def download_late_report():
         except:
             pass
     
-    # NEW: Use accessible schools
     accessible_school_ids = current_user.get_accessible_school_ids()
     
     staff_query = Staff.query.filter_by(is_active=True)
@@ -875,7 +944,7 @@ def download_late_report():
     
     output = io.StringIO()
     writer = csv.writer(output)
-    writer.writerow(['Staff ID', 'Name', 'School', 'Department', 'Times Late', '% Punctuality', '% Lateness'])
+    writer.writerow(['Staff ID', 'Name', 'Branch', 'Department', 'Times Late', '% Punctuality', '% Lateness'])
     
     for s in staff_list_data:
         if s.department == 'Management':
@@ -944,7 +1013,7 @@ def reset_late_counter():
         school_name = school.name if school else 'Unknown'
     else:
         staff = Staff.query.all()
-        school_name = 'all schools'
+        school_name = 'all branches'
     
     for s in staff:
         s.times_late = 0
@@ -979,7 +1048,6 @@ def absent_report():
         start_date = today
         end_date = today
     
-    # NEW: Use accessible schools
     accessible_school_ids = current_user.get_accessible_school_ids()
     
     staff_query = Staff.query.filter_by(is_active=True)
@@ -1007,7 +1075,6 @@ def absent_report():
                     })
         current_date += timedelta(days=1)
     
-    # NEW: Show only accessible schools in filter
     if current_user.role == 'super_admin':
         schools = School.query.all()
     else:
@@ -1042,7 +1109,6 @@ def download_absent_report():
         start_date = today
         end_date = today
     
-    # NEW: Use accessible schools
     accessible_school_ids = current_user.get_accessible_school_ids()
     
     staff_query = Staff.query.filter_by(is_active=True)
@@ -1056,7 +1122,7 @@ def download_absent_report():
     
     output = io.StringIO()
     writer = csv.writer(output)
-    writer.writerow(['Date', 'Staff ID', 'Name', 'School', 'Department'])
+    writer.writerow(['Date', 'Staff ID', 'Name', 'Branch', 'Department'])
     
     current_date = start_date
     while current_date <= end_date:
@@ -1112,7 +1178,6 @@ def overtime_report():
         Attendance.overtime_minutes > 0
     )
     
-    # NEW: Use accessible schools
     accessible_school_ids = current_user.get_accessible_school_ids()
     
     if school_id:
@@ -1124,7 +1189,6 @@ def overtime_report():
     
     overtime = query.order_by(Attendance.date.desc()).all()
     
-    # NEW: Show only accessible schools in filter
     if current_user.role == 'super_admin':
         schools = School.query.all()
     else:
@@ -1165,7 +1229,6 @@ def download_overtime_report():
         Attendance.overtime_minutes > 0
     )
     
-    # NEW: Use accessible schools
     accessible_school_ids = current_user.get_accessible_school_ids()
     
     if school_id:
@@ -1179,7 +1242,7 @@ def download_overtime_report():
     
     output = io.StringIO()
     writer = csv.writer(output)
-    writer.writerow(['Date', 'Staff ID', 'Name', 'School', 'Department', 'Sign Out', 'Overtime (mins)'])
+    writer.writerow(['Date', 'Staff ID', 'Name', 'Branch', 'Department', 'Sign Out', 'Overtime (mins)'])
     
     for o in overtime:
         writer.writerow([
@@ -1465,6 +1528,13 @@ def api_sync():
 def init_db():
     try:
         db.create_all()
+        
+        # Add organization_id column to schools if it doesn't exist
+        try:
+            db.session.execute(db.text('ALTER TABLE schools ADD COLUMN organization_id INTEGER'))
+            db.session.commit()
+        except:
+            db.session.rollback()
         
         # Add logo_url column to schools if it doesn't exist
         try:
