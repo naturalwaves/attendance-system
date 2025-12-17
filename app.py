@@ -115,11 +115,20 @@ def load_user(user_id):
 def utility_processor():
     def now():
         return datetime.now()
+    settings = None
     try:
+        from sqlalchemy import text
+        with db.engine.connect() as conn:
+            try:
+                conn.execute(text("ALTER TABLE system_settings ADD COLUMN IF NOT EXISTS logo_url VARCHAR(500)"))
+                conn.commit()
+            except:
+                pass
         settings = SystemSettings.query.first()
     except:
-        settings = None
+        pass
     return dict(now=now, system_settings=settings)
+
 
 # Routes
 @app.route('/')
@@ -1670,3 +1679,4 @@ def init_db():
 
 if __name__ == '__main__':
     app.run(debug=True)
+
