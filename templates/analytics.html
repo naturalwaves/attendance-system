@@ -5,20 +5,62 @@
 {% block content %}
 <div class="d-flex justify-content-between align-items-center mb-4">
     <h2><i class="fas fa-chart-line me-2"></i>Analytics</h2>
-    <div class="d-flex gap-2">
-        <select id="periodFilter" class="form-select" style="width: auto;">
-            <option value="7" {% if period == 7 %}selected{% endif %}>Last 7 Days</option>
-            <option value="30" {% if period == 30 %}selected{% endif %}>Last 30 Days</option>
-            <option value="90" {% if period == 90 %}selected{% endif %}>Last 90 Days</option>
-        </select>
-        {% if current_user.role in ['super_admin', 'hr_viewer', 'ceo_viewer'] %}
-        <select id="branchFilter" class="form-select" style="width: auto;">
-            <option value="">All Branches</option>
-            {% for s in schools %}
-            <option value="{{ s.id }}" {% if school_id == s.id|string %}selected{% endif %}>{{ s.name }}</option>
-            {% endfor %}
-        </select>
-        {% endif %}
+</div>
+
+<!-- Filters -->
+<div class="card mb-4">
+    <div class="card-body">
+        <form method="GET" class="row g-3 align-items-end">
+            <div class="col-md-3">
+                <label class="form-label"><i class="fas fa-calendar me-1"></i>Period</label>
+                <select name="period" id="periodSelect" class="form-select" onchange="toggleCustomDates()">
+                    <option value="7" {% if period == '7' %}selected{% endif %}>Last 7 Days</option>
+                    <option value="30" {% if period == '30' %}selected{% endif %}>Last 30 Days</option>
+                    <option value="90" {% if period == '90' %}selected{% endif %}>Last 90 Days</option>
+                    <option value="this_month" {% if period == 'this_month' %}selected{% endif %}>This Month</option>
+                    <option value="last_month" {% if period == 'last_month' %}selected{% endif %}>Last Month</option>
+                    <option value="custom" {% if period == 'custom' %}selected{% endif %}>Custom Range</option>
+                </select>
+            </div>
+            
+            <div class="col-md-2 custom-date-field" style="display: none;">
+                <label class="form-label">From</label>
+                <input type="date" name="start_date" class="form-control" value="{{ start_date or '' }}">
+            </div>
+            
+            <div class="col-md-2 custom-date-field" style="display: none;">
+                <label class="form-label">To</label>
+                <input type="date" name="end_date" class="form-control" value="{{ end_date or '' }}">
+            </div>
+            
+            {% if current_user.role == 'super_admin' or current_user.role == 'hr_viewer' or current_user.role == 'ceo_viewer' %}
+            <div class="col-md-2">
+                <label class="form-label"><i class="fas fa-building me-1"></i>Organization</label>
+                <select name="organization_id" id="organizationFilter" class="form-select" onchange="filterBranches()">
+                    <option value="">All Organizations</option>
+                    {% for org in organizations %}
+                    <option value="{{ org.id }}" {% if selected_organization_id == org.id %}selected{% endif %}>{{ org.name }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+            {% endif %}
+            
+            <div class="col-md-2">
+                <label class="form-label"><i class="fas fa-code-branch me-1"></i>Branch</label>
+                <select name="school_id" id="branchFilter" class="form-select">
+                    <option value="">All Branches</option>
+                    {% for school in schools %}
+                    <option value="{{ school.id }}" data-org="{{ school.organization_id or '' }}" {% if selected_school_id == school.id %}selected{% endif %}>{{ school.name }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+            
+            <div class="col-md-1">
+                <button type="submit" class="btn btn-primary w-100">
+                    <i class="fas fa-filter"></i>
+                </button>
+            </div>
+        </form>
     </div>
 </div>
 
@@ -27,58 +69,48 @@
     <div class="col-md-3">
         <div class="card h-100">
             <div class="card-body text-center">
-                <div class="d-flex align-items-center justify-content-center mb-2">
-                    <i class="fas fa-chart-pie fa-2x text-primary"></i>
-                </div>
-                <h2 class="mb-1 fw-bold" style="color: #007bff;">{{ metrics.attendance_rate }}%</h2>
-                <p class="text-muted mb-0">Attendance Rate</p>
-                <small class="{% if metrics.attendance_trend >= 0 %}text-success{% else %}text-danger{% endif %}">
-                    <i class="fas fa-{% if metrics.attendance_trend >= 0 %}arrow-up{% else %}arrow-down{% endif %} me-1"></i>
-                    {{ metrics.attendance_trend|abs }}% vs previous period
-                </small>
+                <i class="fas fa-chart-pie fa-2x mb-2 text-primary"></i>
+                <h3 class="mb-0">{{ "%.1f"|format(attendance_rate) }}%</h3>
+                <small class="text-muted">Attendance Rate</small>
+                {% if attendance_trend >= 0 %}
+                <div class="text-success mt-1"><i class="fas fa-arrow-up"></i> {{ "%.1f"|format(attendance_trend) }}%</div>
+                {% else %}
+                <div class="text-danger mt-1"><i class="fas fa-arrow-down"></i> {{ "%.1f"|format(attendance_trend|abs) }}%</div>
+                {% endif %}
             </div>
         </div>
     </div>
     <div class="col-md-3">
         <div class="card h-100">
             <div class="card-body text-center">
-                <div class="d-flex align-items-center justify-content-center mb-2">
-                    <i class="fas fa-clock fa-2x text-success"></i>
-                </div>
-                <h2 class="mb-1 fw-bold" style="color: #28a745;">{{ metrics.punctuality_rate }}%</h2>
-                <p class="text-muted mb-0">Punctuality Rate</p>
-                <small class="{% if metrics.punctuality_trend >= 0 %}text-success{% else %}text-danger{% endif %}">
-                    <i class="fas fa-{% if metrics.punctuality_trend >= 0 %}arrow-up{% else %}arrow-down{% endif %} me-1"></i>
-                    {{ metrics.punctuality_trend|abs }}% vs previous period
-                </small>
+                <i class="fas fa-clock fa-2x mb-2 text-success"></i>
+                <h3 class="mb-0">{{ "%.1f"|format(punctuality_rate) }}%</h3>
+                <small class="text-muted">Punctuality Rate</small>
+                {% if punctuality_trend >= 0 %}
+                <div class="text-success mt-1"><i class="fas fa-arrow-up"></i> {{ "%.1f"|format(punctuality_trend) }}%</div>
+                {% else %}
+                <div class="text-danger mt-1"><i class="fas fa-arrow-down"></i> {{ "%.1f"|format(punctuality_trend|abs) }}%</div>
+                {% endif %}
             </div>
         </div>
     </div>
     <div class="col-md-3">
         <div class="card h-100">
             <div class="card-body text-center">
-                <div class="d-flex align-items-center justify-content-center mb-2">
-                    <i class="fas fa-users fa-2x text-info"></i>
-                </div>
-                <h2 class="mb-1 fw-bold" style="color: #17a2b8;">{{ metrics.total_staff }}</h2>
-                <p class="text-muted mb-0">Active Staff</p>
-                <small class="text-muted">
-                    Across {{ metrics.total_branches }} branch{% if metrics.total_branches != 1 %}es{% endif %}
-                </small>
+                <i class="fas fa-users fa-2x mb-2 text-info"></i>
+                <h3 class="mb-0">{{ total_staff }}</h3>
+                <small class="text-muted">Active Staff</small>
+                <div class="text-muted mt-1">Across {{ branch_count }} branch{{ 'es' if branch_count != 1 else '' }}</div>
             </div>
         </div>
     </div>
     <div class="col-md-3">
         <div class="card h-100">
             <div class="card-body text-center">
-                <div class="d-flex align-items-center justify-content-center mb-2">
-                    <i class="fas fa-calendar-check fa-2x text-warning"></i>
-                </div>
-                <h2 class="mb-1 fw-bold" style="color: #ffc107;">{{ metrics.total_records }}</h2>
-                <p class="text-muted mb-0">Attendance Records</p>
-                <small class="text-muted">
-                    In selected period
-                </small>
+                <i class="fas fa-calendar-check fa-2x mb-2 text-warning"></i>
+                <h3 class="mb-0">{{ total_records }}</h3>
+                <small class="text-muted">Attendance Records</small>
+                <div class="text-muted mt-1">In selected period</div>
             </div>
         </div>
     </div>
@@ -89,7 +121,7 @@
     <div class="col-md-8">
         <div class="card h-100">
             <div class="card-header">
-                <i class="fas fa-chart-area me-2"></i>Attendance Trend
+                <i class="fas fa-chart-line me-2"></i>Attendance Trend
             </div>
             <div class="card-body">
                 <canvas id="attendanceTrendChart" height="100"></canvas>
@@ -110,47 +142,47 @@
 
 <!-- Charts Row 2 -->
 <div class="row mb-4">
-    <div class="col-md-5">
+    <div class="col-md-4">
         <div class="card h-100">
             <div class="card-header">
                 <i class="fas fa-chart-doughnut me-2"></i>Department Performance
             </div>
-            <div class="card-body d-flex align-items-center justify-content-center">
+            <div class="card-body">
                 <canvas id="departmentChart" height="200"></canvas>
             </div>
         </div>
     </div>
-    <div class="col-md-7">
+    <div class="col-md-8">
         <div class="card h-100">
             <div class="card-header">
-                <i class="fas fa-building me-2"></i>Branch Comparison
+                <i class="fas fa-code-branch me-2"></i>Branch Comparison
             </div>
             <div class="card-body">
-                <canvas id="branchComparisonChart" height="200"></canvas>
+                <canvas id="branchComparisonChart" height="150"></canvas>
             </div>
         </div>
     </div>
 </div>
 
-<!-- Rankings Row -->
-<div class="row mb-4">
+<!-- Rankings -->
+<div class="row">
     <div class="col-md-6">
         <div class="card h-100">
             <div class="card-header bg-success text-white">
-                <i class="fas fa-trophy me-2"></i>Top Performers
+                <i class="fas fa-trophy me-2"></i>Top 5 Performers
             </div>
             <div class="card-body p-0">
                 <table class="table table-hover mb-0">
                     <thead>
                         <tr>
                             <th>Rank</th>
-                            <th>Name</th>
+                            <th>Staff</th>
                             <th>Branch</th>
                             <th>Punctuality</th>
                         </tr>
                     </thead>
                     <tbody>
-                        {% for staff in top_performers %}
+                        {% for performer in top_performers %}
                         <tr>
                             <td>
                                 {% if loop.index == 1 %}
@@ -163,19 +195,15 @@
                                 <span class="badge bg-light text-dark">{{ loop.index }}</span>
                                 {% endif %}
                             </td>
-                            <td>{{ staff.name }}</td>
-                            <td><small class="text-muted">{{ staff.branch }}</small></td>
+                            <td>{{ performer.name }}</td>
+                            <td><small class="text-muted">{{ performer.branch }}</small></td>
                             <td>
-                                <div class="progress" style="height: 20px; min-width: 80px;">
-                                    <div class="progress-bar bg-success" style="width: {{ staff.punctuality }}%">
-                                        {{ staff.punctuality }}%
-                                    </div>
-                                </div>
+                                <span class="badge bg-success">{{ "%.0f"|format(performer.punctuality) }}%</span>
                             </td>
                         </tr>
                         {% else %}
                         <tr>
-                            <td colspan="4" class="text-center text-muted py-3">No data available</td>
+                            <td colspan="4" class="text-center text-muted">No data available</td>
                         </tr>
                         {% endfor %}
                     </tbody>
@@ -193,22 +221,24 @@
                     <thead>
                         <tr>
                             <th>Rank</th>
-                            <th>Name</th>
+                            <th>Staff</th>
                             <th>Branch</th>
-                            <th>Times Late</th>
+                            <th>Late Count</th>
                         </tr>
                     </thead>
                     <tbody>
                         {% for staff in needs_attention %}
                         <tr>
-                            <td><span class="badge bg-danger">{{ loop.index }}</span></td>
+                            <td><span class="badge bg-light text-dark">{{ loop.index }}</span></td>
                             <td>{{ staff.name }}</td>
                             <td><small class="text-muted">{{ staff.branch }}</small></td>
-                            <td><span class="badge bg-warning text-dark">{{ staff.times_late }} times</span></td>
+                            <td>
+                                <span class="badge bg-danger">{{ staff.late_count }} times</span>
+                            </td>
                         </tr>
                         {% else %}
                         <tr>
-                            <td colspan="4" class="text-center text-muted py-3">No late staff - Great job! 🎉</td>
+                            <td colspan="4" class="text-center text-muted">No data available</td>
                         </tr>
                         {% endfor %}
                     </tbody>
@@ -218,97 +248,112 @@
     </div>
 </div>
 
-<!-- Chart.js -->
 <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-
 <script>
-// Filter change handlers
-document.getElementById('periodFilter').addEventListener('change', function() {
-    updateAnalytics();
-});
-
-document.getElementById('branchFilter')?.addEventListener('change', function() {
-    updateAnalytics();
-});
-
-function updateAnalytics() {
-    const period = document.getElementById('periodFilter').value;
-    const branchFilter = document.getElementById('branchFilter');
-    const branch = branchFilter ? branchFilter.value : '';
-    window.location.href = `{{ url_for('analytics') }}?period=${period}&school_id=${branch}`;
+// Toggle custom date fields
+function toggleCustomDates() {
+    const period = document.getElementById('periodSelect').value;
+    const customFields = document.querySelectorAll('.custom-date-field');
+    customFields.forEach(field => {
+        field.style.display = period === 'custom' ? 'block' : 'none';
+    });
 }
 
-// Chart colors
-const primaryRed = '#dc3545';
-const primaryBlue = '#007bff';
-const primaryGreen = '#28a745';
-const primaryYellow = '#ffc107';
-const primaryGray = '#6c757d';
+// Filter branches by organization
+function filterBranches() {
+    const orgSelect = document.getElementById('organizationFilter');
+    const branchSelect = document.getElementById('branchFilter');
+    const selectedOrg = orgSelect ? orgSelect.value : '';
+    
+    Array.from(branchSelect.options).forEach(option => {
+        if (option.value === '') {
+            option.style.display = 'block';
+        } else {
+            const optionOrg = option.getAttribute('data-org');
+            option.style.display = (!selectedOrg || optionOrg === selectedOrg) ? 'block' : 'none';
+        }
+    });
+    
+    // Reset branch selection if current selection is hidden
+    const currentBranch = branchSelect.options[branchSelect.selectedIndex];
+    if (currentBranch && currentBranch.style.display === 'none') {
+        branchSelect.value = '';
+    }
+}
+
+// Initialize on page load
+document.addEventListener('DOMContentLoaded', function() {
+    toggleCustomDates();
+    filterBranches();
+});
+
+// Chart colors matching theme
+const primaryColor = '#dc3545';
+const successColor = '#198754';
+const warningColor = '#ffc107';
+const infoColor = '#0dcaf0';
+const secondaryColor = '#6c757d';
 
 // Attendance Trend Chart
-const attendanceTrendCtx = document.getElementById('attendanceTrendChart').getContext('2d');
-new Chart(attendanceTrendCtx, {
+const trendCtx = document.getElementById('attendanceTrendChart').getContext('2d');
+new Chart(trendCtx, {
     type: 'line',
     data: {
         labels: {{ trend_labels|safe }},
         datasets: [{
-            label: 'Attendance %',
+            label: 'Attendance Rate',
             data: {{ trend_data|safe }},
-            borderColor: primaryBlue,
-            backgroundColor: 'rgba(0, 123, 255, 0.1)',
+            borderColor: primaryColor,
+            backgroundColor: 'rgba(220, 53, 69, 0.1)',
             fill: true,
-            tension: 0.4,
-            pointRadius: 4,
-            pointHoverRadius: 6
+            tension: 0.4
+        }, {
+            label: 'Punctuality Rate',
+            data: {{ punctuality_data|safe }},
+            borderColor: successColor,
+            backgroundColor: 'rgba(25, 135, 84, 0.1)',
+            fill: true,
+            tension: 0.4
         }]
     },
     options: {
         responsive: true,
-        maintainAspectRatio: false,
         plugins: {
             legend: {
-                display: false
+                position: 'bottom'
             }
         },
         scales: {
             y: {
-                beginAtZero: false,
-                min: 0,
-                max: 100,
-                ticks: {
-                    callback: function(value) {
-                        return value + '%';
-                    }
-                }
+                beginAtZero: true,
+                max: 100
             }
         }
     }
 });
 
 // Late by Day Chart
-const lateByDayCtx = document.getElementById('lateByDayChart').getContext('2d');
-new Chart(lateByDayCtx, {
+const lateCtx = document.getElementById('lateByDayChart').getContext('2d');
+new Chart(lateCtx, {
     type: 'bar',
     data: {
-        labels: ['Mon', 'Tue', 'Wed', 'Thu', 'Fri'],
+        labels: ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'],
         datasets: [{
             label: 'Late Arrivals',
             data: {{ late_by_day|safe }},
             backgroundColor: [
-                'rgba(255, 193, 7, 0.8)',
-                'rgba(255, 193, 7, 0.8)',
-                'rgba(255, 193, 7, 0.8)',
-                'rgba(255, 193, 7, 0.8)',
-                'rgba(255, 193, 7, 0.8)'
-            ],
-            borderColor: primaryYellow,
-            borderWidth: 1,
-            borderRadius: 6
+                primaryColor,
+                'rgba(220, 53, 69, 0.8)',
+                'rgba(220, 53, 69, 0.7)',
+                'rgba(220, 53, 69, 0.6)',
+                'rgba(220, 53, 69, 0.5)',
+                'rgba(220, 53, 69, 0.4)',
+                'rgba(220, 53, 69, 0.3)'
+            ]
         }]
     },
     options: {
         responsive: true,
-        maintainAspectRatio: false,
         plugins: {
             legend: {
                 display: false
@@ -322,68 +367,64 @@ new Chart(lateByDayCtx, {
     }
 });
 
-// Department Chart
-const departmentCtx = document.getElementById('departmentChart').getContext('2d');
-new Chart(departmentCtx, {
+// Department Performance Chart
+const deptCtx = document.getElementById('departmentChart').getContext('2d');
+new Chart(deptCtx, {
     type: 'doughnut',
     data: {
         labels: {{ department_labels|safe }},
         datasets: [{
             data: {{ department_data|safe }},
             backgroundColor: [
-                'rgba(40, 167, 69, 0.8)',
-                'rgba(0, 123, 255, 0.8)',
-                'rgba(255, 193, 7, 0.8)',
-                'rgba(220, 53, 69, 0.8)'
-            ],
-            borderWidth: 0
+                primaryColor,
+                successColor,
+                warningColor,
+                infoColor,
+                secondaryColor,
+                '#6f42c1',
+                '#fd7e14',
+                '#20c997'
+            ]
         }]
     },
     options: {
         responsive: true,
-        maintainAspectRatio: false,
         plugins: {
             legend: {
                 position: 'bottom'
             }
-        },
-        cutout: '60%'
+        }
     }
 });
 
 // Branch Comparison Chart
-const branchComparisonCtx = document.getElementById('branchComparisonChart').getContext('2d');
-new Chart(branchComparisonCtx, {
+const branchCtx = document.getElementById('branchComparisonChart').getContext('2d');
+new Chart(branchCtx, {
     type: 'bar',
     data: {
         labels: {{ branch_labels|safe }},
         datasets: [{
-            label: 'Attendance Rate %',
-            data: {{ branch_data|safe }},
-            backgroundColor: 'rgba(0, 123, 255, 0.8)',
-            borderColor: primaryBlue,
-            borderWidth: 1,
-            borderRadius: 6
+            label: 'Attendance %',
+            data: {{ branch_attendance|safe }},
+            backgroundColor: primaryColor
+        }, {
+            label: 'Punctuality %',
+            data: {{ branch_punctuality|safe }},
+            backgroundColor: successColor
         }]
     },
     options: {
         indexAxis: 'y',
         responsive: true,
-        maintainAspectRatio: false,
         plugins: {
             legend: {
-                display: false
+                position: 'bottom'
             }
         },
         scales: {
             x: {
                 beginAtZero: true,
-                max: 100,
-                ticks: {
-                    callback: function(value) {
-                        return value + '%';
-                    }
-                }
+                max: 100
             }
         }
     }
