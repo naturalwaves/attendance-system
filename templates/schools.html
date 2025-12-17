@@ -1,12 +1,12 @@
 {% extends 'base.html' %}
 
-{% block title %}Schools - Attendance System{% endblock %}
+{% block title %}Branches - Attendance System{% endblock %}
 
 {% block content %}
 <div class="d-flex justify-content-between align-items-center mb-4">
-    <h2>Schools</h2>
+    <h2>Branches</h2>
     <a href="{{ url_for('add_school') }}" class="btn btn-primary">
-        <i class="fas fa-plus me-2"></i>Add School
+        <i class="fas fa-plus me-2"></i>Add Branch
     </a>
 </div>
 
@@ -16,8 +16,9 @@
             <table class="table table-hover">
                 <thead>
                     <tr>
-                        <th>School Name</th>
+                        <th>Branch Name</th>
                         <th>Short Name</th>
+                        <th>Organization</th>
                         <th>API Key</th>
                         <th>Staff Count</th>
                         <th>Actions</th>
@@ -28,6 +29,13 @@
                     <tr>
                         <td>{{ school.name }}</td>
                         <td>{{ school.short_name or '-' }}</td>
+                        <td>
+                            {% if school.organization %}
+                                <span class="badge bg-info">{{ school.organization.name }}</span>
+                            {% else %}
+                                <span class="text-muted">-</span>
+                            {% endif %}
+                        </td>
                         <td>
                             <code style="font-size: 11px;">{{ school.api_key[:25] }}...</code>
                             <button class="btn btn-sm btn-outline-secondary ms-2" onclick="copyToClipboard('{{ school.api_key }}')" title="Copy full key">
@@ -45,7 +53,7 @@
                             <a href="{{ url_for('regenerate_api_key', id=school.id) }}" class="btn btn-sm btn-secondary" onclick="return confirm('Regenerate API key? The kiosk will need to be reconfigured.')">
                                 <i class="fas fa-key"></i>
                             </a>
-                            <a href="{{ url_for('delete_school', id=school.id) }}" class="btn btn-sm btn-danger" onclick="return confirm('Delete this school? All staff and attendance records will be deleted.')">
+                            <a href="{{ url_for('delete_school', id=school.id) }}" class="btn btn-sm btn-danger" onclick="return confirm('Delete this branch? All staff and attendance records will be deleted.')">
                                 <i class="fas fa-trash"></i>
                             </a>
                         </td>
@@ -65,4 +73,3 @@ function copyToClipboard(text) {
 }
 </script>
 {% endblock %}
-
