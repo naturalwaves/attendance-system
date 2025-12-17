@@ -289,7 +289,7 @@
                     {% endif %}
                     
                     <li class="nav-item dropdown">
-                        <a class="nav-link dropdown-toggle" href="#" id="reportsDropdown" role="button" data-bs-toggle="dropdown">
+                        <a class="nav-link dropdown-toggle {% if request.endpoint in ['attendance_report', 'late_report', 'absent_report', 'overtime_report', 'analytics'] %}active{% endif %}" href="#" id="reportsDropdown" role="button" data-bs-toggle="dropdown">
                             <i class="fas fa-chart-bar me-1"></i> Reports
                         </a>
                         <ul class="dropdown-menu">
@@ -297,6 +297,8 @@
                             <li><a class="dropdown-item" href="{{ url_for('late_report') }}"><i class="fas fa-clock me-2"></i>Late Report</a></li>
                             <li><a class="dropdown-item" href="{{ url_for('absent_report') }}"><i class="fas fa-user-times me-2"></i>Absent Report</a></li>
                             <li><a class="dropdown-item" href="{{ url_for('overtime_report') }}"><i class="fas fa-business-time me-2"></i>Overtime</a></li>
+                            <li><hr class="dropdown-divider"></li>
+                            <li><a class="dropdown-item" href="{{ url_for('analytics') }}"><i class="fas fa-chart-line me-2"></i>Analytics</a></li>
                         </ul>
                     </li>
                     
