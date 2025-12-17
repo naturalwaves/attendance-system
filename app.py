@@ -8,6 +8,7 @@ from functools import wraps
 import csv
 import io
 import secrets
+import json
 
 app = Flask(__name__)
 app.config['SECRET_KEY'] = os.environ.get('SECRET_KEY', 'your-secret-key-here')
@@ -108,7 +109,6 @@ class User(db.Model, UserMixin):
         return [s.id for s in self.get_accessible_schools()]
     
     def get_accessible_organizations(self):
-        """Get organizations that user has access to based on their accessible schools"""
         if self.role == 'super_admin':
             return Organization.query.all()
         
@@ -987,7 +987,7 @@ def download_late_report():
         else:
             times_late = s.times_late
         
-        # Skip staff with no attendance in selected period (they are absent, not late)
+        # Skip staff with no attendance in selected period
         if start_date and end_date and period_total == 0:
             continue
         
@@ -1281,6 +1281,186 @@ def download_overtime_report():
     filename = f'overtime_{date_from}_to_{date_to}.csv'
     return Response(output.getvalue(), mimetype='text/csv', headers={'Content-Disposition': f'attachment; filename={filename}'})
 
+@app.route('/reports/analytics')
+@login_required
+def analytics():
+    period = request.args.get('period', '30')
+    school_id = request.args.get('school_id', '')
+    
+    try:
+        period = int(period)
+    except:
+        period = 30
+    
+    today = date.today()
+    start_date = today - timedelta(days=period)
+    previous_start = start_date - timedelta(days=period)
+    
+    accessible_school_ids = current_user.get_accessible_school_ids()
+    
+    # Get schools for filter
+    if current_user.role == 'super_admin':
+        schools = School.query.all()
+    else:
+        schools = current_user.get_accessible_schools()
+    
+    # Build staff query based on filters
+    staff_query = Staff.query.filter_by(is_active=True)
+    if school_id:
+        staff_query = staff_query.filter_by(school_id=school_id)
+    elif current_user.role != 'super_admin' and accessible_school_ids:
+        staff_query = staff_query.filter(Staff.school_id.in_(accessible_school_ids))
+    
+    all_staff = staff_query.all()
+    staff_ids = [s.id for s in all_staff]
+    
+    # Current period attendance
+    current_attendance = Attendance.query.filter(
+        Attendance.staff_id.in_(staff_ids),
+        Attendance.date >= start_date,
+        Attendance.date <= today
+    ).all() if staff_ids else []
+    
+    # Previous period attendance (for comparison)
+    previous_attendance = Attendance.query.filter(
+        Attendance.staff_id.in_(staff_ids),
+        Attendance.date >= previous_start,
+        Attendance.date < start_date
+    ).all() if staff_ids else []
+    
+    # Calculate metrics
+    total_staff = len(all_staff)
+    total_branches = len(set(s.school_id for s in all_staff)) if all_staff else 0
+    total_records = len(current_attendance)
+    
+    # Working days in period (exclude weekends)
+    working_days = sum(1 for i in range(period) if (start_date + timedelta(days=i)).weekday() < 5)
+    expected_attendance = total_staff * working_days if total_staff > 0 else 1
+    
+    # Current attendance rate
+    attendance_rate = round((total_records / expected_attendance) * 100, 1) if expected_attendance > 0 else 0
+    attendance_rate = min(attendance_rate, 100)
+    
+    # Previous attendance rate
+    prev_working_days = sum(1 for i in range(period) if (previous_start + timedelta(days=i)).weekday() < 5)
+    prev_expected = total_staff * prev_working_days if total_staff > 0 else 1
+    prev_attendance_rate = round((len(previous_attendance) / prev_expected) * 100, 1) if prev_expected > 0 else 0
+    prev_attendance_rate = min(prev_attendance_rate, 100)
+    
+    attendance_trend = round(attendance_rate - prev_attendance_rate, 1)
+    
+    # Punctuality rate
+    on_time_count = sum(1 for a in current_attendance if not a.is_late)
+    punctuality_rate = round((on_time_count / total_records) * 100, 1) if total_records > 0 else 100
+    
+    prev_on_time = sum(1 for a in previous_attendance if not a.is_late)
+    prev_punctuality = round((prev_on_time / len(previous_attendance)) * 100, 1) if previous_attendance else 100
+    punctuality_trend = round(punctuality_rate - prev_punctuality, 1)
+    
+    metrics = {
+        'attendance_rate': attendance_rate,
+        'attendance_trend': attendance_trend,
+        'punctuality_rate': punctuality_rate,
+        'punctuality_trend': punctuality_trend,
+        'total_staff': total_staff,
+        'total_branches': total_branches,
+        'total_records': total_records
+    }
+    
+    # Attendance trend data (daily)
+    trend_labels = []
+    trend_data = []
+    
+    for i in range(min(period, 30)):
+        day = start_date + timedelta(days=i)
+        if day.weekday() < 5:
+            day_attendance = sum(1 for a in current_attendance if a.date == day)
+            day_rate = round((day_attendance / total_staff) * 100, 1) if total_staff > 0 else 0
+            trend_labels.append(day.strftime('%d %b'))
+            trend_data.append(min(day_rate, 100))
+    
+    # Late by day of week
+    late_by_day = [0, 0, 0, 0, 0]
+    for a in current_attendance:
+        if a.is_late and a.date.weekday() < 5:
+            late_by_day[a.date.weekday()] += 1
+    
+    # Department performance
+    departments = ['Academic', 'Admin', 'Non-Academic', 'Management']
+    department_data = []
+    for dept in departments:
+        dept_staff = [s for s in all_staff if s.department == dept]
+        dept_staff_ids = [s.id for s in dept_staff]
+        dept_attendance = [a for a in current_attendance if a.staff_id in dept_staff_ids]
+        dept_on_time = sum(1 for a in dept_attendance if not a.is_late)
+        dept_punctuality = round((dept_on_time / len(dept_attendance)) * 100) if dept_attendance else 0
+        department_data.append(dept_punctuality)
+    
+    # Branch comparison
+    branch_labels = []
+    branch_data = []
+    for school in schools[:10]:
+        school_staff = [s for s in all_staff if s.school_id == school.id]
+        school_staff_ids = [s.id for s in school_staff]
+        school_attendance = [a for a in current_attendance if a.staff_id in school_staff_ids]
+        
+        school_working_days = working_days
+        school_expected = len(school_staff) * school_working_days if school_staff else 1
+        school_rate = round((len(school_attendance) / school_expected) * 100, 1) if school_expected > 0 else 0
+        
+        branch_labels.append(school.short_name or school.name[:15])
+        branch_data.append(min(school_rate, 100))
+    
+    # Top performers (most punctual)
+    top_performers = []
+    for s in all_staff:
+        if s.department == 'Management':
+            continue
+        staff_attendance = [a for a in current_attendance if a.staff_id == s.id]
+        if len(staff_attendance) >= 3:
+            on_time = sum(1 for a in staff_attendance if not a.is_late)
+            punctuality = round((on_time / len(staff_attendance)) * 100, 1)
+            top_performers.append({
+                'name': s.name,
+                'branch': s.school.short_name or s.school.name if s.school else 'N/A',
+                'punctuality': punctuality
+            })
+    
+    top_performers.sort(key=lambda x: x['punctuality'], reverse=True)
+    top_performers = top_performers[:5]
+    
+    # Needs attention (most late)
+    needs_attention = []
+    for s in all_staff:
+        if s.department == 'Management':
+            continue
+        staff_attendance = [a for a in current_attendance if a.staff_id == s.id]
+        times_late = sum(1 for a in staff_attendance if a.is_late)
+        if times_late > 0:
+            needs_attention.append({
+                'name': s.name,
+                'branch': s.school.short_name or s.school.name if s.school else 'N/A',
+                'times_late': times_late
+            })
+    
+    needs_attention.sort(key=lambda x: x['times_late'], reverse=True)
+    needs_attention = needs_attention[:5]
+    
+    return render_template('analytics.html',
+                         schools=schools,
+                         school_id=school_id,
+                         period=period,
+                         metrics=metrics,
+                         trend_labels=json.dumps(trend_labels),
+                         trend_data=json.dumps(trend_data),
+                         late_by_day=json.dumps(late_by_day),
+                         department_labels=json.dumps(departments),
+                         department_data=json.dumps(department_data),
+                         branch_labels=json.dumps(branch_labels),
+                         branch_data=json.dumps(branch_data),
+                         top_performers=top_performers,
+                         needs_attention=needs_attention)
+
 # API for Kiosk
 @app.route('/api/sync', methods=['GET', 'POST', 'OPTIONS'])
 def api_sync():
@@ -1551,21 +1731,18 @@ def init_db():
     try:
         db.create_all()
         
-        # Add organization_id column to schools if it doesn't exist
         try:
             db.session.execute(db.text('ALTER TABLE schools ADD COLUMN organization_id INTEGER'))
             db.session.commit()
         except:
             db.session.rollback()
         
-        # Add logo_url column to schools if it doesn't exist
         try:
             db.session.execute(db.text('ALTER TABLE schools ADD COLUMN logo_url VARCHAR(500)'))
             db.session.commit()
         except:
             db.session.rollback()
         
-        # Create user_schools table if it doesn't exist
         try:
             db.session.execute(db.text('''
                 CREATE TABLE IF NOT EXISTS user_schools (
@@ -1580,12 +1757,10 @@ def init_db():
         except:
             db.session.rollback()
         
-        # Create system_settings table data if not exists
         if not SystemSettings.query.first():
             settings = SystemSettings(company_name='Wakato Technologies')
             db.session.add(settings)
         
-        # Create default admin if not exists
         if not User.query.filter_by(username='admin').first():
             admin = User(username='admin', role='super_admin')
             admin.set_password('admin123')
