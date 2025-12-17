@@ -221,7 +221,21 @@
     <nav class="navbar navbar-expand-lg navbar-dark">
         <div class="container-fluid">
             <a class="navbar-brand" href="{{ url_for('dashboard') }}">
-                {% if current_user.role == 'school_admin' and current_user.school %}
+                {% if current_user.role == 'super_admin' %}
+                    {% if system_settings and system_settings.company_logo_url %}
+                        <img src="{{ system_settings.company_logo_url }}" alt="Logo">
+                    {% else %}
+                        <div class="brand-logo-placeholder">W</div>
+                    {% endif %}
+                    <span>{{ system_settings.company_name if system_settings else 'Wakato Technologies' }}</span>
+                {% elif user_organization %}
+                    {% if user_organization.logo_url %}
+                        <img src="{{ user_organization.logo_url }}" alt="Logo">
+                    {% else %}
+                        <div class="brand-logo-placeholder">{{ user_organization.name[0] }}</div>
+                    {% endif %}
+                    <span>{{ user_organization.name }}</span>
+                {% elif current_user.role == 'school_admin' and current_user.school %}
                     {% if current_user.school.logo_url %}
                         <img src="{{ current_user.school.logo_url }}" alt="Logo">
                     {% else %}
@@ -253,7 +267,7 @@
                     {% if current_user.role == 'super_admin' %}
                     <li class="nav-item">
                         <a class="nav-link {% if request.endpoint == 'schools' %}active{% endif %}" href="{{ url_for('schools') }}">
-                            <i class="fas fa-school me-1"></i> Schools
+                            <i class="fas fa-building me-1"></i> Branches
                         </a>
                     </li>
                     {% endif %}
