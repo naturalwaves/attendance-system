@@ -14,7 +14,8 @@
             <div class="col-md-3">
                 <label class="form-label"><i class="fas fa-calendar me-1"></i>Period</label>
                 <select name="period" id="periodSelect" class="form-select" onchange="toggleCustomDates()">
-                    <option value="7" {% if period == '7' %}selected{% endif %}>Last 7 Days</option>
+                    <option value="this_week" {% if period == 'this_week' %}selected{% endif %}>This Week</option>
+                    <option value="last_week" {% if period == 'last_week' %}selected{% endif %}>Last Week</option>
                     <option value="30" {% if period == '30' %}selected{% endif %}>Last 30 Days</option>
                     <option value="90" {% if period == '90' %}selected{% endif %}>Last 90 Days</option>
                     <option value="this_month" {% if period == 'this_month' %}selected{% endif %}>This Month</option>
@@ -299,17 +300,17 @@ const trendCtx = document.getElementById('attendanceTrendChart').getContext('2d'
 new Chart(trendCtx, {
     type: 'line',
     data: {
-        labels: {{ trend_labels|safe }},
+        labels: {{ trend_labels|tojson }},
         datasets: [{
             label: 'Attendance Rate',
-            data: {{ trend_data|safe }},
+            data: {{ trend_data|tojson }},
             borderColor: primaryColor,
             backgroundColor: 'rgba(220, 53, 69, 0.1)',
             fill: true,
             tension: 0.4
         }, {
             label: 'Punctuality Rate',
-            data: {{ punctuality_data|safe }},
+            data: {{ punctuality_data|tojson }},
             borderColor: successColor,
             backgroundColor: 'rgba(25, 135, 84, 0.1)',
             fill: true,
@@ -340,7 +341,7 @@ new Chart(lateCtx, {
         labels: ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'],
         datasets: [{
             label: 'Late Arrivals',
-            data: {{ late_by_day|safe }},
+            data: {{ late_by_day|tojson }},
             backgroundColor: [
                 primaryColor,
                 'rgba(220, 53, 69, 0.8)',
@@ -372,9 +373,9 @@ const deptCtx = document.getElementById('departmentChart').getContext('2d');
 new Chart(deptCtx, {
     type: 'doughnut',
     data: {
-        labels: {{ department_labels|safe }},
+        labels: {{ department_labels|tojson }},
         datasets: [{
-            data: {{ department_data|safe }},
+            data: {{ department_data|tojson }},
             backgroundColor: [
                 primaryColor,
                 successColor,
@@ -402,14 +403,14 @@ const branchCtx = document.getElementById('branchComparisonChart').getContext('2
 new Chart(branchCtx, {
     type: 'bar',
     data: {
-        labels: {{ branch_labels|safe }},
+        labels: {{ branch_labels|tojson }},
         datasets: [{
             label: 'Attendance %',
-            data: {{ branch_attendance|safe }},
+            data: {{ branch_attendance|tojson }},
             backgroundColor: primaryColor
         }, {
             label: 'Punctuality %',
-            data: {{ branch_punctuality|safe }},
+            data: {{ branch_punctuality|tojson }},
             backgroundColor: successColor
         }]
     },
