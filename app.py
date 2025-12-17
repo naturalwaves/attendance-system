@@ -115,7 +115,10 @@ def load_user(user_id):
 def utility_processor():
     def now():
         return datetime.now()
-    settings = SystemSettings.query.first()
+    try:
+        settings = SystemSettings.query.first()
+    except:
+        settings = None
     return dict(now=now, system_settings=settings)
 
 # Routes
@@ -1565,29 +1568,105 @@ def api_sync():
     
     return jsonify({'error': 'Invalid action'}), 400
 
-# Database initialization
+# Database initialization with safe migration
 @app.route('/init-db')
 def init_db():
-    db.create_all()
-    
-    admin = User.query.filter_by(username='admin').first()
-    if not admin:
-        admin = User(
-            username='admin',
-            email='admin@example.com',
-            role='super_admin'
-        )
-        admin.set_password('admin123')
-        db.session.add(admin)
-    
-    settings = SystemSettings.query.first()
-    if not settings:
-        settings = SystemSettings(company_name='Attendance System')
-        db.session.add(settings)
-    
-    db.session.commit()
-    
-    return 'Database initialized successfully! Default admin credentials: username=admin, password=admin123'
+    try:
+        from sqlalchemy import text
+        
+        with db.engine.connect() as conn:
+            # Add missing columns to users table
+            try:
+                conn.execute(text("ALTER TABLE users ADD COLUMN IF NOT EXISTS email VARCHAR(120)"))
+                conn.execute(text("ALTER TABLE users ADD COLUMN IF NOT EXISTS password_hash VARCHAR(256)"))
+                conn.execute(text("ALTER TABLE users ADD COLUMN IF NOT EXISTS role VARCHAR(20) DEFAULT 'school_admin'"))
+                conn.execute(text("ALTER TABLE users ADD COLUMN IF NOT EXISTS is_active BOOLEAN DEFAULT TRUE"))
+                conn.execute(text("ALTER TABLE users ADD COLUMN IF NOT EXISTS created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP"))
+                conn.commit()
+            except Exception as e:
+                print(f"Users table migration: {e}")
+            
+            # Add missing columns to school table
+            try:
+                conn.execute(text("ALTER TABLE school ADD COLUMN IF NOT EXISTS organization_id INTEGER"))
+                conn.execute(text("ALTER TABLE school ADD COLUMN IF NOT EXISTS logo_url VARCHAR(500)"))
+                conn.commit()
+            except Exception as e:
+                print(f"School table migration: {e}")
+            
+            # Create organization table
+            try:
+                conn.execute(text("""
+                    CREATE TABLE IF NOT EXISTS organization (
+                        id SERIAL PRIMARY KEY,
+                        name VARCHAR(200) NOT NULL,
+                        logo_url VARCHAR(500),
+                        is_active BOOLEAN DEFAULT TRUE,
+                        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+                    )
+                """))
+                conn.commit()
+            except Exception as e:
+                print(f"Organization table: {e}")
+            
+            # Create system_settings table
+            try:
+                conn.execute(text("""
+                    CREATE TABLE IF NOT EXISTS system_settings (
+                        id SERIAL PRIMARY KEY,
+                        company_name VARCHAR(200) DEFAULT 'Attendance System',
+                        logo_url VARCHAR(500),
+                        updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+                    )
+                """))
+                conn.commit()
+            except Exception as e:
+                print(f"System settings table: {e}")
+            
+            # Create user_schools table
+            try:
+                conn.execute(text("""
+                    CREATE TABLE IF NOT EXISTS user_schools (
+                        user_id INTEGER REFERENCES users(id),
+                        school_id INTEGER REFERENCES school(id),
+                        PRIMARY KEY (user_id, school_id)
+                    )
+                """))
+                conn.commit()
+            except Exception as e:
+                print(f"User schools table: {e}")
+        
+        # Create remaining tables
+        db.create_all()
+        
+        # Create or update admin user
+        admin = User.query.filter_by(username='admin').first()
+        if not admin:
+            admin = User(
+                username='admin',
+                email='admin@example.com',
+                role='super_admin'
+            )
+            admin.set_password('admin123')
+            db.session.add(admin)
+        else:
+            if not admin.email:
+                admin.email = 'admin@example.com'
+            if not admin.password_hash:
+                admin.set_password('admin123')
+            admin.role = 'super_admin'
+        
+        # Create system settings
+        settings = SystemSettings.query.first()
+        if not settings:
+            settings = SystemSettings(company_name='Attendance System')
+            db.session.add(settings)
+        
+        db.session.commit()
+        
+        return 'Database initialized successfully! Login with admin/admin123'
+    except Exception as e:
+        return f'Error: {str(e)}'
 
 if __name__ == '__main__':
     app.run(debug=True)
