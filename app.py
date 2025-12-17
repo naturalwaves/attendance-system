@@ -20,7 +20,7 @@ login_manager.login_view = 'login'
 
 # Association table for User-School many-to-many relationship
 user_schools = db.Table('user_schools',
-    db.Column('user_id', db.Integer, db.ForeignKey('user.id'), primary_key=True),
+    db.Column('user_id', db.Integer, db.ForeignKey('users.id'), primary_key=True),
     db.Column('school_id', db.Integer, db.ForeignKey('school.id'), primary_key=True)
 )
 
@@ -53,11 +53,12 @@ class School(db.Model):
     attendance = db.relationship('Attendance', backref='school', lazy=True)
 
 class User(UserMixin, db.Model):
+    __tablename__ = 'users'
     id = db.Column(db.Integer, primary_key=True)
     username = db.Column(db.String(80), unique=True, nullable=False)
     email = db.Column(db.String(120), unique=True, nullable=False)
     password_hash = db.Column(db.String(256), nullable=False)
-    role = db.Column(db.String(20), default='school_admin')  # super_admin, hr_viewer, ceo_viewer, school_admin
+    role = db.Column(db.String(20), default='school_admin')
     is_active = db.Column(db.Boolean, default=True)
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
     schools = db.relationship('School', secondary=user_schools, lazy='subquery',
@@ -101,7 +102,7 @@ class Attendance(db.Model):
     date = db.Column(db.Date, nullable=False)
     clock_in = db.Column(db.DateTime)
     clock_out = db.Column(db.DateTime)
-    status = db.Column(db.String(20))  # on_time, late
+    status = db.Column(db.String(20))
     overtime_minutes = db.Column(db.Integer, default=0)
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
 
@@ -173,7 +174,6 @@ def dashboard():
         Attendance.date == today
     ).count()
     
-    # School statistics
     school_stats = []
     for school in schools:
         staff_count = Staff.query.filter_by(school_id=school.id, is_active=True).count()
@@ -192,6 +192,7 @@ def dashboard():
                          total_users=total_users,
                          today_attendance=today_attendance,
                          school_stats=school_stats)
+
 # Schools/Branches Management
 @app.route('/schools')
 @login_required
@@ -519,6 +520,7 @@ def edit_user(id):
         return redirect(url_for('users'))
     
     return render_template('edit_user.html', user=user, schools=schools)
+
 # Reports
 @app.route('/reports/attendance')
 @login_required
@@ -546,7 +548,6 @@ def attendance_report():
         schools = [s for s in current_user.schools if s.is_active]
         organizations = []
     
-    # Filter by organization
     if selected_organization_id:
         schools = [s for s in schools if s.organization_id == selected_organization_id]
     
@@ -562,7 +563,6 @@ def attendance_report():
         Attendance.date == selected_date
     ).all()
     
-    # Summary
     total = len(attendance)
     on_time = sum(1 for a in attendance if a.status == 'on_time')
     late = sum(1 for a in attendance if a.status == 'late')
@@ -649,7 +649,6 @@ def late_report():
         schools = [s for s in current_user.schools if s.is_active]
         organizations = []
     
-    # Filter by organization
     if selected_organization_id:
         schools = [s for s in schools if s.organization_id == selected_organization_id]
     
@@ -676,7 +675,6 @@ def late_report():
                 )
                 period_total = period_attendance.count()
                 
-                # Skip staff with no attendance in period (they're absent, not late)
                 if period_total == 0:
                     continue
                 
@@ -748,7 +746,6 @@ def download_late_report():
                 )
                 period_total = period_attendance.count()
                 
-                # Skip staff with no attendance in period
                 if period_total == 0:
                     continue
                 
@@ -828,7 +825,6 @@ def absent_report():
         schools = [s for s in current_user.schools if s.is_active]
         organizations = []
     
-    # Filter by organization
     if selected_organization_id:
         schools = [s for s in schools if s.organization_id == selected_organization_id]
     
@@ -839,17 +835,14 @@ def absent_report():
         school_ids = [s.id for s in schools]
         selected_school = None
     
-    # Get all active staff in selected schools
     all_staff = Staff.query.filter(Staff.school_id.in_(school_ids), Staff.is_active == True).all()
     
-    # Get staff who have attendance records for the selected date
     present_staff_ids = db.session.query(Attendance.staff_id).filter(
         Attendance.school_id.in_(school_ids),
         Attendance.date == selected_date
     ).all()
     present_staff_ids = [p[0] for p in present_staff_ids]
     
-    # Find absent staff
     absent_staff = [s for s in all_staff if s.id not in present_staff_ids]
     
     return render_template('absent_report.html',
@@ -934,7 +927,6 @@ def overtime_report():
         schools = [s for s in current_user.schools if s.is_active]
         organizations = []
     
-    # Filter by organization
     if selected_organization_id:
         schools = [s for s in schools if s.organization_id == selected_organization_id]
     
@@ -960,7 +952,6 @@ def overtime_report():
     
     overtime_records = query.all()
     
-    # Group by staff
     staff_overtime = {}
     for record in overtime_records:
         if record.staff_id not in staff_overtime:
@@ -1059,14 +1050,12 @@ def analytics():
         flash('Access denied', 'danger')
         return redirect(url_for('dashboard'))
     
-    # Get filter parameters
     period = request.args.get('period', 'this_week')
     start_date_str = request.args.get('start_date', '')
     end_date_str = request.args.get('end_date', '')
     selected_organization_id = request.args.get('organization_id', type=int)
     selected_school_id = request.args.get('school_id', type=int)
     
-    # Calculate date range based on period
     today = datetime.now().date()
     
     if period == 'custom' and start_date_str and end_date_str:
@@ -1077,11 +1066,11 @@ def analytics():
             start_date = today - timedelta(days=today.weekday())
             end_date = today
     elif period == 'this_week':
-        start_date = today - timedelta(days=today.weekday())  # Monday
+        start_date = today - timedelta(days=today.weekday())
         end_date = today
     elif period == 'last_week':
-        start_date = today - timedelta(days=today.weekday() + 7)  # Previous Monday
-        end_date = start_date + timedelta(days=6)  # Previous Sunday
+        start_date = today - timedelta(days=today.weekday() + 7)
+        end_date = start_date + timedelta(days=6)
     elif period == 'this_month':
         start_date = today.replace(day=1)
         end_date = today
@@ -1092,12 +1081,11 @@ def analytics():
     elif period == '90':
         start_date = today - timedelta(days=90)
         end_date = today
-    else:  # Default 30 days
+    else:
         start_date = today - timedelta(days=30)
         end_date = today
         period = '30'
     
-    # Get accessible schools based on role
     if current_user.role == 'super_admin':
         all_schools = School.query.filter_by(is_active=True).all()
         organizations = Organization.query.filter_by(is_active=True).all()
@@ -1110,25 +1098,20 @@ def analytics():
         all_schools = list(current_user.schools)
         organizations = []
     
-    # Filter schools for data calculation
     schools = all_schools.copy() if isinstance(all_schools, list) else list(all_schools)
     
-    # Filter schools by organization if selected
     if selected_organization_id:
         schools = [s for s in schools if s.organization_id == selected_organization_id]
     
-    # Filter to specific school if selected
     if selected_school_id:
         schools = [s for s in schools if s.id == selected_school_id]
     
     school_ids = [s.id for s in schools]
     
-    # Get staff in these schools
     staff_query = Staff.query.filter(Staff.school_id.in_(school_ids), Staff.is_active == True)
     total_staff = staff_query.count()
     branch_count = len(schools)
     
-    # Get attendance records in period
     attendance_query = Attendance.query.filter(
         Attendance.school_id.in_(school_ids),
         Attendance.date >= start_date,
@@ -1136,23 +1119,19 @@ def analytics():
     )
     total_records = attendance_query.count()
     
-    # Calculate attendance rate
-    # Count only weekdays in the period
     total_days = 0
     current_date = start_date
     while current_date <= end_date:
-        if current_date.weekday() < 5:  # Monday to Friday
+        if current_date.weekday() < 5:
             total_days += 1
         current_date += timedelta(days=1)
     
     total_possible = total_staff * total_days
     attendance_rate = (total_records / total_possible * 100) if total_possible > 0 else 0
     
-    # Calculate punctuality rate
     on_time_records = attendance_query.filter(Attendance.status == 'on_time').count()
     punctuality_rate = (on_time_records / total_records * 100) if total_records > 0 else 0
     
-    # Calculate trends (compare to previous period)
     period_days = (end_date - start_date).days + 1
     prev_start = start_date - timedelta(days=period_days)
     prev_end = start_date - timedelta(days=1)
@@ -1164,7 +1143,6 @@ def analytics():
     )
     prev_total = prev_attendance.count()
     
-    # Count weekdays in previous period
     prev_total_days = 0
     current_date = prev_start
     while current_date <= prev_end:
@@ -1180,7 +1158,6 @@ def analytics():
     prev_punctuality_rate = (prev_on_time / prev_total * 100) if prev_total > 0 else 0
     punctuality_trend = punctuality_rate - prev_punctuality_rate
     
-    # Trend data for chart (daily breakdown)
     trend_labels = []
     trend_data = []
     punctuality_data = []
@@ -1208,8 +1185,7 @@ def analytics():
         
         current_date += timedelta(days=1)
     
-    # Late by day of week
-    late_by_day = [0, 0, 0, 0, 0, 0, 0]  # Mon-Sun
+    late_by_day = [0, 0, 0, 0, 0, 0, 0]
     late_records = Attendance.query.filter(
         Attendance.school_id.in_(school_ids),
         Attendance.date >= start_date,
@@ -1221,7 +1197,6 @@ def analytics():
         day_of_week = record.date.weekday()
         late_by_day[day_of_week] += 1
     
-    # Department performance
     departments = db.session.query(Staff.department).filter(
         Staff.school_id.in_(school_ids),
         Staff.is_active == True,
@@ -1248,20 +1223,18 @@ def analytics():
                 Attendance.date <= end_date
             ).count()
             
-            # Count weekdays
             dept_possible = len(dept_staff) * total_days
             dept_rate = (dept_attendance / dept_possible * 100) if dept_possible > 0 else 0
             
             department_labels.append(dept_name)
             department_data.append(round(dept_rate, 1))
     
-    # Branch comparison
     branch_labels = []
     branch_attendance = []
     branch_punctuality = []
     
     for school in schools:
-        branch_labels.append(school.name[:20])  # Truncate long names
+        branch_labels.append(school.name[:20])
         
         school_staff_count = Staff.query.filter_by(school_id=school.id, is_active=True).count()
         school_attendance = Attendance.query.filter(
@@ -1279,7 +1252,6 @@ def analytics():
         branch_attendance.append(round(school_att_rate, 1))
         branch_punctuality.append(round(school_punct_rate, 1))
     
-    # Top performers (highest punctuality)
     top_performers = []
     all_staff_list = Staff.query.filter(Staff.school_id.in_(school_ids), Staff.is_active == True).all()
     
@@ -1301,11 +1273,9 @@ def analytics():
                 'total': total
             })
     
-    # Sort by punctuality (descending), then by total records (descending)
     staff_performance.sort(key=lambda x: (-x['punctuality'], -x['total']))
     top_performers = staff_performance[:5]
     
-    # Needs attention (most late arrivals)
     needs_attention = []
     for staff in all_staff_list:
         late_count = Attendance.query.filter(
@@ -1480,7 +1450,6 @@ def api_sync():
         now = datetime.now()
         attendance.clock_out = now
         
-        # Calculate overtime
         close_time = datetime.strptime(school.close_time, '%H:%M').time()
         close_datetime = datetime.combine(today, close_time)
         
@@ -1601,7 +1570,6 @@ def api_sync():
 def init_db():
     db.create_all()
     
-    # Create default super admin if not exists
     admin = User.query.filter_by(username='admin').first()
     if not admin:
         admin = User(
@@ -1612,7 +1580,6 @@ def init_db():
         admin.set_password('admin123')
         db.session.add(admin)
     
-    # Create default system settings if not exists
     settings = SystemSettings.query.first()
     if not settings:
         settings = SystemSettings(company_name='Attendance System')
