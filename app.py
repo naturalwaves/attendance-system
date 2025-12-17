@@ -39,7 +39,7 @@ class SystemSettings(db.Model):
             db.session.commit()
         return settings
 
-# Organization Model (NEW)
+# Organization Model
 class Organization(db.Model):
     __tablename__ = 'organizations'
     id = db.Column(db.Integer, primary_key=True)
@@ -53,7 +53,7 @@ user_schools = db.Table('user_schools',
     db.Column('school_id', db.Integer, db.ForeignKey('schools.id'), primary_key=True)
 )
 
-# Models (School is now Branch)
+# Models
 class School(db.Model):
     __tablename__ = 'schools'
     id = db.Column(db.Integer, primary_key=True)
@@ -107,16 +107,14 @@ class User(db.Model, UserMixin):
     def get_accessible_school_ids(self):
         return [s.id for s in self.get_accessible_schools()]
     
-    # NEW: Get organization for dashboard display
     def get_display_organization(self):
         if self.role == 'super_admin':
-            return None  # Super admin sees company branding
+            return None
         
         schools = self.get_accessible_schools()
         if not schools:
             return None
         
-        # Get the first school's organization
         first_school = schools[0]
         if first_school.organization:
             return first_school.organization
@@ -153,7 +151,6 @@ login_manager.init_app(app)
 def load_user(user_id):
     return User.query.get(int(user_id))
 
-# Context processor to make settings and organization available in all templates
 @app.context_processor
 def inject_settings():
     if current_user.is_authenticated:
@@ -251,7 +248,7 @@ def settings():
     
     return render_template('settings.html', settings=settings, organizations=organizations)
 
-# Organization Routes (NEW)
+# Organization Routes
 @app.route('/organizations/add', methods=['GET', 'POST'])
 @login_required
 @role_required('super_admin')
@@ -289,7 +286,6 @@ def edit_organization(id):
 def delete_organization(id):
     org = Organization.query.get_or_404(id)
     
-    # Check if organization has branches
     if org.branches:
         flash('Cannot delete organization with branches. Remove branches first.', 'danger')
         return redirect(url_for('settings'))
@@ -749,7 +745,8 @@ def attendance_report():
     
     return render_template('attendance_report.html', 
                          attendance=attendance, 
-                         schools=schools, 
+                         schools=schools,
+                         organizations=Organization.query.all(),
                          date_from=date_from,
                          date_to=date_to,
                          school_id=school_id,
@@ -906,7 +903,8 @@ def late_report():
     
     return render_template('late_report.html', 
                          late_staff=late_staff, 
-                         schools=schools, 
+                         schools=schools,
+                         organizations=Organization.query.all(),
                          date_from=date_from,
                          date_to=date_to,
                          school_id=school_id,
@@ -1082,7 +1080,8 @@ def absent_report():
     
     return render_template('absent_report.html', 
                          absent_records=absent_records, 
-                         schools=schools, 
+                         schools=schools,
+                         organizations=Organization.query.all(),
                          date_from=date_from,
                          date_to=date_to,
                          school_id=school_id,
@@ -1196,7 +1195,8 @@ def overtime_report():
     
     return render_template('overtime_report.html', 
                          overtime=overtime, 
-                         schools=schools, 
+                         schools=schools,
+                         organizations=Organization.query.all(),
                          date_from=date_from,
                          date_to=date_to,
                          school_id=school_id,
@@ -1574,10 +1574,7 @@ def init_db():
     except Exception as e:
         return f'Error: {str(e)}'
 
-        
-
 if __name__ == '__main__':
     with app.app_context():
         db.create_all()
     app.run(debug=True, host='0.0.0.0', port=int(os.environ.get('PORT', 5000)))
-
