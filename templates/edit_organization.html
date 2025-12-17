@@ -1,0 +1,77 @@
+{% extends 'base.html' %}
+
+{% block title %}Edit Organization - Attendance System{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <h2><i class="fas fa-edit me-2"></i>Edit Organization</h2>
+    <a href="{{ url_for('settings') }}" class="btn btn-outline-secondary">
+        <i class="fas fa-arrow-left me-2"></i>Back to Settings
+    </a>
+</div>
+
+<div class="row">
+    <div class="col-md-6">
+        <div class="card">
+            <div class="card-header">
+                <i class="fas fa-sitemap me-2"></i>Organization Details
+            </div>
+            <div class="card-body">
+                <form method="POST">
+                    <div class="mb-3">
+                        <label class="form-label">Organization Name</label>
+                        <input type="text" name="name" class="form-control" value="{{ organization.name }}" required>
+                        <small class="text-muted">This is the parent company or group name</small>
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label class="form-label">Logo URL</label>
+                        <input type="url" name="logo_url" class="form-control" value="{{ organization.logo_url or '' }}" placeholder="https://example.com/logo.png">
+                        <small class="text-muted">Paste a direct link to the organization's logo (recommended size: 100x100px)</small>
+                    </div>
+                    
+                    {% if organization.logo_url %}
+                    <div class="mb-3">
+                        <label class="form-label">Current Logo Preview</label>
+                        <div>
+                            <img src="{{ organization.logo_url }}" alt="Logo Preview" style="max-height: 80px; border-radius: 8px; border: 1px solid #dee2e6; padding: 5px;">
+                        </div>
+                    </div>
+                    {% endif %}
+                    
+                    <button type="submit" class="btn btn-primary">
+                        <i class="fas fa-save me-2"></i>Update Organization
+                    </button>
+                </form>
+            </div>
+        </div>
+    </div>
+    
+    <div class="col-md-6">
+        <div class="card">
+            <div class="card-header">
+                <i class="fas fa-code-branch me-2"></i>Branches under {{ organization.name }}
+            </div>
+            <div class="card-body">
+                {% if organization.branches %}
+                <ul class="list-group">
+                    {% for branch in organization.branches %}
+                    <li class="list-group-item d-flex justify-content-between align-items-center">
+                        {{ branch.name }}
+                        <a href="{{ url_for('edit_school', id=branch.id) }}" class="btn btn-sm btn-outline-primary">
+                            <i class="fas fa-edit"></i>
+                        </a>
+                    </li>
+                    {% endfor %}
+                </ul>
+                {% else %}
+                <p class="text-muted mb-0">No branches assigned to this organization yet.</p>
+                <a href="{{ url_for('add_school') }}" class="btn btn-outline-primary btn-sm mt-2">
+                    <i class="fas fa-plus me-1"></i>Add Branch
+                </a>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
