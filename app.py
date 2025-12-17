@@ -1683,12 +1683,21 @@ def init_db():
             )
             admin.set_password('admin123')
             db.session.add(admin)
+            db.session.commit()
         else:
             if not admin.email:
                 admin.email = 'admin@example.com'
             if not admin.password_hash:
                 admin.set_password('admin123')
             admin.role = 'super_admin'
+            db.session.commit()
+        
+        # Assign all schools to admin user
+        all_schools = School.query.all()
+        for school in all_schools:
+            if school not in admin.schools:
+                admin.schools.append(school)
+        db.session.commit()
         
         # Create system settings
         settings = SystemSettings.query.first()
@@ -1698,9 +1707,11 @@ def init_db():
         
         db.session.commit()
         
-        return 'Database initialized successfully! Login with admin/admin123'
+        return f'Database initialized successfully! Admin has access to {len(all_schools)} schools. Login with admin/admin123'
     except Exception as e:
         return f'Error: {str(e)}'
 
+
 if __name__ == '__main__':
     app.run(debug=True)
+
