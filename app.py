@@ -107,6 +107,20 @@ class User(db.Model, UserMixin):
     def get_accessible_school_ids(self):
         return [s.id for s in self.get_accessible_schools()]
     
+    def get_accessible_organizations(self):
+        """Get organizations that user has access to based on their accessible schools"""
+        if self.role == 'super_admin':
+            return Organization.query.all()
+        
+        org_ids = set()
+        for school in self.get_accessible_schools():
+            if school.organization_id:
+                org_ids.add(school.organization_id)
+        
+        if org_ids:
+            return Organization.query.filter(Organization.id.in_(org_ids)).all()
+        return []
+    
     def get_display_organization(self):
         if self.role == 'super_admin':
             return None
@@ -746,7 +760,7 @@ def attendance_report():
     return render_template('attendance_report.html', 
                          attendance=attendance, 
                          schools=schools,
-                         organizations=Organization.query.all(),
+                         organizations=current_user.get_accessible_organizations(),
                          date_from=date_from,
                          date_to=date_to,
                          school_id=school_id,
@@ -904,7 +918,7 @@ def late_report():
     return render_template('late_report.html', 
                          late_staff=late_staff, 
                          schools=schools,
-                         organizations=Organization.query.all(),
+                         organizations=current_user.get_accessible_organizations(),
                          date_from=date_from,
                          date_to=date_to,
                          school_id=school_id,
@@ -1081,7 +1095,7 @@ def absent_report():
     return render_template('absent_report.html', 
                          absent_records=absent_records, 
                          schools=schools,
-                         organizations=Organization.query.all(),
+                         organizations=current_user.get_accessible_organizations(),
                          date_from=date_from,
                          date_to=date_to,
                          school_id=school_id,
@@ -1196,7 +1210,7 @@ def overtime_report():
     return render_template('overtime_report.html', 
                          overtime=overtime, 
                          schools=schools,
-                         organizations=Organization.query.all(),
+                         organizations=current_user.get_accessible_organizations(),
                          date_from=date_from,
                          date_to=date_to,
                          school_id=school_id,
