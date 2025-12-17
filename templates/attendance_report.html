@@ -4,7 +4,16 @@
 
 {% block content %}
 <div class="d-flex justify-content-between align-items-center mb-4">
-    <h2><i class="fas fa-clipboard-list me-2"></i>Attendance Report</h2>
+    <h2>
+        <i class="fas fa-clipboard-list me-2"></i>Attendance Report
+        {% if school_id %}
+            {% for s in schools %}
+                {% if s.id|string == school_id|string %}
+                    <span class="text-muted fs-5 fw-normal">— {{ s.name }}</span>
+                {% endif %}
+            {% endfor %}
+        {% endif %}
+    </h2>
     <a href="{{ url_for('download_attendance', date_from=date_from, date_to=date_to, school_id=school_id or '') }}" class="btn btn-success">
         <i class="fas fa-download me-2"></i>Download CSV
     </a>
