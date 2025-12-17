@@ -4,8 +4,8 @@
 
 {% block content %}
 <div class="d-flex justify-content-between align-items-center mb-4">
-    <h2>Overtime Report</h2>
-    <a href="{{ url_for('download_overtime_report', date=selected_date, school_id=school_id) }}" class="btn btn-success">
+    <h2><i class="fas fa-business-time me-2"></i>Overtime Report</h2>
+    <a href="{{ url_for('download_overtime_csv', start_date=start_date, end_date=end_date, school_id=selected_school_id or '') }}" class="btn btn-success">
         <i class="fas fa-download me-2"></i>Download CSV
     </a>
 </div>
@@ -13,25 +13,44 @@
 <div class="card mb-4">
     <div class="card-body">
         <form method="GET" class="row g-3 align-items-end">
-            <div class="col-md-4">
-                <label class="form-label">Date</label>
-                <input type="date" name="date" class="form-control" value="{{ selected_date }}">
+            <div class="col-md-2">
+                <label class="form-label">Start Date</label>
+                <input type="date" name="start_date" class="form-control" value="{{ start_date }}">
             </div>
+            <div class="col-md-2">
+                <label class="form-label">End Date</label>
+                <input type="date" name="end_date" class="form-control" value="{{ end_date }}">
+            </div>
+            
             {% if current_user.role in ['super_admin', 'hr_viewer', 'ceo_viewer'] %}
-            <div class="col-md-4">
-                <label class="form-label">School</label>
-                <select name="school_id" class="form-select">
-                    <option value="">All Schools</option>
+            <div class="col-md-2">
+                <label class="form-label">Organization</label>
+                <select name="organization_id" id="organizationFilter" class="form-select">
+                    <option value="">All Organizations</option>
+                    {% for org in organizations %}
+                    <option value="{{ org.id }}" {% if selected_organization_id == org.id %}selected{% endif %}>{{ org.name }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+            
+            <div class="col-md-2">
+                <label class="form-label">Branch</label>
+                <select name="school_id" id="branchFilter" class="form-select">
+                    <option value="">All Branches</option>
                     {% for school in schools %}
-                    <option value="{{ school.id }}" {% if school_id == school.id|string %}selected{% endif %}>{{ school.name }}</option>
+                    <option value="{{ school.id }}" data-org="{{ school.organization_id or '' }}" {% if selected_school_id == school.id %}selected{% endif %}>{{ school.name }}</option>
                     {% endfor %}
                 </select>
             </div>
             {% endif %}
-            <div class="col-md-4">
-                <button type="submit" class="btn btn-primary">
+            
+            <div class="col-md-2">
+                <button type="submit" class="btn btn-primary w-100">
                     <i class="fas fa-filter me-2"></i>Filter
                 </button>
+            </div>
+            <div class="col-md-2">
+                <a href="{{ url_for('overtime_report') }}" class="btn btn-outline-secondary w-100">This Week</a>
             </div>
         </form>
     </div>
@@ -39,7 +58,7 @@
 
 <div class="card">
     <div class="card-header">
-        <i class="fas fa-business-time me-2"></i>Overtime Records ({{ overtime|length }} total)
+        <i class="fas fa-table me-2"></i>Overtime Summary ({{ start_date }} to {{ end_date }})
     </div>
     <div class="card-body">
         <div class="table-responsive">
@@ -48,25 +67,27 @@
                     <tr>
                         <th>Staff ID</th>
                         <th>Name</th>
-                        <th>School</th>
+                        <th>Branch</th>
                         <th>Department</th>
-                        <th>Sign Out</th>
-                        <th>Overtime (mins)</th>
+                        <th>Days with Overtime</th>
+                        <th>Total Overtime</th>
+                        <th>Avg per Day</th>
                     </tr>
                 </thead>
                 <tbody>
-                    {% for record in overtime %}
+                    {% for item in overtime_records %}
                     <tr>
-                        <td>{{ record.staff.staff_id }}</td>
-                        <td>{{ record.staff.name }}</td>
-                        <td>{{ record.staff.school.short_name or record.staff.school.name }}</td>
-                        <td>{{ record.staff.department }}</td>
-                        <td>{{ record.sign_out_time.strftime('%H:%M') if record.sign_out_time else '-' }}</td>
-                        <td><span class="badge bg-info">{{ record.overtime_minutes }}</span></td>
+                        <td>{{ item.staff.staff_id }}</td>
+                        <td>{{ item.staff.name }}</td>
+                        <td>{{ item.staff.school.name if item.staff.school else 'N/A' }}</td>
+                        <td>{{ item.staff.department or 'N/A' }}</td>
+                        <td>{{ item.days_count }}</td>
+                        <td><span class="badge bg-info">{{ item.total_overtime_hours }}h {{ item.total_overtime_minutes }}m</span></td>
+                        <td>{{ item.avg_overtime }}</td>
                     </tr>
                     {% else %}
                     <tr>
-                        <td colspan="6" class="text-center text-muted">No overtime records found for this date.</td>
+                        <td colspan="7" class="text-center text-muted py-4">No overtime records for this period</td>
                     </tr>
                     {% endfor %}
                 </tbody>
@@ -74,5 +95,37 @@
         </div>
     </div>
 </div>
-{% endblock %}
 
+<script>
+document.getElementById('organizationFilter')?.addEventListener('change', function() {
+    const orgId = this.value;
+    const branchSelect = document.getElementById('branchFilter');
+    const options = branchSelect.querySelectorAll('option');
+    
+    options.forEach(option => {
+        if (option.value === '') {
+            option.style.display = '';
+        } else {
+            const optionOrg = option.getAttribute('data-org');
+            if (orgId === '' || optionOrg === orgId) {
+                option.style.display = '';
+            } else {
+                option.style.display = 'none';
+            }
+        }
+    });
+    
+    const currentOption = branchSelect.querySelector(`option[value="${branchSelect.value}"]`);
+    if (currentOption && currentOption.style.display === 'none') {
+        branchSelect.value = '';
+    }
+});
+
+document.addEventListener('DOMContentLoaded', function() {
+    const orgFilter = document.getElementById('organizationFilter');
+    if (orgFilter && orgFilter.value) {
+        orgFilter.dispatchEvent(new Event('change'));
+    }
+});
+</script>
+{% endblock %}
