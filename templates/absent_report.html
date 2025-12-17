@@ -5,7 +5,7 @@
 {% block content %}
 <div class="d-flex justify-content-between align-items-center mb-4">
     <h2><i class="fas fa-user-times me-2"></i>Absent Staff Report</h2>
-    <a href="{{ url_for('download_absent', date=selected_date, school_id=selected_school_id or '') }}" class="btn btn-success">
+    <a href="{{ url_for('download_absent_report', date_from=date_from, date_to=date_to, school_id=school_id or '') }}" class="btn btn-success">
         <i class="fas fa-download me-2"></i>Download CSV
     </a>
 </div>
@@ -13,37 +13,44 @@
 <div class="card mb-4">
     <div class="card-body">
         <form method="GET" class="row g-3 align-items-end">
-            <div class="col-md-3">
-                <label class="form-label">Date</label>
-                <input type="date" name="date" class="form-control" value="{{ selected_date }}">
+            <div class="col-md-2">
+                <label class="form-label">From</label>
+                <input type="date" name="date_from" class="form-control" value="{{ date_from }}">
+            </div>
+            <div class="col-md-2">
+                <label class="form-label">To</label>
+                <input type="date" name="date_to" class="form-control" value="{{ date_to }}">
             </div>
             
             {% if current_user.role in ['super_admin', 'hr_viewer', 'ceo_viewer'] %}
-            <div class="col-md-3">
+            <div class="col-md-2">
                 <label class="form-label">Organization</label>
                 <select name="organization_id" id="organizationFilter" class="form-select">
                     <option value="">All Organizations</option>
                     {% for org in organizations %}
-                    <option value="{{ org.id }}" {% if selected_organization_id == org.id %}selected{% endif %}>{{ org.name }}</option>
+                    <option value="{{ org.id }}">{{ org.name }}</option>
                     {% endfor %}
                 </select>
             </div>
             
-            <div class="col-md-3">
+            <div class="col-md-2">
                 <label class="form-label">Branch</label>
                 <select name="school_id" id="branchFilter" class="form-select">
                     <option value="">All Branches</option>
-                    {% for school in schools %}
-                    <option value="{{ school.id }}" data-org="{{ school.organization_id or '' }}" {% if selected_school_id == school.id %}selected{% endif %}>{{ school.name }}</option>
+                    {% for s in schools %}
+                    <option value="{{ s.id }}" data-org="{{ s.organization_id or '' }}" {% if school_id == s.id|string %}selected{% endif %}>{{ s.name }}</option>
                     {% endfor %}
                 </select>
             </div>
             {% endif %}
             
-            <div class="col-md-3">
+            <div class="col-md-2">
                 <button type="submit" class="btn btn-primary w-100">
                     <i class="fas fa-filter me-2"></i>Filter
                 </button>
+            </div>
+            <div class="col-md-2">
+                <a href="{{ url_for('absent_report', today=1) }}" class="btn btn-outline-secondary w-100">Today</a>
             </div>
         </form>
     </div>
@@ -51,8 +58,8 @@
 
 <div class="card mb-4 bg-danger text-white">
     <div class="card-body text-center">
-        <h3>{{ absent_staff|length }}</h3>
-        <p class="mb-0">Staff Absent on {{ selected_date }}</p>
+        <h3>{{ absent_records|length }}</h3>
+        <p class="mb-0">Absent Records ({{ date_from }} to {{ date_to }})</p>
     </div>
 </div>
 
@@ -65,25 +72,25 @@
             <table class="table table-hover">
                 <thead>
                     <tr>
+                        <th>Date</th>
                         <th>Staff ID</th>
                         <th>Name</th>
                         <th>Branch</th>
                         <th>Department</th>
-                        <th>Position</th>
                     </tr>
                 </thead>
                 <tbody>
-                    {% for staff in absent_staff %}
+                    {% for record in absent_records %}
                     <tr>
-                        <td>{{ staff.staff_id }}</td>
-                        <td>{{ staff.name }}</td>
-                        <td>{{ staff.school.name if staff.school else 'N/A' }}</td>
-                        <td>{{ staff.department or 'N/A' }}</td>
-                        <td>{{ staff.position or 'N/A' }}</td>
+                        <td>{{ record.date.strftime('%d/%m/%Y') }}</td>
+                        <td>{{ record.staff.staff_id }}</td>
+                        <td>{{ record.staff.name }}</td>
+                        <td>{{ record.staff.school.name if record.staff.school else 'N/A' }}</td>
+                        <td>{{ record.staff.department or 'N/A' }}</td>
                     </tr>
                     {% else %}
                     <tr>
-                        <td colspan="5" class="text-center text-muted py-4">No absent staff for this date</td>
+                        <td colspan="5" class="text-center text-muted py-4">No absent staff for this period</td>
                     </tr>
                     {% endfor %}
                 </tbody>
