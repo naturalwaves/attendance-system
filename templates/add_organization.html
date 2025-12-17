@@ -1,0 +1,64 @@
+{% extends 'base.html' %}
+
+{% block title %}Add Organization - Attendance System{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <h2><i class="fas fa-plus me-2"></i>Add Organization</h2>
+    <a href="{{ url_for('settings') }}" class="btn btn-outline-secondary">
+        <i class="fas fa-arrow-left me-2"></i>Back to Settings
+    </a>
+</div>
+
+<div class="row">
+    <div class="col-md-6">
+        <div class="card">
+            <div class="card-header">
+                <i class="fas fa-sitemap me-2"></i>Organization Details
+            </div>
+            <div class="card-body">
+                <form method="POST">
+                    <div class="mb-3">
+                        <label class="form-label">Organization Name</label>
+                        <input type="text" name="name" class="form-control" placeholder="e.g., Corona Schools, GTBank" required>
+                        <small class="text-muted">This is the parent company or group name</small>
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label class="form-label">Logo URL</label>
+                        <input type="url" name="logo_url" class="form-control" placeholder="https://example.com/logo.png">
+                        <small class="text-muted">Paste a direct link to the organization's logo (recommended size: 100x100px)</small>
+                    </div>
+                    
+                    <button type="submit" class="btn btn-primary">
+                        <i class="fas fa-save me-2"></i>Save Organization
+                    </button>
+                </form>
+            </div>
+        </div>
+    </div>
+    
+    <div class="col-md-6">
+        <div class="card">
+            <div class="card-header">
+                <i class="fas fa-info-circle me-2"></i>What is an Organization?
+            </div>
+            <div class="card-body">
+                <p>An <strong>Organization</strong> is a parent company or group that has multiple branches.</p>
+                
+                <h6 class="mt-3">Examples:</h6>
+                <ul>
+                    <li><strong>Corona Schools</strong> → Corona Lekki, Corona Gbagada, Corona VI</li>
+                    <li><strong>GTBank</strong> → GTBank Lagos, GTBank Abuja, GTBank Port Harcourt</li>
+                    <li><strong>Greensprings</strong> → Greensprings Lekki, Greensprings Ikoyi</li>
+                </ul>
+                
+                <div class="alert alert-info mt-4 mb-0">
+                    <i class="fas fa-lightbulb me-2"></i>
+                    <strong>Tip:</strong> After creating an organization, you can assign branches to it when adding or editing branches.
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
