@@ -1,10 +1,10 @@
 {% extends 'base.html' %}
 
-{% block title %}Add School - Attendance System{% endblock %}
+{% block title %}Add Branch - Attendance System{% endblock %}
 
 {% block content %}
 <div class="d-flex justify-content-between align-items-center mb-4">
-    <h2><i class="fas fa-plus me-2"></i>Add School</h2>
+    <h2><i class="fas fa-plus me-2"></i>Add Branch</h2>
     <a href="{{ url_for('schools') }}" class="btn btn-secondary">
         <i class="fas fa-arrow-left me-2"></i>Back
     </a>
@@ -15,7 +15,7 @@
         <form method="POST">
             <div class="row">
                 <div class="col-md-6 mb-3">
-                    <label class="form-label">School Name</label>
+                    <label class="form-label">Branch Name</label>
                     <input type="text" name="name" class="form-control" placeholder="e.g. Corona School Lekki" required>
                 </div>
                 <div class="col-md-6 mb-3">
@@ -24,10 +24,22 @@
                 </div>
             </div>
             
-            <div class="mb-3">
-                <label class="form-label">Logo URL</label>
-                <input type="url" name="logo_url" class="form-control" placeholder="https://example.com/school-logo.png">
-                <small class="text-muted">Paste a direct link to the school's logo. This will appear on their dashboard and kiosk.</small>
+            <div class="row">
+                <div class="col-md-6 mb-3">
+                    <label class="form-label">Organization</label>
+                    <select name="organization_id" class="form-select">
+                        <option value="">-- No Organization --</option>
+                        {% for org in organizations %}
+                        <option value="{{ org.id }}">{{ org.name }}</option>
+                        {% endfor %}
+                    </select>
+                    <small class="text-muted">Select the parent organization this branch belongs to</small>
+                </div>
+                <div class="col-md-6 mb-3">
+                    <label class="form-label">Logo URL</label>
+                    <input type="url" name="logo_url" class="form-control" placeholder="https://example.com/school-logo.png">
+                    <small class="text-muted">This will appear on the kiosk for this branch</small>
+                </div>
             </div>
             
             <hr class="my-4">
@@ -81,7 +93,7 @@
             
             <div class="mt-4">
                 <button type="submit" class="btn btn-primary">
-                    <i class="fas fa-save me-2"></i>Add School
+                    <i class="fas fa-save me-2"></i>Add Branch
                 </button>
                 <a href="{{ url_for('schools') }}" class="btn btn-secondary ms-2">Cancel</a>
             </div>
