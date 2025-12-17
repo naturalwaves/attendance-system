@@ -5,23 +5,21 @@
 {% block content %}
 <div class="d-flex justify-content-between align-items-center mb-4">
     <h2><i class="fas fa-clock me-2"></i>Late Report</h2>
-    <div>
-        <a href="{{ url_for('download_late', start_date=start_date, end_date=end_date, school_id=selected_school_id or '') }}" class="btn btn-success">
-            <i class="fas fa-download me-2"></i>Download CSV
-        </a>
-    </div>
+    <a href="{{ url_for('download_late_report', date_from=date_from, date_to=date_to, school_id=school_id or '', calc_mode=calc_mode) }}" class="btn btn-success">
+        <i class="fas fa-download me-2"></i>Download CSV
+    </a>
 </div>
 
 <div class="card mb-4">
     <div class="card-body">
         <form method="GET" class="row g-3 align-items-end">
             <div class="col-md-2">
-                <label class="form-label">Start Date</label>
-                <input type="date" name="start_date" class="form-control" value="{{ start_date }}">
+                <label class="form-label">From</label>
+                <input type="date" name="date_from" class="form-control" value="{{ date_from }}">
             </div>
             <div class="col-md-2">
-                <label class="form-label">End Date</label>
-                <input type="date" name="end_date" class="form-control" value="{{ end_date }}">
+                <label class="form-label">To</label>
+                <input type="date" name="date_to" class="form-control" value="{{ date_to }}">
             </div>
             
             {% if current_user.role in ['super_admin', 'hr_viewer', 'ceo_viewer'] %}
@@ -30,7 +28,7 @@
                 <select name="organization_id" id="organizationFilter" class="form-select">
                     <option value="">All Organizations</option>
                     {% for org in organizations %}
-                    <option value="{{ org.id }}" {% if selected_organization_id == org.id %}selected{% endif %}>{{ org.name }}</option>
+                    <option value="{{ org.id }}">{{ org.name }}</option>
                     {% endfor %}
                 </select>
             </div>
@@ -39,8 +37,8 @@
                 <label class="form-label">Branch</label>
                 <select name="school_id" id="branchFilter" class="form-select">
                     <option value="">All Branches</option>
-                    {% for school in schools %}
-                    <option value="{{ school.id }}" data-org="{{ school.organization_id or '' }}" {% if selected_school_id == school.id %}selected{% endif %}>{{ school.name }}</option>
+                    {% for s in schools %}
+                    <option value="{{ s.id }}" data-org="{{ s.organization_id or '' }}" {% if school_id == s.id|string %}selected{% endif %}>{{ s.name }}</option>
                     {% endfor %}
                 </select>
             </div>
@@ -52,16 +50,34 @@
                 </button>
             </div>
             <div class="col-md-2">
-                <a href="{{ url_for('late_report') }}" class="btn btn-outline-secondary w-100">Today</a>
+                <a href="{{ url_for('late_report', today=1) }}" class="btn btn-outline-secondary w-100">Today</a>
             </div>
         </form>
     </div>
 </div>
 
+{% if show_toggle %}
+<div class="card mb-4">
+    <div class="card-body">
+        <div class="d-flex align-items-center gap-3">
+            <span class="fw-bold">Calculate % based on:</span>
+            <a href="{{ url_for('late_report', date_from=date_from, date_to=date_to, school_id=school_id, calc_mode='period') }}" 
+               class="btn btn-sm {% if calc_mode == 'period' %}btn-primary{% else %}btn-outline-primary{% endif %}">
+                Selected Period
+            </a>
+            <a href="{{ url_for('late_report', date_from=date_from, date_to=date_to, school_id=school_id, calc_mode='alltime') }}" 
+               class="btn btn-sm {% if calc_mode == 'alltime' %}btn-primary{% else %}btn-outline-primary{% endif %}">
+                All Time
+            </a>
+        </div>
+    </div>
+</div>
+{% endif %}
+
 {% if current_user.role == 'super_admin' %}
 <div class="card mb-4 border-warning">
     <div class="card-body">
-        <form method="POST" action="{{ url_for('reset_late_counters') }}" onsubmit="return confirm('Are you sure you want to reset all late counters? This cannot be undone.');">
+        <form method="POST" action="{{ url_for('reset_late_counter') }}" onsubmit="return confirm('Are you sure you want to reset all late counters? This cannot be undone.');">
             <div class="row align-items-center">
                 <div class="col-md-8">
                     <h6 class="mb-1"><i class="fas fa-redo me-2 text-warning"></i>Reset Late Counters</h6>
@@ -70,8 +86,8 @@
                 <div class="col-md-4 text-end">
                     <select name="school_id" class="form-select form-select-sm d-inline-block w-auto me-2">
                         <option value="">All Branches</option>
-                        {% for school in schools %}
-                        <option value="{{ school.id }}">{{ school.name }}</option>
+                        {% for s in schools %}
+                        <option value="{{ s.id }}">{{ s.name }}</option>
                         {% endfor %}
                     </select>
                     <button type="submit" class="btn btn-warning btn-sm">
@@ -86,7 +102,7 @@
 
 <div class="card">
     <div class="card-header">
-        <i class="fas fa-table me-2"></i>Staff Late Summary ({{ start_date }} to {{ end_date }})
+        <i class="fas fa-table me-2"></i>Late Staff Summary
     </div>
     <div class="card-body">
         <div class="table-responsive">
@@ -97,32 +113,37 @@
                         <th>Name</th>
                         <th>Branch</th>
                         <th>Department</th>
-                        <th>Times Late (Period)</th>
-                        <th>Times Late (Total)</th>
-                        <th>Punctuality %</th>
+                        <th>Times Late</th>
+                        <th>% Punctuality</th>
+                        <th>% Lateness</th>
                     </tr>
                 </thead>
                 <tbody>
-                    {% for item in late_records %}
+                    {% for item in late_staff %}
                     <tr>
                         <td>{{ item.staff.staff_id }}</td>
                         <td>{{ item.staff.name }}</td>
                         <td>{{ item.staff.school.name if item.staff.school else 'N/A' }}</td>
                         <td>{{ item.staff.department or 'N/A' }}</td>
-                        <td><span class="badge bg-warning text-dark">{{ item.period_late_count }}</span></td>
-                        <td><span class="badge bg-danger">{{ item.staff.times_late }}</span></td>
+                        <td><span class="badge bg-warning text-dark">{{ item.times_late }}</span></td>
                         <td>
-                            {% set punctuality = 100 - (item.period_late_count * 100 / item.total_days) if item.total_days > 0 else 100 %}
-                            <div class="progress" style="height: 20px;">
-                                <div class="progress-bar {% if punctuality >= 90 %}bg-success{% elif punctuality >= 70 %}bg-warning{% else %}bg-danger{% endif %}" style="width: {{ punctuality }}%">
-                                    {{ "%.1f"|format(punctuality) }}%
+                            <div class="progress" style="height: 20px; min-width: 100px;">
+                                <div class="progress-bar bg-success" style="width: {{ item.punctuality }}%">
+                                    {{ item.punctuality }}%
+                                </div>
+                            </div>
+                        </td>
+                        <td>
+                            <div class="progress" style="height: 20px; min-width: 100px;">
+                                <div class="progress-bar bg-danger" style="width: {{ item.lateness }}%">
+                                    {{ item.lateness }}%
                                 </div>
                             </div>
                         </td>
                     </tr>
                     {% else %}
                     <tr>
-                        <td colspan="7" class="text-center text-muted py-4">No late records for this period</td>
+                        <td colspan="7" class="text-center text-muted py-4">No late records found</td>
                     </tr>
                     {% endfor %}
                 </tbody>
