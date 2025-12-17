@@ -1,0 +1,392 @@
+{% extends 'base.html' %}
+
+{% block title %}Analytics - Attendance System{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <h2><i class="fas fa-chart-line me-2"></i>Analytics</h2>
+    <div class="d-flex gap-2">
+        <select id="periodFilter" class="form-select" style="width: auto;">
+            <option value="7" {% if period == 7 %}selected{% endif %}>Last 7 Days</option>
+            <option value="30" {% if period == 30 %}selected{% endif %}>Last 30 Days</option>
+            <option value="90" {% if period == 90 %}selected{% endif %}>Last 90 Days</option>
+        </select>
+        {% if current_user.role in ['super_admin', 'hr_viewer', 'ceo_viewer'] %}
+        <select id="branchFilter" class="form-select" style="width: auto;">
+            <option value="">All Branches</option>
+            {% for s in schools %}
+            <option value="{{ s.id }}" {% if school_id == s.id|string %}selected{% endif %}>{{ s.name }}</option>
+            {% endfor %}
+        </select>
+        {% endif %}
+    </div>
+</div>
+
+<!-- Key Metrics Cards -->
+<div class="row mb-4">
+    <div class="col-md-3">
+        <div class="card h-100">
+            <div class="card-body text-center">
+                <div class="d-flex align-items-center justify-content-center mb-2">
+                    <i class="fas fa-chart-pie fa-2x text-primary"></i>
+                </div>
+                <h2 class="mb-1 fw-bold" style="color: #007bff;">{{ metrics.attendance_rate }}%</h2>
+                <p class="text-muted mb-0">Attendance Rate</p>
+                <small class="{% if metrics.attendance_trend >= 0 %}text-success{% else %}text-danger{% endif %}">
+                    <i class="fas fa-{% if metrics.attendance_trend >= 0 %}arrow-up{% else %}arrow-down{% endif %} me-1"></i>
+                    {{ metrics.attendance_trend|abs }}% vs previous period
+                </small>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="card h-100">
+            <div class="card-body text-center">
+                <div class="d-flex align-items-center justify-content-center mb-2">
+                    <i class="fas fa-clock fa-2x text-success"></i>
+                </div>
+                <h2 class="mb-1 fw-bold" style="color: #28a745;">{{ metrics.punctuality_rate }}%</h2>
+                <p class="text-muted mb-0">Punctuality Rate</p>
+                <small class="{% if metrics.punctuality_trend >= 0 %}text-success{% else %}text-danger{% endif %}">
+                    <i class="fas fa-{% if metrics.punctuality_trend >= 0 %}arrow-up{% else %}arrow-down{% endif %} me-1"></i>
+                    {{ metrics.punctuality_trend|abs }}% vs previous period
+                </small>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="card h-100">
+            <div class="card-body text-center">
+                <div class="d-flex align-items-center justify-content-center mb-2">
+                    <i class="fas fa-users fa-2x text-info"></i>
+                </div>
+                <h2 class="mb-1 fw-bold" style="color: #17a2b8;">{{ metrics.total_staff }}</h2>
+                <p class="text-muted mb-0">Active Staff</p>
+                <small class="text-muted">
+                    Across {{ metrics.total_branches }} branch{% if metrics.total_branches != 1 %}es{% endif %}
+                </small>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="card h-100">
+            <div class="card-body text-center">
+                <div class="d-flex align-items-center justify-content-center mb-2">
+                    <i class="fas fa-calendar-check fa-2x text-warning"></i>
+                </div>
+                <h2 class="mb-1 fw-bold" style="color: #ffc107;">{{ metrics.total_records }}</h2>
+                <p class="text-muted mb-0">Attendance Records</p>
+                <small class="text-muted">
+                    In selected period
+                </small>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Charts Row 1 -->
+<div class="row mb-4">
+    <div class="col-md-8">
+        <div class="card h-100">
+            <div class="card-header">
+                <i class="fas fa-chart-area me-2"></i>Attendance Trend
+            </div>
+            <div class="card-body">
+                <canvas id="attendanceTrendChart" height="100"></canvas>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-4">
+        <div class="card h-100">
+            <div class="card-header">
+                <i class="fas fa-chart-bar me-2"></i>Late Arrivals by Day
+            </div>
+            <div class="card-body">
+                <canvas id="lateByDayChart" height="200"></canvas>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Charts Row 2 -->
+<div class="row mb-4">
+    <div class="col-md-5">
+        <div class="card h-100">
+            <div class="card-header">
+                <i class="fas fa-chart-doughnut me-2"></i>Department Performance
+            </div>
+            <div class="card-body d-flex align-items-center justify-content-center">
+                <canvas id="departmentChart" height="200"></canvas>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-7">
+        <div class="card h-100">
+            <div class="card-header">
+                <i class="fas fa-building me-2"></i>Branch Comparison
+            </div>
+            <div class="card-body">
+                <canvas id="branchComparisonChart" height="200"></canvas>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Rankings Row -->
+<div class="row mb-4">
+    <div class="col-md-6">
+        <div class="card h-100">
+            <div class="card-header bg-success text-white">
+                <i class="fas fa-trophy me-2"></i>Top Performers
+            </div>
+            <div class="card-body p-0">
+                <table class="table table-hover mb-0">
+                    <thead>
+                        <tr>
+                            <th>Rank</th>
+                            <th>Name</th>
+                            <th>Branch</th>
+                            <th>Punctuality</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for staff in top_performers %}
+                        <tr>
+                            <td>
+                                {% if loop.index == 1 %}
+                                <span class="badge bg-warning text-dark"><i class="fas fa-medal"></i> 1</span>
+                                {% elif loop.index == 2 %}
+                                <span class="badge bg-secondary"><i class="fas fa-medal"></i> 2</span>
+                                {% elif loop.index == 3 %}
+                                <span class="badge bg-danger"><i class="fas fa-medal"></i> 3</span>
+                                {% else %}
+                                <span class="badge bg-light text-dark">{{ loop.index }}</span>
+                                {% endif %}
+                            </td>
+                            <td>{{ staff.name }}</td>
+                            <td><small class="text-muted">{{ staff.branch }}</small></td>
+                            <td>
+                                <div class="progress" style="height: 20px; min-width: 80px;">
+                                    <div class="progress-bar bg-success" style="width: {{ staff.punctuality }}%">
+                                        {{ staff.punctuality }}%
+                                    </div>
+                                </div>
+                            </td>
+                        </tr>
+                        {% else %}
+                        <tr>
+                            <td colspan="4" class="text-center text-muted py-3">No data available</td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-6">
+        <div class="card h-100">
+            <div class="card-header bg-danger text-white">
+                <i class="fas fa-exclamation-triangle me-2"></i>Needs Attention
+            </div>
+            <div class="card-body p-0">
+                <table class="table table-hover mb-0">
+                    <thead>
+                        <tr>
+                            <th>Rank</th>
+                            <th>Name</th>
+                            <th>Branch</th>
+                            <th>Times Late</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for staff in needs_attention %}
+                        <tr>
+                            <td><span class="badge bg-danger">{{ loop.index }}</span></td>
+                            <td>{{ staff.name }}</td>
+                            <td><small class="text-muted">{{ staff.branch }}</small></td>
+                            <td><span class="badge bg-warning text-dark">{{ staff.times_late }} times</span></td>
+                        </tr>
+                        {% else %}
+                        <tr>
+                            <td colspan="4" class="text-center text-muted py-3">No late staff - Great job! 🎉</td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Chart.js -->
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+
+<script>
+// Filter change handlers
+document.getElementById('periodFilter').addEventListener('change', function() {
+    updateAnalytics();
+});
+
+document.getElementById('branchFilter')?.addEventListener('change', function() {
+    updateAnalytics();
+});
+
+function updateAnalytics() {
+    const period = document.getElementById('periodFilter').value;
+    const branchFilter = document.getElementById('branchFilter');
+    const branch = branchFilter ? branchFilter.value : '';
+    window.location.href = `{{ url_for('analytics') }}?period=${period}&school_id=${branch}`;
+}
+
+// Chart colors
+const primaryRed = '#dc3545';
+const primaryBlue = '#007bff';
+const primaryGreen = '#28a745';
+const primaryYellow = '#ffc107';
+const primaryGray = '#6c757d';
+
+// Attendance Trend Chart
+const attendanceTrendCtx = document.getElementById('attendanceTrendChart').getContext('2d');
+new Chart(attendanceTrendCtx, {
+    type: 'line',
+    data: {
+        labels: {{ trend_labels|safe }},
+        datasets: [{
+            label: 'Attendance %',
+            data: {{ trend_data|safe }},
+            borderColor: primaryBlue,
+            backgroundColor: 'rgba(0, 123, 255, 0.1)',
+            fill: true,
+            tension: 0.4,
+            pointRadius: 4,
+            pointHoverRadius: 6
+        }]
+    },
+    options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        plugins: {
+            legend: {
+                display: false
+            }
+        },
+        scales: {
+            y: {
+                beginAtZero: false,
+                min: 0,
+                max: 100,
+                ticks: {
+                    callback: function(value) {
+                        return value + '%';
+                    }
+                }
+            }
+        }
+    }
+});
+
+// Late by Day Chart
+const lateByDayCtx = document.getElementById('lateByDayChart').getContext('2d');
+new Chart(lateByDayCtx, {
+    type: 'bar',
+    data: {
+        labels: ['Mon', 'Tue', 'Wed', 'Thu', 'Fri'],
+        datasets: [{
+            label: 'Late Arrivals',
+            data: {{ late_by_day|safe }},
+            backgroundColor: [
+                'rgba(255, 193, 7, 0.8)',
+                'rgba(255, 193, 7, 0.8)',
+                'rgba(255, 193, 7, 0.8)',
+                'rgba(255, 193, 7, 0.8)',
+                'rgba(255, 193, 7, 0.8)'
+            ],
+            borderColor: primaryYellow,
+            borderWidth: 1,
+            borderRadius: 6
+        }]
+    },
+    options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        plugins: {
+            legend: {
+                display: false
+            }
+        },
+        scales: {
+            y: {
+                beginAtZero: true
+            }
+        }
+    }
+});
+
+// Department Chart
+const departmentCtx = document.getElementById('departmentChart').getContext('2d');
+new Chart(departmentCtx, {
+    type: 'doughnut',
+    data: {
+        labels: {{ department_labels|safe }},
+        datasets: [{
+            data: {{ department_data|safe }},
+            backgroundColor: [
+                'rgba(40, 167, 69, 0.8)',
+                'rgba(0, 123, 255, 0.8)',
+                'rgba(255, 193, 7, 0.8)',
+                'rgba(220, 53, 69, 0.8)'
+            ],
+            borderWidth: 0
+        }]
+    },
+    options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        plugins: {
+            legend: {
+                position: 'bottom'
+            }
+        },
+        cutout: '60%'
+    }
+});
+
+// Branch Comparison Chart
+const branchComparisonCtx = document.getElementById('branchComparisonChart').getContext('2d');
+new Chart(branchComparisonCtx, {
+    type: 'bar',
+    data: {
+        labels: {{ branch_labels|safe }},
+        datasets: [{
+            label: 'Attendance Rate %',
+            data: {{ branch_data|safe }},
+            backgroundColor: 'rgba(0, 123, 255, 0.8)',
+            borderColor: primaryBlue,
+            borderWidth: 1,
+            borderRadius: 6
+        }]
+    },
+    options: {
+        indexAxis: 'y',
+        responsive: true,
+        maintainAspectRatio: false,
+        plugins: {
+            legend: {
+                display: false
+            }
+        },
+        scales: {
+            x: {
+                beginAtZero: true,
+                max: 100,
+                ticks: {
+                    callback: function(value) {
+                        return value + '%';
+                    }
+                }
+            }
+        }
+    }
+});
+</script>
+{% endblock %}
