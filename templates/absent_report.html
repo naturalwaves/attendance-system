@@ -5,7 +5,7 @@
 {% block content %}
 <div class="d-flex justify-content-between align-items-center mb-4">
     <h2><i class="fas fa-user-times me-2"></i>Absent Staff Report</h2>
-    <a href="{{ url_for('download_absent_csv', date=selected_date, school_id=selected_school_id or '') }}" class="btn btn-success">
+    <a href="{{ url_for('download_absent', date=selected_date, school_id=selected_school_id or '') }}" class="btn btn-success">
         <i class="fas fa-download me-2"></i>Download CSV
     </a>
 </div>
