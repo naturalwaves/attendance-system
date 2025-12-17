@@ -885,7 +885,6 @@ def late_report():
         else:
             times_late = s.times_late
         
-        # Skip staff with no attendance in selected period (they are absent, not late)
         if start_date and end_date and period_total == 0:
             continue
         
@@ -987,7 +986,6 @@ def download_late_report():
         else:
             times_late = s.times_late
         
-        # Skip staff with no attendance in selected period
         if start_date and end_date and period_total == 0:
             continue
         
@@ -1286,27 +1284,66 @@ def download_overtime_report():
 def analytics():
     period = request.args.get('period', '30')
     school_id = request.args.get('school_id', '')
-    
-    try:
-        period = int(period)
-    except:
-        period = 30
+    organization_id = request.args.get('organization_id', '')
+    start_date_param = request.args.get('start_date', '')
+    end_date_param = request.args.get('end_date', '')
     
     today = date.today()
-    start_date = today - timedelta(days=period)
-    previous_start = start_date - timedelta(days=period)
+    
+    # Handle different period options
+    if period == 'custom' and start_date_param and end_date_param:
+        try:
+            start_date = datetime.strptime(start_date_param, '%Y-%m-%d').date()
+            end_date = datetime.strptime(end_date_param, '%Y-%m-%d').date()
+            period_days = (end_date - start_date).days + 1
+        except:
+            start_date = today - timedelta(days=30)
+            end_date = today
+            period_days = 30
+    elif period == 'this_week':
+        start_date = today - timedelta(days=today.weekday())
+        end_date = today
+        period_days = (end_date - start_date).days + 1
+    elif period == 'last_week':
+        start_date = today - timedelta(days=today.weekday() + 7)
+        end_date = today - timedelta(days=today.weekday() + 1)
+        period_days = 7
+    elif period == 'this_month':
+        start_date = today.replace(day=1)
+        end_date = today
+        period_days = (end_date - start_date).days + 1
+    elif period == 'last_month':
+        first_of_this_month = today.replace(day=1)
+        end_date = first_of_this_month - timedelta(days=1)
+        start_date = end_date.replace(day=1)
+        period_days = (end_date - start_date).days + 1
+    else:
+        try:
+            period_days = int(period)
+        except:
+            period_days = 30
+        start_date = today - timedelta(days=period_days)
+        end_date = today
+    
+    previous_start = start_date - timedelta(days=period_days)
     
     accessible_school_ids = current_user.get_accessible_school_ids()
     
-    # Get schools for filter
+    # Get schools and organizations for filter
     if current_user.role == 'super_admin':
         schools = School.query.all()
     else:
         schools = current_user.get_accessible_schools()
     
+    organizations = current_user.get_accessible_organizations()
+    
     # Build staff query based on filters
     staff_query = Staff.query.filter_by(is_active=True)
-    if school_id:
+    
+    if organization_id:
+        org_school_ids = [s.id for s in School.query.filter_by(organization_id=organization_id).all()]
+        staff_query = staff_query.filter(Staff.school_id.in_(org_school_ids))
+    elif school_id:
         staff_query = staff_query.filter_by(school_id=school_id)
     elif current_user.role != 'super_admin' and accessible_school_ids:
         staff_query = staff_query.filter(Staff.school_id.in_(accessible_school_ids))
@@ -1318,7 +1355,7 @@ def analytics():
     current_attendance = Attendance.query.filter(
         Attendance.staff_id.in_(staff_ids),
         Attendance.date >= start_date,
-        Attendance.date <= today
+        Attendance.date <= end_date
     ).all() if staff_ids else []
     
     # Previous period attendance (for comparison)
@@ -1330,11 +1367,11 @@ def analytics():
     
     # Calculate metrics
     total_staff = len(all_staff)
-    total_branches = len(set(s.school_id for s in all_staff)) if all_staff else 0
+    branch_count = len(set(s.school_id for s in all_staff)) if all_staff else 0
     total_records = len(current_attendance)
     
     # Working days in period (exclude weekends)
-    working_days = sum(1 for i in range(period) if (start_date + timedelta(days=i)).weekday() < 5)
+    working_days = sum(1 for i in range(period_days) if (start_date + timedelta(days=i)).weekday() < 5)
     expected_attendance = total_staff * working_days if total_staff > 0 else 1
     
     # Current attendance rate
@@ -1342,7 +1379,7 @@ def analytics():
     attendance_rate = min(attendance_rate, 100)
     
     # Previous attendance rate
-    prev_working_days = sum(1 for i in range(period) if (previous_start + timedelta(days=i)).weekday() < 5)
+    prev_working_days = sum(1 for i in range(period_days) if (previous_start + timedelta(days=i)).weekday() < 5)
     prev_expected = total_staff * prev_working_days if total_staff > 0 else 1
     prev_attendance_rate = round((len(previous_attendance) / prev_expected) * 100, 1) if prev_expected > 0 else 0
     prev_attendance_rate = min(prev_attendance_rate, 100)
@@ -1357,59 +1394,66 @@ def analytics():
     prev_punctuality = round((prev_on_time / len(previous_attendance)) * 100, 1) if previous_attendance else 100
     punctuality_trend = round(punctuality_rate - prev_punctuality, 1)
     
-    metrics = {
-        'attendance_rate': attendance_rate,
-        'attendance_trend': attendance_trend,
-        'punctuality_rate': punctuality_rate,
-        'punctuality_trend': punctuality_trend,
-        'total_staff': total_staff,
-        'total_branches': total_branches,
-        'total_records': total_records
-    }
-    
     # Attendance trend data (daily)
     trend_labels = []
     trend_data = []
+    punctuality_data = []
     
-    for i in range(min(period, 30)):
-        day = start_date + timedelta(days=i)
-        if day.weekday() < 5:
-            day_attendance = sum(1 for a in current_attendance if a.date == day)
-            day_rate = round((day_attendance / total_staff) * 100, 1) if total_staff > 0 else 0
-            trend_labels.append(day.strftime('%d %b'))
+    current_date = start_date
+    while current_date <= end_date:
+        if current_date.weekday() < 5:
+            day_attendance = [a for a in current_attendance if a.date == current_date]
+            day_count = len(day_attendance)
+            day_rate = round((day_count / total_staff) * 100, 1) if total_staff > 0 else 0
+            day_on_time = sum(1 for a in day_attendance if not a.is_late)
+            day_punctuality = round((day_on_time / day_count) * 100, 1) if day_count > 0 else 100
+            
+            trend_labels.append(current_date.strftime('%d %b'))
             trend_data.append(min(day_rate, 100))
+            punctuality_data.append(day_punctuality)
+        current_date += timedelta(days=1)
     
-    # Late by day of week
-    late_by_day = [0, 0, 0, 0, 0]
+    # Late by day of week (Mon-Sun)
+    late_by_day = [0, 0, 0, 0, 0, 0, 0]
     for a in current_attendance:
-        if a.is_late and a.date.weekday() < 5:
+        if a.is_late:
             late_by_day[a.date.weekday()] += 1
     
     # Department performance
     departments = ['Academic', 'Admin', 'Non-Academic', 'Management']
+    department_labels = []
     department_data = []
     for dept in departments:
         dept_staff = [s for s in all_staff if s.department == dept]
-        dept_staff_ids = [s.id for s in dept_staff]
-        dept_attendance = [a for a in current_attendance if a.staff_id in dept_staff_ids]
-        dept_on_time = sum(1 for a in dept_attendance if not a.is_late)
-        dept_punctuality = round((dept_on_time / len(dept_attendance)) * 100) if dept_attendance else 0
-        department_data.append(dept_punctuality)
+        if dept_staff:
+            dept_staff_ids = [s.id for s in dept_staff]
+            dept_attendance = [a for a in current_attendance if a.staff_id in dept_staff_ids]
+            dept_on_time = sum(1 for a in dept_attendance if not a.is_late)
+            dept_punctuality = round((dept_on_time / len(dept_attendance)) * 100) if dept_attendance else 0
+            department_labels.append(dept)
+            department_data.append(dept_punctuality)
     
     # Branch comparison
     branch_labels = []
-    branch_data = []
+    branch_attendance = []
+    branch_punctuality = []
+    
     for school in schools[:10]:
         school_staff = [s for s in all_staff if s.school_id == school.id]
-        school_staff_ids = [s.id for s in school_staff]
-        school_attendance = [a for a in current_attendance if a.staff_id in school_staff_ids]
-        
-        school_working_days = working_days
-        school_expected = len(school_staff) * school_working_days if school_staff else 1
-        school_rate = round((len(school_attendance) / school_expected) * 100, 1) if school_expected > 0 else 0
-        
-        branch_labels.append(school.short_name or school.name[:15])
-        branch_data.append(min(school_rate, 100))
+        if school_staff:
+            school_staff_ids = [s.id for s in school_staff]
+            school_att = [a for a in current_attendance if a.staff_id in school_staff_ids]
+            
+            school_working_days = working_days
+            school_expected = len(school_staff) * school_working_days if school_staff else 1
+            school_rate = round((len(school_att) / school_expected) * 100, 1) if school_expected > 0 else 0
+            
+            school_on_time = sum(1 for a in school_att if not a.is_late)
+            school_punct = round((school_on_time / len(school_att)) * 100, 1) if school_att else 100
+            
+            branch_labels.append(school.short_name or school.name[:15])
+            branch_attendance.append(min(school_rate, 100))
+            branch_punctuality.append(school_punct)
     
     # Top performers (most punctual)
     top_performers = []
@@ -1435,29 +1479,41 @@ def analytics():
         if s.department == 'Management':
             continue
         staff_attendance = [a for a in current_attendance if a.staff_id == s.id]
-        times_late = sum(1 for a in staff_attendance if a.is_late)
-        if times_late > 0:
+        late_count = sum(1 for a in staff_attendance if a.is_late)
+        if late_count > 0:
             needs_attention.append({
                 'name': s.name,
                 'branch': s.school.short_name or s.school.name if s.school else 'N/A',
-                'times_late': times_late
+                'late_count': late_count
             })
     
-    needs_attention.sort(key=lambda x: x['times_late'], reverse=True)
+    needs_attention.sort(key=lambda x: x['late_count'], reverse=True)
     needs_attention = needs_attention[:5]
     
     return render_template('analytics.html',
                          schools=schools,
-                         school_id=school_id,
+                         organizations=organizations,
+                         selected_school_id=school_id,
+                         selected_organization_id=organization_id,
                          period=period,
-                         metrics=metrics,
-                         trend_labels=json.dumps(trend_labels),
-                         trend_data=json.dumps(trend_data),
-                         late_by_day=json.dumps(late_by_day),
-                         department_labels=json.dumps(departments),
-                         department_data=json.dumps(department_data),
-                         branch_labels=json.dumps(branch_labels),
-                         branch_data=json.dumps(branch_data),
+                         start_date=start_date.strftime('%Y-%m-%d'),
+                         end_date=end_date.strftime('%Y-%m-%d'),
+                         attendance_rate=attendance_rate,
+                         attendance_trend=attendance_trend,
+                         punctuality_rate=punctuality_rate,
+                         punctuality_trend=punctuality_trend,
+                         total_staff=total_staff,
+                         branch_count=branch_count,
+                         total_records=total_records,
+                         trend_labels=trend_labels,
+                         trend_data=trend_data,
+                         punctuality_data=punctuality_data,
+                         late_by_day=late_by_day,
+                         department_labels=department_labels,
+                         department_data=department_data,
+                         branch_labels=branch_labels,
+                         branch_attendance=branch_attendance,
+                         branch_punctuality=branch_punctuality,
                          top_performers=top_performers,
                          needs_attention=needs_attention)
 
