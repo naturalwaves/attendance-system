@@ -885,6 +885,10 @@ def late_report():
         else:
             times_late = s.times_late
         
+        # Skip staff with no attendance in selected period (they are absent, not late)
+        if start_date and end_date and period_total == 0:
+            continue
+        
         if times_late > 0 or s.times_late > 0:
             if calc_mode == 'period' and start_date and end_date:
                 if period_total > 0:
@@ -982,6 +986,10 @@ def download_late_report():
             times_late = period_late
         else:
             times_late = s.times_late
+        
+        # Skip staff with no attendance in selected period (they are absent, not late)
+        if start_date and end_date and period_total == 0:
+            continue
         
         if times_late > 0 or s.times_late > 0:
             if calc_mode == 'period' and start_date and end_date:
