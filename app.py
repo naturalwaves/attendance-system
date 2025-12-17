@@ -1543,6 +1543,21 @@ def init_db():
         except:
             db.session.rollback()
         
+        # Create user_schools table if it doesn't exist
+        try:
+            db.session.execute(db.text('''
+                CREATE TABLE IF NOT EXISTS user_schools (
+                    user_id INTEGER NOT NULL,
+                    school_id INTEGER NOT NULL,
+                    PRIMARY KEY (user_id, school_id),
+                    FOREIGN KEY (user_id) REFERENCES users(id),
+                    FOREIGN KEY (school_id) REFERENCES schools(id)
+                )
+            '''))
+            db.session.commit()
+        except:
+            db.session.rollback()
+        
         # Create system_settings table data if not exists
         if not SystemSettings.query.first():
             settings = SystemSettings(company_name='Wakato Technologies')
@@ -1559,7 +1574,10 @@ def init_db():
     except Exception as e:
         return f'Error: {str(e)}'
 
+        
+
 if __name__ == '__main__':
     with app.app_context():
         db.create_all()
     app.run(debug=True, host='0.0.0.0', port=int(os.environ.get('PORT', 5000)))
+
