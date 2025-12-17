@@ -18,6 +18,87 @@ db = SQLAlchemy(app)
 login_manager = LoginManager(app)
 login_manager.login_view = 'login'
 
+# Run migrations on startup
+def run_migrations():
+    try:
+        from sqlalchemy import text
+        with db.engine.connect() as conn:
+            # Fix system_settings table
+            try:
+                conn.execute(text("CREATE TABLE IF NOT EXISTS system_settings (id SERIAL PRIMARY KEY, company_name VARCHAR(200) DEFAULT 'Attendance System', logo_url VARCHAR(500), updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP)"))
+                conn.commit()
+            except:
+                pass
+            try:
+                conn.execute(text("ALTER TABLE system_settings ADD COLUMN IF NOT EXISTS logo_url VARCHAR(500)"))
+                conn.execute(text("ALTER TABLE system_settings ADD COLUMN IF NOT EXISTS updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP"))
+                conn.commit()
+            except:
+                pass
+            
+            # Fix organization table
+            try:
+                conn.execute(text("CREATE TABLE IF NOT EXISTS organization (id SERIAL PRIMARY KEY, name VARCHAR(200) NOT NULL, logo_url VARCHAR(500), is_active BOOLEAN DEFAULT TRUE, created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP)"))
+                conn.commit()
+            except:
+                pass
+            
+            # Fix school table
+            try:
+                conn.execute(text("ALTER TABLE school ADD COLUMN IF NOT EXISTS organization_id INTEGER"))
+                conn.execute(text("ALTER TABLE school ADD COLUMN IF NOT EXISTS logo_url VARCHAR(500)"))
+                conn.execute(text("ALTER TABLE school ADD COLUMN IF NOT EXISTS is_active BOOLEAN DEFAULT TRUE"))
+                conn.execute(text("ALTER TABLE school ADD COLUMN IF NOT EXISTS start_time VARCHAR(10) DEFAULT '08:00'"))
+                conn.execute(text("ALTER TABLE school ADD COLUMN IF NOT EXISTS late_time VARCHAR(10) DEFAULT '08:15'"))
+                conn.execute(text("ALTER TABLE school ADD COLUMN IF NOT EXISTS close_time VARCHAR(10) DEFAULT '17:00'"))
+                conn.commit()
+            except:
+                pass
+            
+            # Fix users table
+            try:
+                conn.execute(text("ALTER TABLE users ADD COLUMN IF NOT EXISTS email VARCHAR(120)"))
+                conn.execute(text("ALTER TABLE users ADD COLUMN IF NOT EXISTS password_hash VARCHAR(256)"))
+                conn.execute(text("ALTER TABLE users ADD COLUMN IF NOT EXISTS role VARCHAR(20) DEFAULT 'school_admin'"))
+                conn.execute(text("ALTER TABLE users ADD COLUMN IF NOT EXISTS is_active BOOLEAN DEFAULT TRUE"))
+                conn.execute(text("ALTER TABLE users ADD COLUMN IF NOT EXISTS created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP"))
+                conn.commit()
+            except:
+                pass
+            
+            # Fix staff table
+            try:
+                conn.execute(text("ALTER TABLE staff ADD COLUMN IF NOT EXISTS late_count INTEGER DEFAULT 0"))
+                conn.execute(text("ALTER TABLE staff ADD COLUMN IF NOT EXISTS is_active BOOLEAN DEFAULT TRUE"))
+                conn.execute(text("ALTER TABLE staff ADD COLUMN IF NOT EXISTS created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP"))
+                conn.execute(text("ALTER TABLE staff ADD COLUMN IF NOT EXISTS photo_url VARCHAR(500)"))
+                conn.execute(text("ALTER TABLE staff ADD COLUMN IF NOT EXISTS email VARCHAR(120)"))
+                conn.execute(text("ALTER TABLE staff ADD COLUMN IF NOT EXISTS phone VARCHAR(20)"))
+                conn.execute(text("ALTER TABLE staff ADD COLUMN IF NOT EXISTS department VARCHAR(100)"))
+                conn.execute(text("ALTER TABLE staff ADD COLUMN IF NOT EXISTS position VARCHAR(100)"))
+                conn.commit()
+            except:
+                pass
+            
+            # Fix attendance table
+            try:
+                conn.execute(text("ALTER TABLE attendance ADD COLUMN IF NOT EXISTS overtime_minutes INTEGER DEFAULT 0"))
+                conn.execute(text("ALTER TABLE attendance ADD COLUMN IF NOT EXISTS created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP"))
+                conn.execute(text("ALTER TABLE attendance ADD COLUMN IF NOT EXISTS status VARCHAR(20)"))
+                conn.execute(text("ALTER TABLE attendance ADD COLUMN IF NOT EXISTS clock_out TIMESTAMP"))
+                conn.commit()
+            except:
+                pass
+            
+            # Create user_schools table
+            try:
+                conn.execute(text("CREATE TABLE IF NOT EXISTS user_schools (user_id INTEGER REFERENCES users(id), school_id INTEGER REFERENCES school(id), PRIMARY KEY (user_id, school_id))"))
+                conn.commit()
+            except:
+                pass
+    except Exception as e:
+        print(f"Migration error: {e}")
+
 # Association table for User-School many-to-many relationship
 user_schools = db.Table('user_schools',
     db.Column('user_id', db.Integer, db.ForeignKey('users.id'), primary_key=True),
@@ -108,7 +189,10 @@ class Attendance(db.Model):
 
 @login_manager.user_loader
 def load_user(user_id):
-    return User.query.get(int(user_id))
+    try:
+        return User.query.get(int(user_id))
+    except:
+        return None
 
 # Context processor for templates
 @app.context_processor
@@ -117,18 +201,17 @@ def utility_processor():
         return datetime.now()
     settings = None
     try:
-        from sqlalchemy import text
-        with db.engine.connect() as conn:
-            try:
-                conn.execute(text("ALTER TABLE system_settings ADD COLUMN IF NOT EXISTS logo_url VARCHAR(500)"))
-                conn.commit()
-            except:
-                pass
         settings = SystemSettings.query.first()
     except:
         pass
     return dict(now=now, system_settings=settings)
 
+# Run migrations before first request
+@app.before_request
+def before_request():
+    if not getattr(app, '_migrations_run', False):
+        run_migrations()
+        app._migrations_run = True
 
 # Routes
 @app.route('/')
@@ -145,14 +228,17 @@ def login():
     if request.method == 'POST':
         username = request.form.get('username')
         password = request.form.get('password')
-        user = User.query.filter_by(username=username).first()
-        
-        if user and user.check_password(password) and user.is_active:
-            login_user(user)
-            flash('Login successful!', 'success')
-            return redirect(url_for('dashboard'))
-        else:
-            flash('Invalid username or password', 'danger')
+        try:
+            user = User.query.filter_by(username=username).first()
+            
+            if user and user.check_password(password) and user.is_active:
+                login_user(user)
+                flash('Login successful!', 'success')
+                return redirect(url_for('dashboard'))
+            else:
+                flash('Invalid username or password', 'danger')
+        except Exception as e:
+            flash(f'Database error. Please visit /init-db first.', 'danger')
     
     return render_template('login.html')
 
@@ -1577,75 +1663,14 @@ def api_sync():
     
     return jsonify({'error': 'Invalid action'}), 400
 
-# Database initialization with safe migration
+# Database initialization
 @app.route('/init-db')
 def init_db():
     try:
-        from sqlalchemy import text
+        # Run migrations first
+        run_migrations()
         
-        with db.engine.connect() as conn:
-            # Add missing columns to users table
-            try:
-                conn.execute(text("ALTER TABLE users ADD COLUMN IF NOT EXISTS email VARCHAR(120)"))
-                conn.execute(text("ALTER TABLE users ADD COLUMN IF NOT EXISTS password_hash VARCHAR(256)"))
-                conn.execute(text("ALTER TABLE users ADD COLUMN IF NOT EXISTS role VARCHAR(20) DEFAULT 'school_admin'"))
-                conn.execute(text("ALTER TABLE users ADD COLUMN IF NOT EXISTS is_active BOOLEAN DEFAULT TRUE"))
-                conn.execute(text("ALTER TABLE users ADD COLUMN IF NOT EXISTS created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP"))
-                conn.commit()
-            except Exception as e:
-                print(f"Users table migration: {e}")
-            
-            # Add missing columns to school table
-            try:
-                conn.execute(text("ALTER TABLE school ADD COLUMN IF NOT EXISTS organization_id INTEGER"))
-                conn.execute(text("ALTER TABLE school ADD COLUMN IF NOT EXISTS logo_url VARCHAR(500)"))
-                conn.commit()
-            except Exception as e:
-                print(f"School table migration: {e}")
-            
-            # Create organization table
-            try:
-                conn.execute(text("""
-                    CREATE TABLE IF NOT EXISTS organization (
-                        id SERIAL PRIMARY KEY,
-                        name VARCHAR(200) NOT NULL,
-                        logo_url VARCHAR(500),
-                        is_active BOOLEAN DEFAULT TRUE,
-                        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-                    )
-                """))
-                conn.commit()
-            except Exception as e:
-                print(f"Organization table: {e}")
-            
-            # Create system_settings table
-            try:
-                conn.execute(text("""
-                    CREATE TABLE IF NOT EXISTS system_settings (
-                        id SERIAL PRIMARY KEY,
-                        company_name VARCHAR(200) DEFAULT 'Attendance System',
-                        logo_url VARCHAR(500),
-                        updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-                    )
-                """))
-                conn.commit()
-            except Exception as e:
-                print(f"System settings table: {e}")
-            
-            # Create user_schools table
-            try:
-                conn.execute(text("""
-                    CREATE TABLE IF NOT EXISTS user_schools (
-                        user_id INTEGER REFERENCES users(id),
-                        school_id INTEGER REFERENCES school(id),
-                        PRIMARY KEY (user_id, school_id)
-                    )
-                """))
-                conn.commit()
-            except Exception as e:
-                print(f"User schools table: {e}")
-        
-        # Create remaining tables
+        # Create all tables
         db.create_all()
         
         # Create or update admin user
@@ -1679,4 +1704,3 @@ def init_db():
 
 if __name__ == '__main__':
     app.run(debug=True)
-
