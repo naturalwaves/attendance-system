@@ -50,28 +50,85 @@
                 <i class="fas fa-info-circle me-2"></i>How Branding Works
             </div>
             <div class="card-body">
-                <h6>Super Admin / HR Viewer / CEO Viewer sees:</h6>
+                <h6>Super Admin sees:</h6>
                 <ul>
                     <li>Your company logo (set above)</li>
                     <li>Your company name (set above)</li>
                 </ul>
                 
-                <h6 class="mt-4">School Admin sees:</h6>
+                <h6 class="mt-4">HR Viewer / CEO Viewer / Branch Admin sees:</h6>
                 <ul>
-                    <li>Their school's logo (set in Schools → Edit School)</li>
-                    <li>Their school's name</li>
+                    <li>Their organization's logo</li>
+                    <li>Their organization's name</li>
                 </ul>
                 
                 <h6 class="mt-4">Kiosk shows:</h6>
                 <ul>
-                    <li>The school's logo (based on API key used)</li>
-                    <li>The school's name</li>
+                    <li>The branch's logo (based on API key used)</li>
+                    <li>The branch's name</li>
                 </ul>
                 
                 <div class="alert alert-info mt-4 mb-0">
                     <i class="fas fa-lightbulb me-2"></i>
                     <strong>Tip:</strong> Upload your logo to <a href="https://imgbb.com/" target="_blank">imgBB</a> and paste the direct image link here.
                 </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Organizations Section -->
+<div class="row mt-4">
+    <div class="col-12">
+        <div class="card">
+            <div class="card-header d-flex justify-content-between align-items-center">
+                <span><i class="fas fa-sitemap me-2"></i>Organizations</span>
+                <a href="{{ url_for('add_organization') }}" class="btn btn-primary btn-sm">
+                    <i class="fas fa-plus me-1"></i>Add Organization
+                </a>
+            </div>
+            <div class="card-body">
+                {% if organizations %}
+                <div class="table-responsive">
+                    <table class="table table-hover">
+                        <thead>
+                            <tr>
+                                <th>Logo</th>
+                                <th>Organization Name</th>
+                                <th>Branches</th>
+                                <th>Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for org in organizations %}
+                            <tr>
+                                <td>
+                                    {% if org.logo_url %}
+                                    <img src="{{ org.logo_url }}" alt="{{ org.name }}" style="max-height: 40px; border-radius: 4px;">
+                                    {% else %}
+                                    <span class="badge bg-secondary">No Logo</span>
+                                    {% endif %}
+                                </td>
+                                <td>{{ org.name }}</td>
+                                <td>
+                                    <span class="badge bg-info">{{ org.branches|length }} branches</span>
+                                </td>
+                                <td>
+                                    <a href="{{ url_for('edit_organization', id=org.id) }}" class="btn btn-sm btn-outline-primary">
+                                        <i class="fas fa-edit"></i>
+                                    </a>
+                                    <a href="{{ url_for('delete_organization', id=org.id) }}" class="btn btn-sm btn-outline-danger" onclick="return confirm('Are you sure you want to delete this organization?');">
+                                        <i class="fas fa-trash"></i>
+                                    </a>
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+                {% else %}
+                <p class="text-muted mb-0">No organizations yet. Click "Add Organization" to create one.</p>
+                {% endif %}
             </div>
         </div>
     </div>
