@@ -18,229 +18,9 @@ db = SQLAlchemy(app)
 login_manager = LoginManager(app)
 login_manager.login_view = 'login'
 
-# Run migrations on startup
-def run_migrations():
-    try:
-        from sqlalchemy import text
-        with db.engine.connect() as conn:
-            # Fix system_settings table
-            try:
-                conn.execute(text("CREATE TABLE IF NOT EXISTS system_settings (id SERIAL PRIMARY KEY, company_name VARCHAR(200) DEFAULT 'Attendance System', logo_url VARCHAR(500), updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP)"))
-                conn.commit()
-            except:
-                pass
-            try:
-                conn.execute(text("ALTER TABLE system_settings ADD COLUMN IF NOT EXISTS logo_url VARCHAR(500)"))
-                conn.execute(text("ALTER TABLE system_settings ADD COLUMN IF NOT EXISTS updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP"))
-                conn.commit()
-            except:
-                pass
-            
-            # Fix organization table
-            try:
-                conn.execute(text("CREATE TABLE IF NOT EXISTS organization (id SERIAL PRIMARY KEY, name VARCHAR(200) NOT NULL, logo_url VARCHAR(500), is_active BOOLEAN DEFAULT TRUE, created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP)"))
-                conn.commit()
-            except:
-                pass
-            try:
-                conn.execute(text("UPDATE organization SET is_active = TRUE WHERE is_active IS NULL"))
-                conn.commit()
-            except:
-                pass
-            
-            # Fix school table - ADD COLUMNS
-            try:
-                conn.execute(text("ALTER TABLE school ADD COLUMN IF NOT EXISTS organization_id INTEGER"))
-                conn.commit()
-            except:
-                pass
-            try:
-                conn.execute(text("ALTER TABLE school ADD COLUMN IF NOT EXISTS logo_url VARCHAR(500)"))
-                conn.commit()
-            except:
-                pass
-            try:
-                conn.execute(text("ALTER TABLE school ADD COLUMN IF NOT EXISTS is_active BOOLEAN DEFAULT TRUE"))
-                conn.commit()
-            except:
-                pass
-            try:
-                conn.execute(text("ALTER TABLE school ADD COLUMN IF NOT EXISTS start_time VARCHAR(10) DEFAULT '08:00'"))
-                conn.commit()
-            except:
-                pass
-            try:
-                conn.execute(text("ALTER TABLE school ADD COLUMN IF NOT EXISTS late_time VARCHAR(10) DEFAULT '08:15'"))
-                conn.commit()
-            except:
-                pass
-            try:
-                conn.execute(text("ALTER TABLE school ADD COLUMN IF NOT EXISTS close_time VARCHAR(10) DEFAULT '17:00'"))
-                conn.commit()
-            except:
-                pass
-            try:
-                conn.execute(text("ALTER TABLE school ADD COLUMN IF NOT EXISTS address VARCHAR(500)"))
-                conn.commit()
-            except:
-                pass
-            
-            # Fix school table - UPDATE NULL VALUES
-            try:
-                conn.execute(text("UPDATE school SET is_active = TRUE WHERE is_active IS NULL"))
-                conn.commit()
-            except:
-                pass
-            try:
-                conn.execute(text("UPDATE school SET start_time = '08:00' WHERE start_time IS NULL"))
-                conn.commit()
-            except:
-                pass
-            try:
-                conn.execute(text("UPDATE school SET late_time = '08:15' WHERE late_time IS NULL"))
-                conn.commit()
-            except:
-                pass
-            try:
-                conn.execute(text("UPDATE school SET close_time = '17:00' WHERE close_time IS NULL"))
-                conn.commit()
-            except:
-                pass
-            
-            # Fix users table - ADD COLUMNS
-            try:
-                conn.execute(text("ALTER TABLE users ADD COLUMN IF NOT EXISTS email VARCHAR(120)"))
-                conn.commit()
-            except:
-                pass
-            try:
-                conn.execute(text("ALTER TABLE users ADD COLUMN IF NOT EXISTS password_hash VARCHAR(256)"))
-                conn.commit()
-            except:
-                pass
-            try:
-                conn.execute(text("ALTER TABLE users ADD COLUMN IF NOT EXISTS role VARCHAR(20) DEFAULT 'school_admin'"))
-                conn.commit()
-            except:
-                pass
-            try:
-                conn.execute(text("ALTER TABLE users ADD COLUMN IF NOT EXISTS is_active BOOLEAN DEFAULT TRUE"))
-                conn.commit()
-            except:
-                pass
-            try:
-                conn.execute(text("ALTER TABLE users ADD COLUMN IF NOT EXISTS created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP"))
-                conn.commit()
-            except:
-                pass
-            
-            # Fix users table - UPDATE NULL VALUES
-            try:
-                conn.execute(text("UPDATE users SET is_active = TRUE WHERE is_active IS NULL"))
-                conn.commit()
-            except:
-                pass
-            try:
-                conn.execute(text("UPDATE users SET role = 'school_admin' WHERE role IS NULL"))
-                conn.commit()
-            except:
-                pass
-            
-            # Fix staff table - ADD COLUMNS
-            try:
-                conn.execute(text("ALTER TABLE staff ADD COLUMN IF NOT EXISTS late_count INTEGER DEFAULT 0"))
-                conn.commit()
-            except:
-                pass
-            try:
-                conn.execute(text("ALTER TABLE staff ADD COLUMN IF NOT EXISTS is_active BOOLEAN DEFAULT TRUE"))
-                conn.commit()
-            except:
-                pass
-            try:
-                conn.execute(text("ALTER TABLE staff ADD COLUMN IF NOT EXISTS created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP"))
-                conn.commit()
-            except:
-                pass
-            try:
-                conn.execute(text("ALTER TABLE staff ADD COLUMN IF NOT EXISTS photo_url VARCHAR(500)"))
-                conn.commit()
-            except:
-                pass
-            try:
-                conn.execute(text("ALTER TABLE staff ADD COLUMN IF NOT EXISTS email VARCHAR(120)"))
-                conn.commit()
-            except:
-                pass
-            try:
-                conn.execute(text("ALTER TABLE staff ADD COLUMN IF NOT EXISTS phone VARCHAR(20)"))
-                conn.commit()
-            except:
-                pass
-            try:
-                conn.execute(text("ALTER TABLE staff ADD COLUMN IF NOT EXISTS department VARCHAR(100)"))
-                conn.commit()
-            except:
-                pass
-            try:
-                conn.execute(text("ALTER TABLE staff ADD COLUMN IF NOT EXISTS position VARCHAR(100)"))
-                conn.commit()
-            except:
-                pass
-            
-            # Fix staff table - UPDATE NULL VALUES
-            try:
-                conn.execute(text("UPDATE staff SET is_active = TRUE WHERE is_active IS NULL"))
-                conn.commit()
-            except:
-                pass
-            try:
-                conn.execute(text("UPDATE staff SET late_count = 0 WHERE late_count IS NULL"))
-                conn.commit()
-            except:
-                pass
-            
-            # Fix attendance table - ADD COLUMNS
-            try:
-                conn.execute(text("ALTER TABLE attendance ADD COLUMN IF NOT EXISTS overtime_minutes INTEGER DEFAULT 0"))
-                conn.commit()
-            except:
-                pass
-            try:
-                conn.execute(text("ALTER TABLE attendance ADD COLUMN IF NOT EXISTS created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP"))
-                conn.commit()
-            except:
-                pass
-            try:
-                conn.execute(text("ALTER TABLE attendance ADD COLUMN IF NOT EXISTS status VARCHAR(20)"))
-                conn.commit()
-            except:
-                pass
-            try:
-                conn.execute(text("ALTER TABLE attendance ADD COLUMN IF NOT EXISTS clock_out TIMESTAMP"))
-                conn.commit()
-            except:
-                pass
-            
-            # Fix attendance table - UPDATE NULL VALUES
-            try:
-                conn.execute(text("UPDATE attendance SET overtime_minutes = 0 WHERE overtime_minutes IS NULL"))
-                conn.commit()
-            except:
-                pass
-            
-            # Create user_schools table
-            try:
-                conn.execute(text("CREATE TABLE IF NOT EXISTS user_schools (user_id INTEGER REFERENCES users(id), school_id INTEGER REFERENCES school(id), PRIMARY KEY (user_id, school_id))"))
-                conn.commit()
-            except:
-                pass
-    except Exception as e:
-        print(f"Migration error: {e}")
-
 # Association table for User-School many-to-many relationship
 user_schools = db.Table('user_schools',
-    db.Column('user_id', db.Integer, db.ForeignKey('users.id'), primary_key=True),
+    db.Column('user_id', db.Integer, db.ForeignKey('user.id'), primary_key=True),
     db.Column('school_id', db.Integer, db.ForeignKey('school.id'), primary_key=True)
 )
 
@@ -273,7 +53,6 @@ class School(db.Model):
     attendance = db.relationship('Attendance', backref='school', lazy=True)
 
 class User(UserMixin, db.Model):
-    __tablename__ = 'users'
     id = db.Column(db.Integer, primary_key=True)
     username = db.Column(db.String(80), unique=True, nullable=False)
     email = db.Column(db.String(120), unique=True, nullable=False)
@@ -328,29 +107,15 @@ class Attendance(db.Model):
 
 @login_manager.user_loader
 def load_user(user_id):
-    try:
-        return User.query.get(int(user_id))
-    except:
-        return None
+    return User.query.get(int(user_id))
 
 # Context processor for templates
 @app.context_processor
 def utility_processor():
     def now():
         return datetime.now()
-    settings = None
-    try:
-        settings = SystemSettings.query.first()
-    except:
-        pass
+    settings = SystemSettings.query.first()
     return dict(now=now, system_settings=settings)
-
-# Run migrations before first request
-@app.before_request
-def before_request():
-    if not getattr(app, '_migrations_run', False):
-        run_migrations()
-        app._migrations_run = True
 
 # Routes
 @app.route('/')
@@ -367,17 +132,14 @@ def login():
     if request.method == 'POST':
         username = request.form.get('username')
         password = request.form.get('password')
-        try:
-            user = User.query.filter_by(username=username).first()
-            
-            if user and user.check_password(password) and user.is_active:
-                login_user(user)
-                flash('Login successful!', 'success')
-                return redirect(url_for('dashboard'))
-            else:
-                flash('Invalid username or password', 'danger')
-        except Exception as e:
-            flash(f'Database error. Please visit /init-db first.', 'danger')
+        user = User.query.filter_by(username=username).first()
+        
+        if user and user.check_password(password) and user.is_active:
+            login_user(user)
+            flash('Login successful!', 'success')
+            return redirect(url_for('dashboard'))
+        else:
+            flash('Invalid username or password', 'danger')
     
     return render_template('login.html')
 
@@ -393,35 +155,27 @@ def logout():
 def dashboard():
     today = datetime.now().date()
     
-    # Super admin sees all schools directly from database
     if current_user.role == 'super_admin':
-        schools = School.query.all()  # Get ALL schools, not just active ones
+        schools = School.query.filter_by(is_active=True).all()
         total_schools = len(schools)
-        total_staff = Staff.query.count()  # Get ALL staff
-        total_users = User.query.count()
+        total_staff = Staff.query.filter_by(is_active=True).count()
+        total_users = User.query.filter_by(is_active=True).count()
     else:
-        schools = current_user.schools if current_user.schools else []
+        schools = current_user.schools
         total_schools = len(schools)
         school_ids = [s.id for s in schools]
-        if school_ids:
-            total_staff = Staff.query.filter(Staff.school_id.in_(school_ids)).count()
-        else:
-            total_staff = 0
+        total_staff = Staff.query.filter(Staff.school_id.in_(school_ids), Staff.is_active == True).count()
         total_users = None
     
-    school_ids = [s.id for s in schools] if schools else []
-    
-    if school_ids:
-        today_attendance = Attendance.query.filter(
-            Attendance.school_id.in_(school_ids),
-            Attendance.date == today
-        ).count()
-    else:
-        today_attendance = 0
+    school_ids = [s.id for s in schools]
+    today_attendance = Attendance.query.filter(
+        Attendance.school_id.in_(school_ids),
+        Attendance.date == today
+    ).count()
     
     school_stats = []
     for school in schools:
-        staff_count = Staff.query.filter_by(school_id=school.id).count()
+        staff_count = Staff.query.filter_by(school_id=school.id, is_active=True).count()
         today_present = Attendance.query.filter_by(school_id=school.id, date=today).count()
         attendance_rate = (today_present / staff_count * 100) if staff_count > 0 else 0
         school_stats.append({
@@ -445,8 +199,8 @@ def schools():
     if current_user.role == 'super_admin':
         schools = School.query.all()
     else:
-        schools = current_user.schools if current_user.schools else []
-    organizations = Organization.query.all()
+        schools = current_user.schools
+    organizations = Organization.query.filter_by(is_active=True).all()
     return render_template('schools.html', schools=schools, organizations=organizations)
 
 @app.route('/schools/add', methods=['GET', 'POST'])
@@ -464,15 +218,14 @@ def add_school():
             start_time=request.form.get('start_time', '08:00'),
             late_time=request.form.get('late_time', '08:15'),
             close_time=request.form.get('close_time', '17:00'),
-            organization_id=request.form.get('organization_id') or None,
-            is_active=True
+            organization_id=request.form.get('organization_id') or None
         )
         db.session.add(school)
         db.session.commit()
         flash('Branch added successfully!', 'success')
         return redirect(url_for('schools'))
     
-    organizations = Organization.query.all()
+    organizations = Organization.query.filter_by(is_active=True).all()
     return render_template('add_school.html', organizations=organizations)
 
 @app.route('/schools/<int:id>/edit', methods=['GET', 'POST'])
@@ -497,7 +250,7 @@ def edit_school(id):
         flash('Branch updated successfully!', 'success')
         return redirect(url_for('schools'))
     
-    organizations = Organization.query.all()
+    organizations = Organization.query.filter_by(is_active=True).all()
     return render_template('edit_school.html', school=school, organizations=organizations)
 
 # Organization Management
@@ -521,8 +274,7 @@ def add_organization():
     if request.method == 'POST':
         org = Organization(
             name=request.form.get('name'),
-            logo_url=request.form.get('logo_url'),
-            is_active=True
+            logo_url=request.form.get('logo_url')
         )
         db.session.add(org)
         db.session.commit()
@@ -556,14 +308,11 @@ def edit_organization(id):
 def staff_list():
     if current_user.role == 'super_admin':
         staff = Staff.query.all()
-        schools = School.query.all()
+        schools = School.query.filter_by(is_active=True).all()
     else:
-        schools = current_user.schools if current_user.schools else []
-        school_ids = [s.id for s in schools]
-        if school_ids:
-            staff = Staff.query.filter(Staff.school_id.in_(school_ids)).all()
-        else:
-            staff = []
+        school_ids = [s.id for s in current_user.schools]
+        staff = Staff.query.filter(Staff.school_id.in_(school_ids)).all()
+        schools = current_user.schools
     
     return render_template('staff_list.html', staff=staff, schools=schools)
 
@@ -571,9 +320,9 @@ def staff_list():
 @login_required
 def add_staff():
     if current_user.role == 'super_admin':
-        schools = School.query.all()
+        schools = School.query.filter_by(is_active=True).all()
     else:
-        schools = current_user.schools if current_user.schools else []
+        schools = current_user.schools
     
     if request.method == 'POST':
         school_id = request.form.get('school_id')
@@ -592,9 +341,7 @@ def add_staff():
             department=request.form.get('department'),
             position=request.form.get('position'),
             photo_url=request.form.get('photo_url'),
-            school_id=school_id,
-            is_active=True,
-            late_count=0
+            school_id=school_id
         )
         db.session.add(staff)
         db.session.commit()
@@ -609,15 +356,15 @@ def edit_staff(id):
     staff = Staff.query.get_or_404(id)
     
     if current_user.role != 'super_admin':
-        school_ids = [s.id for s in current_user.schools] if current_user.schools else []
+        school_ids = [s.id for s in current_user.schools]
         if staff.school_id not in school_ids:
             flash('Access denied', 'danger')
             return redirect(url_for('staff_list'))
     
     if current_user.role == 'super_admin':
-        schools = School.query.all()
+        schools = School.query.filter_by(is_active=True).all()
     else:
-        schools = current_user.schools if current_user.schools else []
+        schools = current_user.schools
     
     if request.method == 'POST':
         staff.staff_id = request.form.get('staff_id')
@@ -639,15 +386,15 @@ def edit_staff(id):
 @login_required
 def upload_staff():
     if current_user.role == 'super_admin':
-        schools = School.query.all()
+        schools = School.query.filter_by(is_active=True).all()
     else:
-        schools = current_user.schools if current_user.schools else []
+        schools = current_user.schools
     
     if request.method == 'POST':
         school_id = request.form.get('school_id')
         
         if current_user.role != 'super_admin':
-            school_ids = [s.id for s in current_user.schools] if current_user.schools else []
+            school_ids = [s.id for s in current_user.schools]
             if int(school_id) not in school_ids:
                 flash('Access denied', 'danger')
                 return redirect(url_for('staff_list'))
@@ -676,9 +423,7 @@ def upload_staff():
                             phone=row.get('phone', '').strip(),
                             department=row.get('department', '').strip(),
                             position=row.get('position', '').strip(),
-                            school_id=school_id,
-                            is_active=True,
-                            late_count=0
+                            school_id=school_id
                         )
                         db.session.add(staff)
                         count += 1
@@ -711,7 +456,7 @@ def add_user():
         flash('Access denied', 'danger')
         return redirect(url_for('dashboard'))
     
-    schools = School.query.all()
+    schools = School.query.filter_by(is_active=True).all()
     
     if request.method == 'POST':
         username = request.form.get('username')
@@ -728,7 +473,7 @@ def add_user():
             flash('Email already exists', 'danger')
             return redirect(url_for('add_user'))
         
-        user = User(username=username, email=email, role=role, is_active=True)
+        user = User(username=username, email=email, role=role)
         user.set_password(password)
         
         for school_id in school_ids:
@@ -751,7 +496,7 @@ def edit_user(id):
         return redirect(url_for('dashboard'))
     
     user = User.query.get_or_404(id)
-    schools = School.query.all()
+    schools = School.query.filter_by(is_active=True).all()
     
     if request.method == 'POST':
         user.username = request.form.get('username')
@@ -793,13 +538,13 @@ def attendance_report():
         selected_date = datetime.now().date()
     
     if current_user.role == 'super_admin':
-        schools = School.query.all()
-        organizations = Organization.query.all()
+        schools = School.query.filter_by(is_active=True).all()
+        organizations = Organization.query.filter_by(is_active=True).all()
     elif current_user.role in ['hr_viewer', 'ceo_viewer']:
         organizations = current_user.get_accessible_organizations()
-        schools = list(current_user.schools) if current_user.schools else []
+        schools = [s for s in current_user.schools if s.is_active]
     else:
-        schools = list(current_user.schools) if current_user.schools else []
+        schools = [s for s in current_user.schools if s.is_active]
         organizations = []
     
     if selected_organization_id:
@@ -809,16 +554,13 @@ def attendance_report():
         school_ids = [selected_school_id]
         selected_school = School.query.get(selected_school_id)
     else:
-        school_ids = [s.id for s in schools] if schools else []
+        school_ids = [s.id for s in schools]
         selected_school = None
     
-    if school_ids:
-        attendance = Attendance.query.filter(
-            Attendance.school_id.in_(school_ids),
-            Attendance.date == selected_date
-        ).all()
-    else:
-        attendance = []
+    attendance = Attendance.query.filter(
+        Attendance.school_id.in_(school_ids),
+        Attendance.date == selected_date
+    ).all()
     
     total = len(attendance)
     on_time = sum(1 for a in attendance if a.status == 'on_time')
@@ -848,22 +590,19 @@ def download_attendance():
         selected_date = datetime.now().date()
     
     if current_user.role == 'super_admin':
-        schools = School.query.all()
+        schools = School.query.filter_by(is_active=True).all()
     else:
-        schools = current_user.schools if current_user.schools else []
+        schools = current_user.schools
     
     if selected_school_id:
         school_ids = [selected_school_id]
     else:
-        school_ids = [s.id for s in schools] if schools else []
+        school_ids = [s.id for s in schools]
     
-    if school_ids:
-        attendance = Attendance.query.filter(
-            Attendance.school_id.in_(school_ids),
-            Attendance.date == selected_date
-        ).all()
-    else:
-        attendance = []
+    attendance = Attendance.query.filter(
+        Attendance.school_id.in_(school_ids),
+        Attendance.date == selected_date
+    ).all()
     
     output = io.StringIO()
     writer = csv.writer(output)
@@ -900,13 +639,13 @@ def late_report():
     selected_organization_id = request.args.get('organization_id', type=int)
     
     if current_user.role == 'super_admin':
-        schools = School.query.all()
-        organizations = Organization.query.all()
+        schools = School.query.filter_by(is_active=True).all()
+        organizations = Organization.query.filter_by(is_active=True).all()
     elif current_user.role in ['hr_viewer', 'ceo_viewer']:
         organizations = current_user.get_accessible_organizations()
-        schools = list(current_user.schools) if current_user.schools else []
+        schools = [s for s in current_user.schools if s.is_active]
     else:
-        schools = list(current_user.schools) if current_user.schools else []
+        schools = [s for s in current_user.schools if s.is_active]
         organizations = []
     
     if selected_organization_id:
@@ -916,13 +655,10 @@ def late_report():
         school_ids = [selected_school_id]
         selected_school = School.query.get(selected_school_id)
     else:
-        school_ids = [s.id for s in schools] if schools else []
+        school_ids = [s.id for s in schools]
         selected_school = None
     
-    if school_ids:
-        staff_list = Staff.query.filter(Staff.school_id.in_(school_ids)).all()
-    else:
-        staff_list = []
+    staff_list = Staff.query.filter(Staff.school_id.in_(school_ids), Staff.is_active == True).all()
     
     late_staff = []
     for staff in staff_list:
@@ -949,14 +685,14 @@ def late_report():
                 period_total = 0
                 punctuality = 100
         else:
-            period_late = staff.late_count if staff.late_count else 0
+            period_late = staff.late_count
             period_total = Attendance.query.filter_by(staff_id=staff.id).count()
             period_on_time = period_total - period_late
             punctuality = (period_on_time / period_total * 100) if period_total > 0 else 100
         
         late_staff.append({
             'staff': staff,
-            'late_count': period_late if start_date and end_date else (staff.late_count if staff.late_count else 0),
+            'late_count': period_late if start_date and end_date else staff.late_count,
             'total_attendance': period_total,
             'punctuality': round(punctuality, 1)
         })
@@ -981,19 +717,16 @@ def download_late_report():
     selected_school_id = request.args.get('school_id', type=int)
     
     if current_user.role == 'super_admin':
-        schools = School.query.all()
+        schools = School.query.filter_by(is_active=True).all()
     else:
-        schools = current_user.schools if current_user.schools else []
+        schools = current_user.schools
     
     if selected_school_id:
         school_ids = [selected_school_id]
     else:
-        school_ids = [s.id for s in schools] if schools else []
+        school_ids = [s.id for s in schools]
     
-    if school_ids:
-        staff_list = Staff.query.filter(Staff.school_id.in_(school_ids)).all()
-    else:
-        staff_list = []
+    staff_list = Staff.query.filter(Staff.school_id.in_(school_ids), Staff.is_active == True).all()
     
     output = io.StringIO()
     writer = csv.writer(output)
@@ -1019,10 +752,10 @@ def download_late_report():
                 late_count = period_late
             except:
                 period_total = Attendance.query.filter_by(staff_id=staff.id).count()
-                late_count = staff.late_count if staff.late_count else 0
+                late_count = staff.late_count
         else:
             period_total = Attendance.query.filter_by(staff_id=staff.id).count()
-            late_count = staff.late_count if staff.late_count else 0
+            late_count = staff.late_count
         
         period_on_time = period_total - late_count
         punctuality = (period_on_time / period_total * 100) if period_total > 0 else 100
@@ -1082,13 +815,13 @@ def absent_report():
         selected_date = datetime.now().date()
     
     if current_user.role == 'super_admin':
-        schools = School.query.all()
-        organizations = Organization.query.all()
+        schools = School.query.filter_by(is_active=True).all()
+        organizations = Organization.query.filter_by(is_active=True).all()
     elif current_user.role in ['hr_viewer', 'ceo_viewer']:
         organizations = current_user.get_accessible_organizations()
-        schools = list(current_user.schools) if current_user.schools else []
+        schools = [s for s in current_user.schools if s.is_active]
     else:
-        schools = list(current_user.schools) if current_user.schools else []
+        schools = [s for s in current_user.schools if s.is_active]
         organizations = []
     
     if selected_organization_id:
@@ -1098,21 +831,18 @@ def absent_report():
         school_ids = [selected_school_id]
         selected_school = School.query.get(selected_school_id)
     else:
-        school_ids = [s.id for s in schools] if schools else []
+        school_ids = [s.id for s in schools]
         selected_school = None
     
-    if school_ids:
-        all_staff = Staff.query.filter(Staff.school_id.in_(school_ids)).all()
-        
-        present_staff_ids = db.session.query(Attendance.staff_id).filter(
-            Attendance.school_id.in_(school_ids),
-            Attendance.date == selected_date
-        ).all()
-        present_staff_ids = [p[0] for p in present_staff_ids]
-        
-        absent_staff = [s for s in all_staff if s.id not in present_staff_ids]
-    else:
-        absent_staff = []
+    all_staff = Staff.query.filter(Staff.school_id.in_(school_ids), Staff.is_active == True).all()
+    
+    present_staff_ids = db.session.query(Attendance.staff_id).filter(
+        Attendance.school_id.in_(school_ids),
+        Attendance.date == selected_date
+    ).all()
+    present_staff_ids = [p[0] for p in present_staff_ids]
+    
+    absent_staff = [s for s in all_staff if s.id not in present_staff_ids]
     
     return render_template('absent_report.html',
                          absent_staff=absent_staff,
@@ -1135,27 +865,24 @@ def download_absent_report():
         selected_date = datetime.now().date()
     
     if current_user.role == 'super_admin':
-        schools = School.query.all()
+        schools = School.query.filter_by(is_active=True).all()
     else:
-        schools = current_user.schools if current_user.schools else []
+        schools = current_user.schools
     
     if selected_school_id:
         school_ids = [selected_school_id]
     else:
-        school_ids = [s.id for s in schools] if schools else []
+        school_ids = [s.id for s in schools]
     
-    if school_ids:
-        all_staff = Staff.query.filter(Staff.school_id.in_(school_ids)).all()
-        
-        present_staff_ids = db.session.query(Attendance.staff_id).filter(
-            Attendance.school_id.in_(school_ids),
-            Attendance.date == selected_date
-        ).all()
-        present_staff_ids = [p[0] for p in present_staff_ids]
-        
-        absent_staff = [s for s in all_staff if s.id not in present_staff_ids]
-    else:
-        absent_staff = []
+    all_staff = Staff.query.filter(Staff.school_id.in_(school_ids), Staff.is_active == True).all()
+    
+    present_staff_ids = db.session.query(Attendance.staff_id).filter(
+        Attendance.school_id.in_(school_ids),
+        Attendance.date == selected_date
+    ).all()
+    present_staff_ids = [p[0] for p in present_staff_ids]
+    
+    absent_staff = [s for s in all_staff if s.id not in present_staff_ids]
     
     output = io.StringIO()
     writer = csv.writer(output)
@@ -1190,13 +917,13 @@ def overtime_report():
     selected_organization_id = request.args.get('organization_id', type=int)
     
     if current_user.role == 'super_admin':
-        schools = School.query.all()
-        organizations = Organization.query.all()
+        schools = School.query.filter_by(is_active=True).all()
+        organizations = Organization.query.filter_by(is_active=True).all()
     elif current_user.role in ['hr_viewer', 'ceo_viewer']:
         organizations = current_user.get_accessible_organizations()
-        schools = list(current_user.schools) if current_user.schools else []
+        schools = [s for s in current_user.schools if s.is_active]
     else:
-        schools = list(current_user.schools) if current_user.schools else []
+        schools = [s for s in current_user.schools if s.is_active]
         organizations = []
     
     if selected_organization_id:
@@ -1206,26 +933,23 @@ def overtime_report():
         school_ids = [selected_school_id]
         selected_school = School.query.get(selected_school_id)
     else:
-        school_ids = [s.id for s in schools] if schools else []
+        school_ids = [s.id for s in schools]
         selected_school = None
     
-    if school_ids:
-        query = Attendance.query.filter(
-            Attendance.school_id.in_(school_ids),
-            Attendance.overtime_minutes > 0
-        )
-        
-        if start_date and end_date:
-            try:
-                start = datetime.strptime(start_date, '%Y-%m-%d').date()
-                end = datetime.strptime(end_date, '%Y-%m-%d').date()
-                query = query.filter(Attendance.date >= start, Attendance.date <= end)
-            except:
-                pass
-        
-        overtime_records = query.all()
-    else:
-        overtime_records = []
+    query = Attendance.query.filter(
+        Attendance.school_id.in_(school_ids),
+        Attendance.overtime_minutes > 0
+    )
+    
+    if start_date and end_date:
+        try:
+            start = datetime.strptime(start_date, '%Y-%m-%d').date()
+            end = datetime.strptime(end_date, '%Y-%m-%d').date()
+            query = query.filter(Attendance.date >= start, Attendance.date <= end)
+        except:
+            pass
+    
+    overtime_records = query.all()
     
     staff_overtime = {}
     for record in overtime_records:
@@ -1259,32 +983,29 @@ def download_overtime_report():
     selected_school_id = request.args.get('school_id', type=int)
     
     if current_user.role == 'super_admin':
-        schools = School.query.all()
+        schools = School.query.filter_by(is_active=True).all()
     else:
-        schools = current_user.schools if current_user.schools else []
+        schools = current_user.schools
     
     if selected_school_id:
         school_ids = [selected_school_id]
     else:
-        school_ids = [s.id for s in schools] if schools else []
+        school_ids = [s.id for s in schools]
     
-    if school_ids:
-        query = Attendance.query.filter(
-            Attendance.school_id.in_(school_ids),
-            Attendance.overtime_minutes > 0
-        )
-        
-        if start_date and end_date:
-            try:
-                start = datetime.strptime(start_date, '%Y-%m-%d').date()
-                end = datetime.strptime(end_date, '%Y-%m-%d').date()
-                query = query.filter(Attendance.date >= start, Attendance.date <= end)
-            except:
-                pass
-        
-        overtime_records = query.all()
-    else:
-        overtime_records = []
+    query = Attendance.query.filter(
+        Attendance.school_id.in_(school_ids),
+        Attendance.overtime_minutes > 0
+    )
+    
+    if start_date and end_date:
+        try:
+            start = datetime.strptime(start_date, '%Y-%m-%d').date()
+            end = datetime.strptime(end_date, '%Y-%m-%d').date()
+            query = query.filter(Attendance.date >= start, Attendance.date <= end)
+        except:
+            pass
+    
+    overtime_records = query.all()
     
     staff_overtime = {}
     for record in overtime_records:
@@ -1365,16 +1086,18 @@ def analytics():
         period = '30'
     
     if current_user.role == 'super_admin':
-        all_schools = School.query.all()
-        organizations = Organization.query.all()
+        all_schools = School.query.filter_by(is_active=True).all()
+        organizations = Organization.query.filter_by(is_active=True).all()
     elif current_user.role in ['hr_viewer', 'ceo_viewer']:
         organizations = current_user.get_accessible_organizations()
-        all_schools = list(current_user.schools) if current_user.schools else []
+        all_schools = School.query.filter_by(is_active=True).filter(
+            School.id.in_([s.id for s in current_user.schools])
+        ).all()
     else:
-        all_schools = list(current_user.schools) if current_user.schools else []
+        all_schools = list(current_user.schools)
         organizations = []
     
-    schools = list(all_schools)
+    schools = all_schools.copy() if isinstance(all_schools, list) else list(all_schools)
     
     if selected_organization_id:
         schools = [s for s in schools if s.organization_id == selected_organization_id]
@@ -1382,23 +1105,18 @@ def analytics():
     if selected_school_id:
         schools = [s for s in schools if s.id == selected_school_id]
     
-    school_ids = [s.id for s in schools] if schools else []
+    school_ids = [s.id for s in schools]
     
-    if school_ids:
-        total_staff = Staff.query.filter(Staff.school_id.in_(school_ids)).count()
-    else:
-        total_staff = 0
+    staff_query = Staff.query.filter(Staff.school_id.in_(school_ids), Staff.is_active == True)
+    total_staff = staff_query.count()
     branch_count = len(schools)
     
-    if school_ids:
-        attendance_query = Attendance.query.filter(
-            Attendance.school_id.in_(school_ids),
-            Attendance.date >= start_date,
-            Attendance.date <= end_date
-        )
-        total_records = attendance_query.count()
-    else:
-        total_records = 0
+    attendance_query = Attendance.query.filter(
+        Attendance.school_id.in_(school_ids),
+        Attendance.date >= start_date,
+        Attendance.date <= end_date
+    )
+    total_records = attendance_query.count()
     
     total_days = 0
     current_date = start_date
@@ -1410,26 +1128,19 @@ def analytics():
     total_possible = total_staff * total_days
     attendance_rate = (total_records / total_possible * 100) if total_possible > 0 else 0
     
-    if school_ids and total_records > 0:
-        on_time_records = attendance_query.filter(Attendance.status == 'on_time').count()
-        punctuality_rate = (on_time_records / total_records * 100)
-    else:
-        on_time_records = 0
-        punctuality_rate = 0
+    on_time_records = attendance_query.filter(Attendance.status == 'on_time').count()
+    punctuality_rate = (on_time_records / total_records * 100) if total_records > 0 else 0
     
     period_days = (end_date - start_date).days + 1
     prev_start = start_date - timedelta(days=period_days)
     prev_end = start_date - timedelta(days=1)
     
-    if school_ids:
-        prev_attendance = Attendance.query.filter(
-            Attendance.school_id.in_(school_ids),
-            Attendance.date >= prev_start,
-            Attendance.date <= prev_end
-        )
-        prev_total = prev_attendance.count()
-    else:
-        prev_total = 0
+    prev_attendance = Attendance.query.filter(
+        Attendance.school_id.in_(school_ids),
+        Attendance.date >= prev_start,
+        Attendance.date <= prev_end
+    )
+    prev_total = prev_attendance.count()
     
     prev_total_days = 0
     current_date = prev_start
@@ -1442,11 +1153,8 @@ def analytics():
     prev_attendance_rate = (prev_total / prev_possible * 100) if prev_possible > 0 else 0
     attendance_trend = attendance_rate - prev_attendance_rate
     
-    if school_ids and prev_total > 0:
-        prev_on_time = prev_attendance.filter(Attendance.status == 'on_time').count()
-        prev_punctuality_rate = (prev_on_time / prev_total * 100)
-    else:
-        prev_punctuality_rate = 0
+    prev_on_time = prev_attendance.filter(Attendance.status == 'on_time').count()
+    prev_punctuality_rate = (prev_on_time / prev_total * 100) if prev_total > 0 else 0
     punctuality_trend = punctuality_rate - prev_punctuality_rate
     
     trend_labels = []
@@ -1457,20 +1165,16 @@ def analytics():
     while current_date <= end_date:
         trend_labels.append(current_date.strftime('%b %d'))
         
-        if school_ids:
-            day_attendance = Attendance.query.filter(
-                Attendance.school_id.in_(school_ids),
-                Attendance.date == current_date
-            ).count()
-            
-            day_on_time = Attendance.query.filter(
-                Attendance.school_id.in_(school_ids),
-                Attendance.date == current_date,
-                Attendance.status == 'on_time'
-            ).count()
-        else:
-            day_attendance = 0
-            day_on_time = 0
+        day_attendance = Attendance.query.filter(
+            Attendance.school_id.in_(school_ids),
+            Attendance.date == current_date
+        ).count()
+        
+        day_on_time = Attendance.query.filter(
+            Attendance.school_id.in_(school_ids),
+            Attendance.date == current_date,
+            Attendance.status == 'on_time'
+        ).count()
         
         day_rate = (day_attendance / total_staff * 100) if total_staff > 0 else 0
         day_punctuality = (day_on_time / day_attendance * 100) if day_attendance > 0 else 0
@@ -1481,48 +1185,48 @@ def analytics():
         current_date += timedelta(days=1)
     
     late_by_day = [0, 0, 0, 0, 0, 0, 0]
-    if school_ids:
-        late_records = Attendance.query.filter(
-            Attendance.school_id.in_(school_ids),
-            Attendance.date >= start_date,
-            Attendance.date <= end_date,
-            Attendance.status == 'late'
-        ).all()
-        
-        for record in late_records:
-            day_of_week = record.date.weekday()
-            late_by_day[day_of_week] += 1
+    late_records = Attendance.query.filter(
+        Attendance.school_id.in_(school_ids),
+        Attendance.date >= start_date,
+        Attendance.date <= end_date,
+        Attendance.status == 'late'
+    ).all()
+    
+    for record in late_records:
+        day_of_week = record.date.weekday()
+        late_by_day[day_of_week] += 1
+    
+    departments = db.session.query(Staff.department).filter(
+        Staff.school_id.in_(school_ids),
+        Staff.is_active == True,
+        Staff.department.isnot(None),
+        Staff.department != ''
+    ).distinct().all()
     
     department_labels = []
     department_data = []
     
-    if school_ids:
-        departments = db.session.query(Staff.department).filter(
-            Staff.school_id.in_(school_ids),
-            Staff.department.isnot(None),
-            Staff.department != ''
-        ).distinct().all()
-        
-        for dept in departments:
-            dept_name = dept[0]
-            if dept_name:
-                dept_staff = Staff.query.filter(
-                    Staff.school_id.in_(school_ids),
-                    Staff.department == dept_name
-                ).all()
-                
-                dept_staff_ids = [s.id for s in dept_staff]
-                dept_attendance = Attendance.query.filter(
-                    Attendance.staff_id.in_(dept_staff_ids),
-                    Attendance.date >= start_date,
-                    Attendance.date <= end_date
-                ).count()
-                
-                dept_possible = len(dept_staff) * total_days
-                dept_rate = (dept_attendance / dept_possible * 100) if dept_possible > 0 else 0
-                
-                department_labels.append(dept_name)
-                department_data.append(round(dept_rate, 1))
+    for dept in departments:
+        dept_name = dept[0]
+        if dept_name:
+            dept_staff = Staff.query.filter(
+                Staff.school_id.in_(school_ids),
+                Staff.department == dept_name,
+                Staff.is_active == True
+            ).all()
+            
+            dept_staff_ids = [s.id for s in dept_staff]
+            dept_attendance = Attendance.query.filter(
+                Attendance.staff_id.in_(dept_staff_ids),
+                Attendance.date >= start_date,
+                Attendance.date <= end_date
+            ).count()
+            
+            dept_possible = len(dept_staff) * total_days
+            dept_rate = (dept_attendance / dept_possible * 100) if dept_possible > 0 else 0
+            
+            department_labels.append(dept_name)
+            department_data.append(round(dept_rate, 1))
     
     branch_labels = []
     branch_attendance = []
@@ -1531,7 +1235,7 @@ def analytics():
     for school in schools:
         branch_labels.append(school.name[:20])
         
-        school_staff_count = Staff.query.filter_by(school_id=school.id).count()
+        school_staff_count = Staff.query.filter_by(school_id=school.id, is_active=True).count()
         school_attendance = Attendance.query.filter(
             Attendance.school_id == school.id,
             Attendance.date >= start_date,
@@ -1548,49 +1252,47 @@ def analytics():
         branch_punctuality.append(round(school_punct_rate, 1))
     
     top_performers = []
-    needs_attention = []
+    all_staff_list = Staff.query.filter(Staff.school_id.in_(school_ids), Staff.is_active == True).all()
     
-    if school_ids:
-        all_staff_list = Staff.query.filter(Staff.school_id.in_(school_ids)).all()
+    staff_performance = []
+    for staff in all_staff_list:
+        staff_attendance = Attendance.query.filter(
+            Attendance.staff_id == staff.id,
+            Attendance.date >= start_date,
+            Attendance.date <= end_date
+        )
+        total = staff_attendance.count()
+        if total > 0:
+            on_time = staff_attendance.filter(Attendance.status == 'on_time').count()
+            punctuality = (on_time / total * 100)
+            staff_performance.append({
+                'name': staff.name,
+                'branch': staff.school.name if staff.school else 'N/A',
+                'punctuality': punctuality,
+                'total': total
+            })
+    
+    staff_performance.sort(key=lambda x: (-x['punctuality'], -x['total']))
+    top_performers = staff_performance[:5]
+    
+    needs_attention = []
+    for staff in all_staff_list:
+        late_count = Attendance.query.filter(
+            Attendance.staff_id == staff.id,
+            Attendance.date >= start_date,
+            Attendance.date <= end_date,
+            Attendance.status == 'late'
+        ).count()
         
-        staff_performance = []
-        for staff in all_staff_list:
-            staff_attendance = Attendance.query.filter(
-                Attendance.staff_id == staff.id,
-                Attendance.date >= start_date,
-                Attendance.date <= end_date
-            )
-            total = staff_attendance.count()
-            if total > 0:
-                on_time = staff_attendance.filter(Attendance.status == 'on_time').count()
-                punctuality = (on_time / total * 100)
-                staff_performance.append({
-                    'name': staff.name,
-                    'branch': staff.school.name if staff.school else 'N/A',
-                    'punctuality': punctuality,
-                    'total': total
-                })
-        
-        staff_performance.sort(key=lambda x: (-x['punctuality'], -x['total']))
-        top_performers = staff_performance[:5]
-        
-        for staff in all_staff_list:
-            late_count = Attendance.query.filter(
-                Attendance.staff_id == staff.id,
-                Attendance.date >= start_date,
-                Attendance.date <= end_date,
-                Attendance.status == 'late'
-            ).count()
-            
-            if late_count > 0:
-                needs_attention.append({
-                    'name': staff.name,
-                    'branch': staff.school.name if staff.school else 'N/A',
-                    'late_count': late_count
-                })
-        
-        needs_attention.sort(key=lambda x: -x['late_count'])
-        needs_attention = needs_attention[:5]
+        if late_count > 0:
+            needs_attention.append({
+                'name': staff.name,
+                'branch': staff.school.name if staff.school else 'N/A',
+                'late_count': late_count
+            })
+    
+    needs_attention.sort(key=lambda x: -x['late_count'])
+    needs_attention = needs_attention[:5]
     
     return render_template('analytics.html',
         period=period,
@@ -1669,7 +1371,7 @@ def api_sync():
         return jsonify({'error': 'School not found'}), 404
     
     if action == 'get_staff':
-        staff = Staff.query.filter_by(school_id=school_id).all()
+        staff = Staff.query.filter_by(school_id=school_id, is_active=True).all()
         staff_list = [{
             'id': s.id,
             'staff_id': s.staff_id,
@@ -1701,12 +1403,10 @@ def api_sync():
             }}), 400
         
         now = datetime.now()
-        late_time = datetime.strptime(school.late_time or '08:15', '%H:%M').time()
+        late_time = datetime.strptime(school.late_time, '%H:%M').time()
         
         if now.time() > late_time:
             status = 'late'
-            if staff.late_count is None:
-                staff.late_count = 0
             staff.late_count += 1
         else:
             status = 'on_time'
@@ -1749,7 +1449,7 @@ def api_sync():
         now = datetime.now()
         attendance.clock_out = now
         
-        close_time = datetime.strptime(school.close_time or '17:00', '%H:%M').time()
+        close_time = datetime.strptime(school.close_time, '%H:%M').time()
         close_datetime = datetime.combine(today, close_time)
         
         if now > close_datetime:
@@ -1790,12 +1490,10 @@ def api_sync():
                         continue
                     
                     clock_in = datetime.strptime(f'{date_str} {clock_in_str}', '%Y-%m-%d %H:%M:%S')
-                    late_time = datetime.strptime(school.late_time or '08:15', '%H:%M').time()
+                    late_time = datetime.strptime(school.late_time, '%H:%M').time()
                     
                     if clock_in.time() > late_time:
                         status = 'late'
-                        if staff.late_count is None:
-                            staff.late_count = 0
                         staff.late_count += 1
                     else:
                         status = 'on_time'
@@ -1812,7 +1510,7 @@ def api_sync():
                         clock_out = datetime.strptime(f'{date_str} {clock_out_str}', '%Y-%m-%d %H:%M:%S')
                         attendance.clock_out = clock_out
                         
-                        close_time = datetime.strptime(school.close_time or '17:00', '%H:%M').time()
+                        close_time = datetime.strptime(school.close_time, '%H:%M').time()
                         close_datetime = datetime.combine(record_date, close_time)
                         
                         if clock_out > close_datetime:
@@ -1825,7 +1523,7 @@ def api_sync():
                     clock_out = datetime.strptime(f'{date_str} {clock_out_str}', '%Y-%m-%d %H:%M:%S')
                     existing.clock_out = clock_out
                     
-                    close_time = datetime.strptime(school.close_time or '17:00', '%H:%M').time()
+                    close_time = datetime.strptime(school.close_time, '%H:%M').time()
                     close_datetime = datetime.combine(record_date, close_time)
                     
                     if clock_out > close_datetime:
@@ -1869,82 +1567,26 @@ def api_sync():
 # Database initialization
 @app.route('/init-db')
 def init_db():
-    try:
-        # Run migrations first
-        run_migrations()
-        
-        # Create all tables
-        db.create_all()
-        
-        # Create or update admin user
-        admin = User.query.filter_by(username='admin').first()
-        if not admin:
-            admin = User(
-                username='admin',
-                email='admin@example.com',
-                role='super_admin',
-                is_active=True
-            )
-            admin.set_password('admin123')
-            db.session.add(admin)
-            db.session.commit()
-        else:
-            if not admin.email:
-                admin.email = 'admin@example.com'
-            if not admin.password_hash:
-                admin.set_password('admin123')
-            admin.role = 'super_admin'
-            admin.is_active = True
-            db.session.commit()
-        
-        # Count schools
-        all_schools = School.query.all()
-        school_count = len(all_schools)
-        
-        # Assign all schools to admin user
-        for school in all_schools:
-            if school not in admin.schools:
-                admin.schools.append(school)
-        db.session.commit()
-        
-        # Count staff
-        staff_count = Staff.query.count()
-        
-        # Create system settings
-        settings = SystemSettings.query.first()
-        if not settings:
-            settings = SystemSettings(company_name='Attendance System')
-            db.session.add(settings)
-        
-        db.session.commit()
-        
-        return f'Database initialized successfully! Found {school_count} schools and {staff_count} staff. Admin has access to all schools. Login with admin/admin123'
-    except Exception as e:
-        return f'Error: {str(e)}'
-
-# Debug route to check database
-@app.route('/debug-db')
-def debug_db():
-    try:
-        schools = School.query.all()
-        staff = Staff.query.all()
-        users = User.query.all()
-        
-        result = f"Schools: {len(schools)}<br>"
-        for s in schools:
-            result += f"- {s.id}: {s.name} (is_active={s.is_active})<br>"
-        
-        result += f"<br>Staff: {len(staff)}<br>"
-        for s in staff[:10]:  # Show first 10
-            result += f"- {s.id}: {s.name} (school_id={s.school_id}, is_active={s.is_active})<br>"
-        
-        result += f"<br>Users: {len(users)}<br>"
-        for u in users:
-            result += f"- {u.id}: {u.username} (role={u.role}, schools={len(u.schools)})<br>"
-        
-        return result
-    except Exception as e:
-        return f'Error: {str(e)}'
+    db.create_all()
+    
+    admin = User.query.filter_by(username='admin').first()
+    if not admin:
+        admin = User(
+            username='admin',
+            email='admin@example.com',
+            role='super_admin'
+        )
+        admin.set_password('admin123')
+        db.session.add(admin)
+    
+    settings = SystemSettings.query.first()
+    if not settings:
+        settings = SystemSettings(company_name='Attendance System')
+        db.session.add(settings)
+    
+    db.session.commit()
+    
+    return 'Database initialized successfully! Default admin credentials: username=admin, password=admin123'
 
 if __name__ == '__main__':
     app.run(debug=True)
