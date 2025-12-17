@@ -5,7 +5,7 @@
 {% block content %}
 <div class="d-flex justify-content-between align-items-center mb-4">
     <h2><i class="fas fa-business-time me-2"></i>Overtime Report</h2>
-    <a href="{{ url_for('download_overtime', start_date=start_date, end_date=end_date, school_id=selected_school_id or '') }}" class="btn btn-success">
+    <a href="{{ url_for('download_overtime_report', date_from=date_from, date_to=date_to, school_id=school_id or '') }}" class="btn btn-success">
         <i class="fas fa-download me-2"></i>Download CSV
     </a>
 </div>
@@ -14,12 +14,12 @@
     <div class="card-body">
         <form method="GET" class="row g-3 align-items-end">
             <div class="col-md-2">
-                <label class="form-label">Start Date</label>
-                <input type="date" name="start_date" class="form-control" value="{{ start_date }}">
+                <label class="form-label">From</label>
+                <input type="date" name="date_from" class="form-control" value="{{ date_from }}">
             </div>
             <div class="col-md-2">
-                <label class="form-label">End Date</label>
-                <input type="date" name="end_date" class="form-control" value="{{ end_date }}">
+                <label class="form-label">To</label>
+                <input type="date" name="date_to" class="form-control" value="{{ date_to }}">
             </div>
             
             {% if current_user.role in ['super_admin', 'hr_viewer', 'ceo_viewer'] %}
@@ -28,7 +28,7 @@
                 <select name="organization_id" id="organizationFilter" class="form-select">
                     <option value="">All Organizations</option>
                     {% for org in organizations %}
-                    <option value="{{ org.id }}" {% if selected_organization_id == org.id %}selected{% endif %}>{{ org.name }}</option>
+                    <option value="{{ org.id }}">{{ org.name }}</option>
                     {% endfor %}
                 </select>
             </div>
@@ -37,8 +37,8 @@
                 <label class="form-label">Branch</label>
                 <select name="school_id" id="branchFilter" class="form-select">
                     <option value="">All Branches</option>
-                    {% for school in schools %}
-                    <option value="{{ school.id }}" data-org="{{ school.organization_id or '' }}" {% if selected_school_id == school.id %}selected{% endif %}>{{ school.name }}</option>
+                    {% for s in schools %}
+                    <option value="{{ s.id }}" data-org="{{ s.organization_id or '' }}" {% if school_id == s.id|string %}selected{% endif %}>{{ s.name }}</option>
                     {% endfor %}
                 </select>
             </div>
@@ -50,7 +50,7 @@
                 </button>
             </div>
             <div class="col-md-2">
-                <a href="{{ url_for('overtime_report') }}" class="btn btn-outline-secondary w-100">This Week</a>
+                <a href="{{ url_for('overtime_report', today=1) }}" class="btn btn-outline-secondary w-100">Today</a>
             </div>
         </form>
     </div>
@@ -58,32 +58,32 @@
 
 <div class="card">
     <div class="card-header">
-        <i class="fas fa-table me-2"></i>Overtime Summary ({{ start_date }} to {{ end_date }})
+        <i class="fas fa-table me-2"></i>Overtime Records ({{ date_from }} to {{ date_to }})
     </div>
     <div class="card-body">
         <div class="table-responsive">
             <table class="table table-hover">
                 <thead>
                     <tr>
+                        <th>Date</th>
                         <th>Staff ID</th>
                         <th>Name</th>
                         <th>Branch</th>
                         <th>Department</th>
-                        <th>Days with Overtime</th>
-                        <th>Total Overtime</th>
-                        <th>Avg per Day</th>
+                        <th>Sign Out</th>
+                        <th>Overtime</th>
                     </tr>
                 </thead>
                 <tbody>
-                    {% for item in overtime_records %}
+                    {% for o in overtime %}
                     <tr>
-                        <td>{{ item.staff.staff_id }}</td>
-                        <td>{{ item.staff.name }}</td>
-                        <td>{{ item.staff.school.name if item.staff.school else 'N/A' }}</td>
-                        <td>{{ item.staff.department or 'N/A' }}</td>
-                        <td>{{ item.days_count }}</td>
-                        <td><span class="badge bg-info">{{ item.total_overtime_hours }}h {{ item.total_overtime_minutes }}m</span></td>
-                        <td>{{ item.avg_overtime }}</td>
+                        <td>{{ o.date.strftime('%d/%m/%Y') }}</td>
+                        <td>{{ o.staff.staff_id }}</td>
+                        <td>{{ o.staff.name }}</td>
+                        <td>{{ o.staff.school.name if o.staff.school else 'N/A' }}</td>
+                        <td>{{ o.staff.department or 'N/A' }}</td>
+                        <td>{{ o.sign_out_time.strftime('%H:%M') if o.sign_out_time else '-' }}</td>
+                        <td><span class="badge bg-info">{{ o.overtime_minutes }} mins</span></td>
                     </tr>
                     {% else %}
                     <tr>
