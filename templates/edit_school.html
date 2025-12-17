@@ -1,10 +1,10 @@
 {% extends 'base.html' %}
 
-{% block title %}Edit School - Attendance System{% endblock %}
+{% block title %}Edit Branch - Attendance System{% endblock %}
 
 {% block content %}
 <div class="d-flex justify-content-between align-items-center mb-4">
-    <h2><i class="fas fa-edit me-2"></i>Edit School</h2>
+    <h2><i class="fas fa-edit me-2"></i>Edit Branch</h2>
     <a href="{{ url_for('schools') }}" class="btn btn-secondary">
         <i class="fas fa-arrow-left me-2"></i>Back
     </a>
@@ -15,7 +15,7 @@
         <form method="POST">
             <div class="row">
                 <div class="col-md-6 mb-3">
-                    <label class="form-label">School Name</label>
+                    <label class="form-label">Branch Name</label>
                     <input type="text" name="name" class="form-control" value="{{ school.name }}" required>
                 </div>
                 <div class="col-md-6 mb-3">
@@ -26,10 +26,23 @@
             
             <div class="row">
                 <div class="col-md-6 mb-3">
+                    <label class="form-label">Organization</label>
+                    <select name="organization_id" class="form-select">
+                        <option value="">-- No Organization --</option>
+                        {% for org in organizations %}
+                        <option value="{{ org.id }}" {% if school.organization_id == org.id %}selected{% endif %}>{{ org.name }}</option>
+                        {% endfor %}
+                    </select>
+                    <small class="text-muted">Select the parent organization this branch belongs to</small>
+                </div>
+                <div class="col-md-6 mb-3">
                     <label class="form-label">Logo URL</label>
                     <input type="url" name="logo_url" class="form-control" value="{{ school.logo_url or '' }}" placeholder="https://example.com/school-logo.png">
-                    <small class="text-muted">Paste a direct link to the school's logo.</small>
+                    <small class="text-muted">This will appear on the kiosk for this branch</small>
                 </div>
+            </div>
+            
+            <div class="row">
                 <div class="col-md-6 mb-3">
                     <label class="form-label">Logo Preview</label>
                     <div>
@@ -50,7 +63,7 @@
                         <i class="fas fa-copy"></i> Copy
                     </button>
                 </div>
-                <small class="text-muted">Use this key in the kiosk to connect to this school.</small>
+                <small class="text-muted">Use this key in the kiosk to connect to this branch.</small>
             </div>
             
             <hr class="my-4">
