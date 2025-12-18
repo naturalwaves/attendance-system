@@ -1,4 +1,4 @@
-{% extends "base.html" %}
+Copy{% extends "base.html" %}
 
 {% block title %}Analytics - Attendance System{% endblock %}
 
@@ -56,6 +56,7 @@
         border: 1px solid rgba(52, 58, 64, 0.15);
     }
     
+    /* Decorative background shape */
     .metric-card .bg-shape {
         position: absolute;
         right: -20px;
@@ -75,6 +76,7 @@
     .metric-card.soft-pink .bg-shape { background: #e83e8c; }
     .metric-card.soft-dark .bg-shape { background: #343a40; }
     
+    /* Icon styling */
     .metric-card .metric-icon {
         width: 56px;
         height: 56px;
@@ -349,144 +351,6 @@
     .score-badge.orange {
         background: linear-gradient(135deg, #ffecd2 0%, #fcb69f 100%);
         color: #8a4500;
-    }
-
-    /* Trend indicator for branch comparison */
-    .trend-indicator {
-        display: inline-flex;
-        align-items: center;
-        font-size: 0.65rem;
-        font-weight: 700;
-        padding: 2px 6px;
-        border-radius: 4px;
-        margin-left: 4px;
-    }
-    .trend-indicator.up {
-        background: rgba(40, 167, 69, 0.2);
-        color: #1e7e34;
-    }
-    .trend-indicator.down {
-        background: rgba(220, 53, 69, 0.2);
-        color: #c82333;
-    }
-    .trend-indicator.neutral {
-        background: rgba(108, 117, 125, 0.2);
-        color: #6c757d;
-    }
-
-    /* Heatmap styles */
-    .heatmap-container {
-        overflow-x: auto;
-    }
-    .heatmap-table {
-        width: 100%;
-        border-collapse: separate;
-        border-spacing: 4px;
-    }
-    .heatmap-table th {
-        font-size: 0.7rem;
-        font-weight: 600;
-        color: #6c757d;
-        text-align: center;
-        padding: 8px 4px;
-    }
-    .heatmap-table td {
-        text-align: center;
-        padding: 0;
-    }
-    .heatmap-cell {
-        width: 100%;
-        min-width: 50px;
-        height: 38px;
-        border-radius: 6px;
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        font-size: 0.75rem;
-        font-weight: 600;
-        color: #fff;
-        transition: transform 0.2s ease;
-        cursor: default;
-    }
-    .heatmap-cell:hover {
-        transform: scale(1.08);
-        box-shadow: 0 4px 12px rgba(0,0,0,0.15);
-    }
-    .heatmap-cell.level-0 { background: #e9ecef; color: #adb5bd; }
-    .heatmap-cell.level-1 { background: linear-gradient(135deg, #ffc107 0%, #ffca2c 100%); color: #664d00; }
-    .heatmap-cell.level-2 { background: linear-gradient(135deg, #fd7e14 0%, #fd9644 100%); }
-    .heatmap-cell.level-3 { background: linear-gradient(135deg, #dc3545 0%, #e4606d 100%); }
-    .heatmap-cell.level-4 { background: linear-gradient(135deg, #a71d2a 0%, #bd2130 100%); }
-
-    /* Calendar styles */
-    .calendar-container {
-        overflow-x: auto;
-    }
-    .calendar-table {
-        width: 100%;
-        border-collapse: separate;
-        border-spacing: 4px;
-    }
-    .calendar-table th {
-        font-size: 0.7rem;
-        font-weight: 600;
-        color: #6c757d;
-        text-align: center;
-        padding: 8px 4px;
-    }
-    .calendar-table td {
-        text-align: center;
-        padding: 0;
-    }
-    .calendar-day {
-        width: 100%;
-        min-width: 42px;
-        height: 52px;
-        border-radius: 8px;
-        display: flex;
-        flex-direction: column;
-        align-items: center;
-        justify-content: center;
-        font-weight: 600;
-        transition: transform 0.2s ease;
-        cursor: default;
-    }
-    .calendar-day:hover:not(.empty):not(.future) {
-        transform: scale(1.08);
-        box-shadow: 0 4px 12px rgba(0,0,0,0.15);
-    }
-    .calendar-day .day-num {
-        font-size: 0.9rem;
-        line-height: 1;
-    }
-    .calendar-day .day-stats {
-        font-size: 0.55rem;
-        font-weight: 500;
-        opacity: 0.9;
-        margin-top: 2px;
-    }
-    .calendar-day.empty { background: transparent; }
-    .calendar-day.future { background: #f8f9fa; color: #adb5bd; }
-    .calendar-day.weekend { background: #e9ecef; color: #6c757d; }
-    .calendar-day.no-data { background: #e9ecef; color: #6c757d; }
-    .calendar-day.perfect { background: linear-gradient(135deg, #28a745 0%, #20c997 100%); color: #fff; }
-    .calendar-day.good { background: linear-gradient(135deg, #17a2b8 0%, #6dd5ed 100%); color: #fff; }
-    .calendar-day.warning { background: linear-gradient(135deg, #ffc107 0%, #ffda6a 100%); color: #664d00; }
-    .calendar-day.bad { background: linear-gradient(135deg, #dc3545 0%, #f86f7d 100%); color: #fff; }
-
-    /* Legend */
-    .legend-item {
-        display: inline-flex;
-        align-items: center;
-        margin-right: 15px;
-        font-size: 0.75rem;
-        color: #6c757d;
-    }
-    .legend-color {
-        width: 14px;
-        height: 14px;
-        border-radius: 4px;
-        margin-right: 5px;
     }
 </style>
 
@@ -765,7 +629,7 @@
         </div>
     </div>
 
-    <!-- Charts Row 2 - Department & Branch -->
+    <!-- Charts Row 2 -->
     <div class="row mb-4 g-4">
         <div class="col-lg-5">
             <div class="card chart-card h-100">
@@ -789,167 +653,21 @@
         </div>
         <div class="col-lg-7">
             <div class="card chart-card h-100">
-                <div class="card-header d-flex align-items-center justify-content-between">
-                    <div class="d-flex align-items-center">
-                        <span class="header-icon" style="background: linear-gradient(135deg, #28a745 0%, #1e7e34 100%);">
-                            <i class="fas fa-code-branch"></i>
-                        </span>
-                        <h5 class="mb-0">Branch Comparison</h5>
-                    </div>
-                    <small class="text-muted"><i class="fas fa-info-circle me-1"></i>With trend indicators</small>
+                <div class="card-header d-flex align-items-center">
+                    <span class="header-icon" style="background: linear-gradient(135deg, #28a745 0%, #1e7e34 100%);">
+                        <i class="fas fa-code-branch"></i>
+                    </span>
+                    <h5 class="mb-0">Branch Comparison</h5>
                 </div>
                 <div class="card-body">
                     {% if branch_labels %}
                     <canvas id="branchChart" height="160"></canvas>
-                    <!-- Branch Trends Legend -->
-                    <div class="mt-3 pt-3 border-top">
-                        <div class="d-flex flex-wrap justify-content-center gap-3">
-                            {% for i in range(branch_labels|length) %}
-                            <div class="d-flex align-items-center">
-                                <span class="fw-semibold me-1" style="font-size: 0.8rem;">{{ branch_labels[i] }}</span>
-                                {% if branch_trends[i] > 0 %}
-                                <span class="trend-indicator up"><i class="fas fa-arrow-up me-1"></i>{{ branch_trends[i] }}%</span>
-                                {% elif branch_trends[i] < 0 %}
-                                <span class="trend-indicator down"><i class="fas fa-arrow-down me-1"></i>{{ branch_trends[i]|abs }}%</span>
-                                {% else %}
-                                <span class="trend-indicator neutral"><i class="fas fa-minus me-1"></i>0%</span>
-                                {% endif %}
-                            </div>
-                            {% endfor %}
-                        </div>
-                    </div>
                     {% else %}
                     <div class="text-center text-muted py-5">
                         <i class="fas fa-code-branch fa-3x mb-3" style="opacity: 0.2;"></i>
                         <p class="mb-0">No branch data available</p>
                     </div>
                     {% endif %}
-                </div>
-            </div>
-        </div>
-    </div>
-
-    <!-- Phase 3: Heatmap & Calendar Row -->
-    <div class="row mb-4 g-4">
-        <!-- Late Arrivals Heatmap -->
-        <div class="col-lg-5">
-            <div class="card chart-card h-100">
-                <div class="card-header d-flex align-items-center">
-                    <span class="header-icon" style="background: linear-gradient(135deg, #e83e8c 0%, #d31a72 100%);">
-                        <i class="fas fa-th"></i>
-                    </span>
-                    <h5 class="mb-0">Late Arrivals Heatmap</h5>
-                </div>
-                <div class="card-body">
-                    <div class="heatmap-container">
-                        <table class="heatmap-table">
-                            <thead>
-                                <tr>
-                                    <th style="width: 60px;">Time</th>
-                                    <th>Mon</th>
-                                    <th>Tue</th>
-                                    <th>Wed</th>
-                                    <th>Thu</th>
-                                    <th>Fri</th>
-                                </tr>
-                            </thead>
-                            <tbody>
-                                {% for hour_idx in range(7) %}
-                                <tr>
-                                    <td class="text-muted" style="font-size: 0.75rem; font-weight: 600;">{{ hour_labels[hour_idx] }}</td>
-                                    {% for day_idx in range(5) %}
-                                    {% set value = heatmap_data[hour_idx][day_idx] %}
-                                    {% set level = 0 %}
-                                    {% if value > 0 %}
-                                        {% if value <= heatmap_max * 0.25 %}
-                                            {% set level = 1 %}
-                                        {% elif value <= heatmap_max * 0.5 %}
-                                            {% set level = 2 %}
-                                        {% elif value <= heatmap_max * 0.75 %}
-                                            {% set level = 3 %}
-                                        {% else %}
-                                            {% set level = 4 %}
-                                        {% endif %}
-                                    {% endif %}
-                                    <td>
-                                        <div class="heatmap-cell level-{{ level }}" title="{{ value }} late arrivals">
-                                            {{ value if value > 0 else '-' }}
-                                        </div>
-                                    </td>
-                                    {% endfor %}
-                                </tr>
-                                {% endfor %}
-                            </tbody>
-                        </table>
-                    </div>
-                    <!-- Heatmap Legend -->
-                    <div class="mt-3 pt-3 border-top d-flex justify-content-center flex-wrap gap-2">
-                        <span class="legend-item"><span class="legend-color" style="background: #e9ecef;"></span>None</span>
-                        <span class="legend-item"><span class="legend-color" style="background: #ffc107;"></span>Low</span>
-                        <span class="legend-item"><span class="legend-color" style="background: #fd7e14;"></span>Medium</span>
-                        <span class="legend-item"><span class="legend-color" style="background: #dc3545;"></span>High</span>
-                        <span class="legend-item"><span class="legend-color" style="background: #a71d2a;"></span>Critical</span>
-                    </div>
-                </div>
-            </div>
-        </div>
-
-        <!-- Attendance Calendar -->
-        <div class="col-lg-7">
-            <div class="card chart-card h-100">
-                <div class="card-header d-flex align-items-center justify-content-between">
-                    <div class="d-flex align-items-center">
-                        <span class="header-icon" style="background: linear-gradient(135deg, #6f42c1 0%, #59359a 100%);">
-                            <i class="fas fa-calendar-alt"></i>
-                        </span>
-                        <h5 class="mb-0">Attendance Calendar</h5>
-                    </div>
-                    <span class="badge bg-light text-dark">{{ calendar_month_name }} {{ calendar_year }}</span>
-                </div>
-                <div class="card-body">
-                    <div class="calendar-container">
-                        <table class="calendar-table">
-                            <thead>
-                                <tr>
-                                    <th>Mon</th>
-                                    <th>Tue</th>
-                                    <th>Wed</th>
-                                    <th>Thu</th>
-                                    <th>Fri</th>
-                                    <th>Sat</th>
-                                    <th>Sun</th>
-                                </tr>
-                            </thead>
-                            <tbody>
-                                {% for week in calendar_data %}
-                                <tr>
-                                    {% for day in week %}
-                                    <td>
-                                        {% if day.day == 0 %}
-                                        <div class="calendar-day empty"></div>
-                                        {% else %}
-                                        <div class="calendar-day {{ day.status }}" title="{% if day.status not in ['empty', 'future', 'weekend', 'no-data'] %}{{ day.ontime }} on-time, {{ day.late }} late{% endif %}">
-                                            <span class="day-num">{{ day.day }}</span>
-                                            {% if day.status not in ['empty', 'future', 'weekend', 'no-data'] %}
-                                            <span class="day-stats">{{ day.total }}</span>
-                                            {% endif %}
-                                        </div>
-                                        {% endif %}
-                                    </td>
-                                    {% endfor %}
-                                </tr>
-                                {% endfor %}
-                            </tbody>
-                        </table>
-                    </div>
-                    <!-- Calendar Legend -->
-                    <div class="mt-3 pt-3 border-top d-flex justify-content-center flex-wrap gap-2">
-                        <span class="legend-item"><span class="legend-color" style="background: linear-gradient(135deg, #28a745 0%, #20c997 100%);"></span>Perfect</span>
-                        <span class="legend-item"><span class="legend-color" style="background: linear-gradient(135deg, #17a2b8 0%, #6dd5ed 100%);"></span>Good</span>
-                        <span class="legend-item"><span class="legend-color" style="background: linear-gradient(135deg, #ffc107 0%, #ffda6a 100%);"></span>Some Late</span>
-                        <span class="legend-item"><span class="legend-color" style="background: linear-gradient(135deg, #dc3545 0%, #f86f7d 100%);"></span>Many Late</span>
-                        <span class="legend-item"><span class="legend-color" style="background: #e9ecef;"></span>No Data</span>
-                    </div>
                 </div>
             </div>
         </div>
