@@ -352,6 +352,28 @@
         background: linear-gradient(135deg, #ffecd2 0%, #fcb69f 100%);
         color: #8a4500;
     }
+
+    /* Phase 3: Branch Trend Badges */
+    .trend-badge {
+        padding: 4px 10px;
+        border-radius: 12px;
+        font-weight: 600;
+        font-size: 0.75rem;
+        display: inline-flex;
+        align-items: center;
+    }
+    .trend-badge.up {
+        background: rgba(40, 167, 69, 0.15);
+        color: #1e7e34;
+    }
+    .trend-badge.down {
+        background: rgba(220, 53, 69, 0.15);
+        color: #c82333;
+    }
+    .trend-badge.neutral {
+        background: rgba(108, 117, 125, 0.15);
+        color: #6c757d;
+    }
 </style>
 
 <div class="container-fluid">
@@ -653,15 +675,41 @@
         </div>
         <div class="col-lg-7">
             <div class="card chart-card h-100">
-                <div class="card-header d-flex align-items-center">
-                    <span class="header-icon" style="background: linear-gradient(135deg, #28a745 0%, #1e7e34 100%);">
-                        <i class="fas fa-code-branch"></i>
-                    </span>
-                    <h5 class="mb-0">Branch Comparison</h5>
+                <div class="card-header d-flex align-items-center justify-content-between">
+                    <div class="d-flex align-items-center">
+                        <span class="header-icon" style="background: linear-gradient(135deg, #28a745 0%, #1e7e34 100%);">
+                            <i class="fas fa-code-branch"></i>
+                        </span>
+                        <h5 class="mb-0">Branch Comparison</h5>
+                    </div>
+                    <small class="text-muted"><i class="fas fa-info-circle me-1"></i>vs previous period</small>
                 </div>
                 <div class="card-body">
                     {% if branch_labels %}
                     <canvas id="branchChart" height="160"></canvas>
+                    <!-- Phase 3: Branch Trends Legend -->
+                    <div class="mt-3 pt-3 border-top">
+                        <div class="d-flex flex-wrap justify-content-center gap-3">
+                            {% for i in range(branch_labels|length) %}
+                            <div class="d-flex align-items-center">
+                                <span class="fw-semibold me-2" style="font-size: 0.8rem;">{{ branch_labels[i] }}</span>
+                                {% if branch_trends[i] > 0 %}
+                                <span class="trend-badge up">
+                                    <i class="fas fa-arrow-up me-1"></i>+{{ branch_trends[i] }}%
+                                </span>
+                                {% elif branch_trends[i] < 0 %}
+                                <span class="trend-badge down">
+                                    <i class="fas fa-arrow-down me-1"></i>{{ branch_trends[i] }}%
+                                </span>
+                                {% else %}
+                                <span class="trend-badge neutral">
+                                    <i class="fas fa-minus me-1"></i>0%
+                                </span>
+                                {% endif %}
+                            </div>
+                            {% endfor %}
+                        </div>
+                    </div>
                     {% else %}
                     <div class="text-center text-muted py-5">
                         <i class="fas fa-code-branch fa-3x mb-3" style="opacity: 0.2;"></i>
