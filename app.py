@@ -1150,6 +1150,7 @@ def analytics():
         end_date = today
     
     previous_start = start_date - timedelta(days=period_days)
+    previous_end = start_date - timedelta(days=1)
     
     accessible_school_ids = current_user.get_accessible_school_ids()
     
@@ -1260,6 +1261,7 @@ def analytics():
     branch_labels = []
     branch_attendance = []
     branch_punctuality = []
+    branch_trends = []  # Phase 3: Branch Trends
     
     for school in schools[:10]:
         school_staff = [s for s in all_staff if s.school_id == school.id]
@@ -1274,9 +1276,18 @@ def analytics():
             school_on_time = sum(1 for a in school_att if not a.is_late)
             school_punct = round((school_on_time / len(school_att)) * 100, 1) if school_att else 100
             
+            # Phase 3: Calculate previous period punctuality for this branch
+            prev_school_att = [a for a in previous_attendance if a.staff_id in school_staff_ids]
+            prev_school_on_time = sum(1 for a in prev_school_att if not a.is_late)
+            prev_school_punct = round((prev_school_on_time / len(prev_school_att)) * 100, 1) if prev_school_att else 100
+            
+            # Calculate trend (current - previous)
+            school_trend = round(school_punct - prev_school_punct, 1)
+            
             branch_labels.append(school.short_name or school.name[:15])
             branch_attendance.append(min(school_rate, 100))
             branch_punctuality.append(school_punct)
+            branch_trends.append(school_trend)  # Phase 3: Add trend
     
     # Early arrivals tracking
     early_arrivals = []
@@ -1431,6 +1442,7 @@ def analytics():
                          branch_labels=branch_labels,
                          branch_attendance=branch_attendance,
                          branch_punctuality=branch_punctuality,
+                         branch_trends=branch_trends,  # Phase 3: Pass to template
                          early_arrivals=early_arrivals,
                          perfect_attendance=perfect_attendance,
                          most_improved=most_improved,
@@ -1751,4 +1763,3 @@ if __name__ == '__main__':
     with app.app_context():
         db.create_all()
     app.run(debug=True, host='0.0.0.0', port=int(os.environ.get('PORT', 5000)))
-
