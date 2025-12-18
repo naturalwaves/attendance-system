@@ -1400,7 +1400,7 @@ def analytics():
     needs_attention.sort(key=lambda x: x['late_count'], reverse=True)
     needs_attention = needs_attention[:5]
     
-    # Early vs On-Time vs Late Distribution
+    # Chart 1: Early vs On-Time vs Late Distribution
     early_count_dist = 0
     for s in all_staff:
         if s.department == 'Management':
@@ -1422,6 +1422,56 @@ def analytics():
     
     distribution_data = [early_count_dist, on_time_exact, late_count]
     distribution_labels = ['Early', 'On-Time', 'Late']
+    
+    # Chart 2: Present vs Absent
+    non_mgmt_staff = [s for s in all_staff if s.department != 'Management']
+    total_expected_records = len(non_mgmt_staff) * working_days
+    present_count = total_records
+    absent_count = total_expected_records - present_count
+    if absent_count < 0:
+        absent_count = 0
+    
+    presence_data = [present_count, absent_count]
+    presence_labels = ['Present', 'Absent']
+    
+    # Chart 3: This Week vs Last Week
+    this_week_start = today - timedelta(days=today.weekday())
+    this_week_end = today
+    last_week_start = this_week_start - timedelta(days=7)
+    last_week_end = this_week_start - timedelta(days=1)
+    
+    this_week_attendance = Attendance.query.filter(
+        Attendance.staff_id.in_(staff_ids),
+        Attendance.date >= this_week_start,
+        Attendance.date <= this_week_end
+    ).all() if staff_ids else []
+    
+    last_week_attendance = Attendance.query.filter(
+        Attendance.staff_id.in_(staff_ids),
+        Attendance.date >= last_week_start,
+        Attendance.date <= last_week_end
+    ).all() if staff_ids else []
+    
+    this_week_days = sum(1 for i in range((this_week_end - this_week_start).days + 1) if (this_week_start + timedelta(days=i)).weekday() < 5)
+    last_week_days = sum(1 for i in range((last_week_end - last_week_start).days + 1) if (last_week_start + timedelta(days=i)).weekday() < 5)
+    
+    this_week_expected = len(non_mgmt_staff) * this_week_days if non_mgmt_staff else 1
+    last_week_expected = len(non_mgmt_staff) * last_week_days if non_mgmt_staff else 1
+    
+    this_week_att_rate = round((len(this_week_attendance) / this_week_expected) * 100, 1) if this_week_expected > 0 else 0
+    last_week_att_rate = round((len(last_week_attendance) / last_week_expected) * 100, 1) if last_week_expected > 0 else 0
+    this_week_att_rate = min(this_week_att_rate, 100)
+    last_week_att_rate = min(last_week_att_rate, 100)
+    
+    this_week_on_time = sum(1 for a in this_week_attendance if not a.is_late)
+    last_week_on_time = sum(1 for a in last_week_attendance if not a.is_late)
+    
+    this_week_punct_rate = round((this_week_on_time / len(this_week_attendance)) * 100, 1) if this_week_attendance else 100
+    last_week_punct_rate = round((last_week_on_time / len(last_week_attendance)) * 100, 1) if last_week_attendance else 100
+    
+    weekly_comparison_labels = ['Attendance %', 'Punctuality %']
+    weekly_this_week = [this_week_att_rate, this_week_punct_rate]
+    weekly_last_week = [last_week_att_rate, last_week_punct_rate]
     
     return render_template('analytics.html',
                          schools=schools,
@@ -1461,7 +1511,12 @@ def analytics():
                          top_performers=top_performers,
                          needs_attention=needs_attention,
                          distribution_data=distribution_data,
-                         distribution_labels=distribution_labels)
+                         distribution_labels=distribution_labels,
+                         presence_data=presence_data,
+                         presence_labels=presence_labels,
+                         weekly_comparison_labels=weekly_comparison_labels,
+                         weekly_this_week=weekly_this_week,
+                         weekly_last_week=weekly_last_week)
 
 @app.route('/api/sync', methods=['GET', 'POST', 'OPTIONS'])
 def api_sync():
