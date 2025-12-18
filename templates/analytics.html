@@ -456,3 +456,270 @@
                     <table class="table mb-0">
                         <thead><tr><th style="width: 55px;">#</th><th>Staff Member</th><th>Branch</th><th class="text-end">Late Count</th></tr></thead>
                         <tbody>
+                                                        {% for staff in needs_attention %}
+                            <tr>
+                                <td><span class="rank-badge rank-default">{{ loop.index }}</span></td>
+                                <td class="fw-semibold">{{ staff.name }}</td>
+                                <td><span class="branch-badge">{{ staff.branch }}</span></td>
+                                <td class="text-end"><span class="score-badge danger">{{ staff.late_count }} late</span></td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+                {% else %}
+                <div class="empty-state text-center text-muted"><i class="fas fa-exclamation-circle d-block"></i><p class="mb-0">No attention needed</p></div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+
+    <div class="row mb-4 g-4">
+        <div class="col-lg-6">
+            <div class="card ranking-card h-100">
+                <div class="card-header text-white" style="background: linear-gradient(135deg, #17a2b8 0%, #138496 100%);">
+                    <h5><i class="fas fa-sun me-2"></i>Early Arrivals Champions</h5>
+                </div>
+                {% if early_arrivals %}
+                <div class="table-responsive">
+                    <table class="table mb-0">
+                        <thead><tr><th style="width: 55px;">Rank</th><th>Staff Member</th><th>Branch</th><th class="text-end">Avg Early</th></tr></thead>
+                        <tbody>
+                            {% for staff in early_arrivals %}
+                            <tr>
+                                <td>{% if loop.index == 1 %}<span class="rank-badge rank-gold"><i class="fas fa-sun"></i></span>{% elif loop.index == 2 %}<span class="rank-badge rank-silver">2</span>{% elif loop.index == 3 %}<span class="rank-badge rank-bronze">3</span>{% else %}<span class="rank-badge rank-default">{{ loop.index }}</span>{% endif %}</td>
+                                <td class="fw-semibold">{{ staff.name }}</td>
+                                <td><span class="branch-badge">{{ staff.branch }}</span></td>
+                                <td class="text-end"><span class="score-badge info">{{ staff.avg_early }} min</span></td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+                {% else %}
+                <div class="empty-state text-center text-muted"><i class="fas fa-sun d-block"></i><p class="mb-0">No early arrival data</p></div>
+                {% endif %}
+            </div>
+        </div>
+        <div class="col-lg-6">
+            <div class="card ranking-card h-100">
+                <div class="card-header text-white" style="background: linear-gradient(135deg, #6f42c1 0%, #59359a 100%);">
+                    <h5><i class="fas fa-award me-2"></i>Perfect Attendance</h5>
+                </div>
+                {% if perfect_attendance %}
+                <div class="table-responsive">
+                    <table class="table mb-0">
+                        <thead><tr><th style="width: 55px;">★</th><th>Staff Member</th><th>Branch</th><th class="text-end">Days</th></tr></thead>
+                        <tbody>
+                            {% for staff in perfect_attendance %}
+                            <tr>
+                                <td><span class="rank-badge rank-gold"><i class="fas fa-star"></i></span></td>
+                                <td class="fw-semibold">{{ staff.name }}</td>
+                                <td><span class="branch-badge">{{ staff.branch }}</span></td>
+                                <td class="text-end"><span class="score-badge purple">{{ staff.days }} days</span></td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+                {% else %}
+                <div class="empty-state text-center text-muted"><i class="fas fa-award d-block"></i><p class="mb-0">No perfect attendance records</p></div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+
+    <div class="row mb-4 g-4">
+        <div class="col-lg-6">
+            <div class="card ranking-card h-100">
+                <div class="card-header text-white" style="background: linear-gradient(135deg, #fd7e14 0%, #e06b0a 100%);">
+                    <h5><i class="fas fa-chart-line me-2"></i>Most Improved</h5>
+                </div>
+                {% if most_improved %}
+                <div class="table-responsive">
+                    <table class="table mb-0">
+                        <thead><tr><th style="width: 55px;">Rank</th><th>Staff Member</th><th>Branch</th><th class="text-end">Improvement</th></tr></thead>
+                        <tbody>
+                            {% for staff in most_improved %}
+                            <tr>
+                                <td>{% if loop.index == 1 %}<span class="rank-badge rank-gold"><i class="fas fa-arrow-up"></i></span>{% elif loop.index == 2 %}<span class="rank-badge rank-silver">2</span>{% elif loop.index == 3 %}<span class="rank-badge rank-bronze">3</span>{% else %}<span class="rank-badge rank-default">{{ loop.index }}</span>{% endif %}</td>
+                                <td class="fw-semibold">{{ staff.name }}</td>
+                                <td><span class="branch-badge">{{ staff.branch }}</span></td>
+                                <td class="text-end"><span class="score-badge success"><i class="fas fa-arrow-up me-1"></i>{{ staff.improvement }}%</span></td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+                {% else %}
+                <div class="empty-state text-center text-muted"><i class="fas fa-chart-line d-block"></i><p class="mb-0">No improvement data available</p></div>
+                {% endif %}
+            </div>
+        </div>
+        <div class="col-lg-6">
+            <div class="card ranking-card h-100">
+                <div class="card-header text-white" style="background: linear-gradient(135deg, #20c997 0%, #17a2b8 100%);">
+                    <h5><i class="fas fa-fire me-2"></i>On-Time Streaks</h5>
+                </div>
+                {% if attendance_streaks %}
+                <div class="table-responsive">
+                    <table class="table mb-0">
+                        <thead><tr><th style="width: 55px;">🔥</th><th>Staff Member</th><th>Branch</th><th class="text-end">Streak</th></tr></thead>
+                        <tbody>
+                            {% for staff in attendance_streaks %}
+                            <tr>
+                                <td>{% if loop.index == 1 %}<span class="rank-badge rank-gold"><i class="fas fa-fire"></i></span>{% elif loop.index == 2 %}<span class="rank-badge rank-silver">2</span>{% elif loop.index == 3 %}<span class="rank-badge rank-bronze">3</span>{% else %}<span class="rank-badge rank-default">{{ loop.index }}</span>{% endif %}</td>
+                                <td class="fw-semibold">{{ staff.name }}</td>
+                                <td><span class="branch-badge">{{ staff.branch }}</span></td>
+                                <td class="text-end"><span class="score-badge orange">{{ staff.streak }} days</span></td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+                {% else %}
+                <div class="empty-state text-center text-muted"><i class="fas fa-fire d-block"></i><p class="mb-0">No streak data available</p></div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<script>
+document.getElementById('periodSelect').addEventListener('change', function() {
+    document.querySelectorAll('.custom-date').forEach(el => {
+        el.style.display = this.value === 'custom' ? 'block' : 'none';
+    });
+});
+
+// Attendance Trend Chart
+const trendCtx = document.getElementById('attendanceTrendChart').getContext('2d');
+new Chart(trendCtx, {
+    type: 'line',
+    data: {
+        labels: {{ trend_labels|tojson }},
+        datasets: [{
+            label: 'Attendance %',
+            data: {{ trend_attendance|tojson }},
+            borderColor: '#dc3545',
+            backgroundColor: 'rgba(220, 53, 69, 0.1)',
+            fill: true,
+            tension: 0.4
+        }, {
+            label: 'Punctuality %',
+            data: {{ trend_punctuality|tojson }},
+            borderColor: '#28a745',
+            backgroundColor: 'rgba(40, 167, 69, 0.1)',
+            fill: true,
+            tension: 0.4
+        }]
+    },
+    options: { responsive: true, plugins: { legend: { position: 'bottom' } }, scales: { y: { beginAtZero: true, max: 100 } } }
+});
+
+// Late by Day Chart
+const dayCtx = document.getElementById('lateByDayChart').getContext('2d');
+new Chart(dayCtx, {
+    type: 'bar',
+    data: {
+        labels: {{ late_by_day_labels|tojson }},
+        datasets: [{
+            label: 'Late Count',
+            data: {{ late_by_day_data|tojson }},
+            backgroundColor: ['#ff6384', '#ff9f40', '#ffcd56', '#4bc0c0', '#36a2eb', '#9966ff', '#c9cbcf']
+        }]
+    },
+    options: { responsive: true, plugins: { legend: { display: false } } }
+});
+
+// Department Chart
+{% if department_labels %}
+const deptCtx = document.getElementById('departmentChart').getContext('2d');
+new Chart(deptCtx, {
+    type: 'doughnut',
+    data: {
+        labels: {{ department_labels|tojson }},
+        datasets: [{
+            data: {{ department_data|tojson }},
+            backgroundColor: ['#007bff', '#28a745', '#ffc107', '#dc3545', '#6f42c1', '#17a2b8', '#fd7e14', '#20c997']
+        }]
+    },
+    options: { responsive: true, plugins: { legend: { position: 'bottom' } } }
+});
+{% endif %}
+
+// Branch Chart
+{% if branch_labels %}
+const branchCtx = document.getElementById('branchChart').getContext('2d');
+new Chart(branchCtx, {
+    type: 'bar',
+    data: {
+        labels: {{ branch_labels|tojson }},
+        datasets: [{
+            label: 'Attendance %',
+            data: {{ branch_attendance|tojson }},
+            backgroundColor: 'rgba(40, 167, 69, 0.8)'
+        }, {
+            label: 'Punctuality %',
+            data: {{ branch_punctuality|tojson }},
+            backgroundColor: 'rgba(0, 123, 255, 0.8)'
+        }]
+    },
+    options: { responsive: true, plugins: { legend: { position: 'bottom' } }, scales: { y: { beginAtZero: true, max: 100 } } }
+});
+{% endif %}
+
+// Distribution Chart (Arrival Distribution)
+{% if total_records > 0 %}
+const distCtx = document.getElementById('distributionChart').getContext('2d');
+new Chart(distCtx, {
+    type: 'pie',
+    data: {
+        labels: {{ distribution_labels|tojson }},
+        datasets: [{
+            data: {{ distribution_data|tojson }},
+            backgroundColor: ['#28a745', '#17a2b8', '#ffc107']
+        }]
+    },
+    options: { responsive: true, plugins: { legend: { position: 'bottom' } } }
+});
+{% endif %}
+
+// Presence Chart (Present vs Absent)
+{% if total_records > 0 or presence_data[1] > 0 %}
+const presenceCtx = document.getElementById('presenceChart').getContext('2d');
+new Chart(presenceCtx, {
+    type: 'doughnut',
+    data: {
+        labels: ['Present', 'Absent'],
+        datasets: [{
+            data: {{ presence_data|tojson }},
+            backgroundColor: ['#28a745', '#dc3545']
+        }]
+    },
+    options: { responsive: true, plugins: { legend: { position: 'bottom' } } }
+});
+{% endif %}
+
+// Weekly Comparison Chart
+const weeklyCtx = document.getElementById('weeklyComparisonChart').getContext('2d');
+new Chart(weeklyCtx, {
+    type: 'bar',
+    data: {
+        labels: ['Attendance %', 'Punctuality %'],
+        datasets: [{
+            label: 'This Week',
+            data: [{{ weekly_this_week[0] }}, {{ weekly_this_week[1] }}],
+            backgroundColor: 'rgba(253, 126, 20, 0.8)'
+        }, {
+            label: 'Last Week',
+            data: [{{ weekly_last_week[0] }}, {{ weekly_last_week[1] }}],
+            backgroundColor: 'rgba(108, 117, 125, 0.6)'
+        }]
+    },
+    options: { responsive: true, plugins: { legend: { position: 'bottom' } }, scales: { y: { beginAtZero: true, max: 100 } } }
+});
+</script>
+{% endblock %}
+
