@@ -557,8 +557,7 @@ def bulk_upload():
     else:
         schools = [current_user.school]
     return render_template('bulk_upload.html', schools=schools)
-
-@app.route('/users')
+    Copy@app.route('/users')
 @login_required
 @role_required('super_admin')
 def users():
@@ -1098,8 +1097,7 @@ def download_overtime_report():
     output.seek(0)
     filename = f'overtime_{date_from}_to_{date_to}.csv'
     return Response(output.getvalue(), mimetype='text/csv', headers={'Content-Disposition': f'attachment; filename={filename}'})
-
-@app.route('/reports/analytics')
+    @app.route('/reports/analytics')
 @login_required
 def analytics():
     period = request.args.get('period', '30')
@@ -1261,7 +1259,7 @@ def analytics():
     branch_labels = []
     branch_attendance = []
     branch_punctuality = []
-    branch_trends = []  # Phase 3: Branch Trends
+    branch_trends = []
     
     for school in schools[:10]:
         school_staff = [s for s in all_staff if s.school_id == school.id]
@@ -1276,18 +1274,48 @@ def analytics():
             school_on_time = sum(1 for a in school_att if not a.is_late)
             school_punct = round((school_on_time / len(school_att)) * 100, 1) if school_att else 100
             
-            # Phase 3: Calculate previous period punctuality for this branch
             prev_school_att = [a for a in previous_attendance if a.staff_id in school_staff_ids]
             prev_school_on_time = sum(1 for a in prev_school_att if not a.is_late)
             prev_school_punct = round((prev_school_on_time / len(prev_school_att)) * 100, 1) if prev_school_att else 100
             
-            # Calculate trend (current - previous)
             school_trend = round(school_punct - prev_school_punct, 1)
             
             branch_labels.append(school.short_name or school.name[:15])
             branch_attendance.append(min(school_rate, 100))
             branch_punctuality.append(school_punct)
-            branch_trends.append(school_trend)  # Phase 3: Add trend
+            branch_trends.append(school_trend)
+    
+    # Phase 3: Late Arrivals Heatmap
+    hour_labels = ['7:00', '7:30', '8:00', '8:30', '9:00', '9:30', '10:00+']
+    heatmap_data = [[0 for _ in range(5)] for _ in range(7)]
+    
+    for a in current_attendance:
+        if a.is_late and a.sign_in_time:
+            day_idx = a.date.weekday()
+            if day_idx < 5:
+                hour = a.sign_in_time.hour
+                minute = a.sign_in_time.minute
+                
+                if hour == 7 and minute < 30:
+                    slot = 0
+                elif hour == 7 and minute >= 30:
+                    slot = 1
+                elif hour == 8 and minute < 30:
+                    slot = 2
+                elif hour == 8 and minute >= 30:
+                    slot = 3
+                elif hour == 9 and minute < 30:
+                    slot = 4
+                elif hour == 9 and minute >= 30:
+                    slot = 5
+                elif hour >= 10:
+                    slot = 6
+                else:
+                    continue
+                
+                heatmap_data[slot][day_idx] += 1
+    
+    heatmap_max = max(max(row) for row in heatmap_data) if any(any(row) for row in heatmap_data) else 1
     
     # Early arrivals tracking
     early_arrivals = []
@@ -1336,7 +1364,7 @@ def analytics():
     perfect_attendance.sort(key=lambda x: x['days'], reverse=True)
     perfect_attendance = perfect_attendance[:5]
     
-    # Most improved (reduced lateness)
+    # Most improved
     most_improved = []
     for s in all_staff:
         if s.department == 'Management':
@@ -1442,13 +1470,17 @@ def analytics():
                          branch_labels=branch_labels,
                          branch_attendance=branch_attendance,
                          branch_punctuality=branch_punctuality,
-                         branch_trends=branch_trends,  # Phase 3: Pass to template
+                         branch_trends=branch_trends,
+                         hour_labels=hour_labels,
+                         heatmap_data=heatmap_data,
+                         heatmap_max=heatmap_max,
                          early_arrivals=early_arrivals,
                          perfect_attendance=perfect_attendance,
                          most_improved=most_improved,
                          attendance_streaks=attendance_streaks,
                          top_performers=top_performers,
                          needs_attention=needs_attention)
+
 
 @app.route('/api/sync', methods=['GET', 'POST', 'OPTIONS'])
 def api_sync():
@@ -1714,6 +1746,7 @@ def api_sync():
     response.headers.add('Access-Control-Allow-Origin', '*')
     return response, 400
 
+
 @app.route('/init-db')
 def init_db():
     try:
@@ -1758,6 +1791,7 @@ def init_db():
         return 'Database initialized successfully!'
     except Exception as e:
         return f'Error: {str(e)}'
+
 
 if __name__ == '__main__':
     with app.app_context():
