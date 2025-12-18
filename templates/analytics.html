@@ -172,6 +172,7 @@
         </div>
     </div>
 
+    <!-- Metrics Row 1 -->
     <div class="row mb-4 g-4">
         <div class="col-xl-3 col-sm-6">
             <div class="card metric-card soft-red h-100 shadow-sm">
@@ -241,6 +242,7 @@
         </div>
     </div>
 
+    <!-- Metrics Row 2 -->
     <div class="row mb-4 g-4">
         <div class="col-xl-3 col-sm-6">
             <div class="card metric-card soft-teal h-100 shadow-sm">
@@ -304,6 +306,7 @@
         </div>
     </div>
 
+    <!-- Charts Row 1 -->
     <div class="row mb-4 g-4">
         <div class="col-lg-8">
             <div class="card chart-card h-100">
@@ -329,6 +332,7 @@
         </div>
     </div>
 
+    <!-- Charts Row 2 -->
     <div class="row mb-4 g-4">
         <div class="col-lg-5">
             <div class="card chart-card h-100">
@@ -419,6 +423,7 @@
         </div>
     </div>
 
+    <!-- Rankings Row 1 -->
     <div class="row mb-4 g-4">
         <div class="col-lg-6">
             <div class="card ranking-card h-100">
@@ -456,7 +461,7 @@
                     <table class="table mb-0">
                         <thead><tr><th style="width: 55px;">#</th><th>Staff Member</th><th>Branch</th><th class="text-end">Late Count</th></tr></thead>
                         <tbody>
-                                                        {% for staff in needs_attention %}
+                            {% for staff in needs_attention %}
                             <tr>
                                 <td><span class="rank-badge rank-default">{{ loop.index }}</span></td>
                                 <td class="fw-semibold">{{ staff.name }}</td>
@@ -474,6 +479,7 @@
         </div>
     </div>
 
+    <!-- Rankings Row 2 -->
     <div class="row mb-4 g-4">
         <div class="col-lg-6">
             <div class="card ranking-card h-100">
@@ -490,7 +496,7 @@
                                 <td>{% if loop.index == 1 %}<span class="rank-badge rank-gold"><i class="fas fa-sun"></i></span>{% elif loop.index == 2 %}<span class="rank-badge rank-silver">2</span>{% elif loop.index == 3 %}<span class="rank-badge rank-bronze">3</span>{% else %}<span class="rank-badge rank-default">{{ loop.index }}</span>{% endif %}</td>
                                 <td class="fw-semibold">{{ staff.name }}</td>
                                 <td><span class="branch-badge">{{ staff.branch }}</span></td>
-                                <td class="text-end"><span class="score-badge info">{{ staff.avg_early }} min</span></td>
+                                <td class="text-end"><span class="score-badge info">{{ staff.avg_early_mins }} min</span></td>
                             </tr>
                             {% endfor %}
                         </tbody>
@@ -529,6 +535,7 @@
         </div>
     </div>
 
+    <!-- Rankings Row 3 -->
     <div class="row mb-4 g-4">
         <div class="col-lg-6">
             <div class="card ranking-card h-100">
@@ -545,7 +552,7 @@
                                 <td>{% if loop.index == 1 %}<span class="rank-badge rank-gold"><i class="fas fa-arrow-up"></i></span>{% elif loop.index == 2 %}<span class="rank-badge rank-silver">2</span>{% elif loop.index == 3 %}<span class="rank-badge rank-bronze">3</span>{% else %}<span class="rank-badge rank-default">{{ loop.index }}</span>{% endif %}</td>
                                 <td class="fw-semibold">{{ staff.name }}</td>
                                 <td><span class="branch-badge">{{ staff.branch }}</span></td>
-                                <td class="text-end"><span class="score-badge success"><i class="fas fa-arrow-up me-1"></i>{{ staff.improvement }}%</span></td>
+                                <td class="text-end"><span class="score-badge success"><i class="fas fa-arrow-up me-1"></i>{{ staff.reduction }} fewer</span></td>
                             </tr>
                             {% endfor %}
                         </tbody>
@@ -601,14 +608,14 @@ new Chart(trendCtx, {
         labels: {{ trend_labels|tojson }},
         datasets: [{
             label: 'Attendance %',
-            data: {{ trend_attendance|tojson }},
+            data: {{ trend_data|tojson }},
             borderColor: '#dc3545',
             backgroundColor: 'rgba(220, 53, 69, 0.1)',
             fill: true,
             tension: 0.4
         }, {
             label: 'Punctuality %',
-            data: {{ trend_punctuality|tojson }},
+            data: {{ punctuality_data|tojson }},
             borderColor: '#28a745',
             backgroundColor: 'rgba(40, 167, 69, 0.1)',
             fill: true,
@@ -623,10 +630,10 @@ const dayCtx = document.getElementById('lateByDayChart').getContext('2d');
 new Chart(dayCtx, {
     type: 'bar',
     data: {
-        labels: {{ late_by_day_labels|tojson }},
+        labels: ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'],
         datasets: [{
             label: 'Late Count',
-            data: {{ late_by_day_data|tojson }},
+            data: {{ late_by_day|tojson }},
             backgroundColor: ['#ff6384', '#ff9f40', '#ffcd56', '#4bc0c0', '#36a2eb', '#9966ff', '#c9cbcf']
         }]
     },
@@ -692,7 +699,7 @@ const presenceCtx = document.getElementById('presenceChart').getContext('2d');
 new Chart(presenceCtx, {
     type: 'doughnut',
     data: {
-        labels: ['Present', 'Absent'],
+        labels: {{ presence_labels|tojson }},
         datasets: [{
             data: {{ presence_data|tojson }},
             backgroundColor: ['#28a745', '#dc3545']
@@ -707,14 +714,14 @@ const weeklyCtx = document.getElementById('weeklyComparisonChart').getContext('2
 new Chart(weeklyCtx, {
     type: 'bar',
     data: {
-        labels: ['Attendance %', 'Punctuality %'],
+        labels: {{ weekly_comparison_labels|tojson }},
         datasets: [{
             label: 'This Week',
-            data: [{{ weekly_this_week[0] }}, {{ weekly_this_week[1] }}],
+            data: {{ weekly_this_week|tojson }},
             backgroundColor: 'rgba(253, 126, 20, 0.8)'
         }, {
             label: 'Last Week',
-            data: [{{ weekly_last_week[0] }}, {{ weekly_last_week[1] }}],
+            data: {{ weekly_last_week|tojson }},
             backgroundColor: 'rgba(108, 117, 125, 0.6)'
         }]
     },
@@ -722,4 +729,3 @@ new Chart(weeklyCtx, {
 });
 </script>
 {% endblock %}
-
