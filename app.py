@@ -262,7 +262,6 @@ def settings():
     
     return render_template('settings.html', settings=settings, organizations=organizations)
 
-# Organization Routes
 @app.route('/organizations/add', methods=['GET', 'POST'])
 @login_required
 @role_required('super_admin')
@@ -1285,13 +1284,18 @@ def analytics():
     period = request.args.get('period', '30')
     school_id = request.args.get('school_id', '')
     organization_id = request.args.get('organization_id', '')
+    department = request.args.get('department', '')
     start_date_param = request.args.get('start_date', '')
     end_date_param = request.args.get('end_date', '')
     
     today = date.today()
     
     # Handle different period options
-    if period == 'custom' and start_date_param and end_date_param:
+    if period == 'today':
+        start_date = today
+        end_date = today
+        period_days = 1
+    elif period == 'custom' and start_date_param and end_date_param:
         try:
             start_date = datetime.strptime(start_date_param, '%Y-%m-%d').date()
             end_date = datetime.strptime(end_date_param, '%Y-%m-%d').date()
@@ -1348,6 +1352,10 @@ def analytics():
     elif current_user.role != 'super_admin' and accessible_school_ids:
         staff_query = staff_query.filter(Staff.school_id.in_(accessible_school_ids))
     
+    # Apply department filter
+    if department:
+        staff_query = staff_query.filter_by(department=department)
+    
     all_staff = staff_query.all()
     staff_ids = [s.id for s in all_staff]
     
@@ -1393,6 +1401,22 @@ def analytics():
     prev_on_time = sum(1 for a in previous_attendance if not a.is_late)
     prev_punctuality = round((prev_on_time / len(previous_attendance)) * 100, 1) if previous_attendance else 100
     punctuality_trend = round(punctuality_rate - prev_punctuality, 1)
+    
+    # NEW: Average late minutes
+    late_records = [a for a in current_attendance if a.is_late and a.late_minutes]
+    total_late_minutes = sum(a.late_minutes for a in late_records)
+    avg_late_minutes = round(total_late_minutes / len(late_records)) if late_records else 0
+    total_late_count = len(late_records)
+    
+    # NEW: Early/On-time arrivals count
+    early_arrival_count = sum(1 for a in current_attendance if not a.is_late)
+    
+    # NEW: Overtime summary
+    overtime_records = [a for a in current_attendance if a.overtime_minutes and a.overtime_minutes > 0]
+    total_overtime_minutes = sum(a.overtime_minutes for a in overtime_records)
+    total_overtime_hours = total_overtime_minutes // 60
+    total_overtime_mins = total_overtime_minutes % 60
+    overtime_staff_count = len(set(a.staff_id for a in overtime_records))
     
     # Attendance trend data (daily)
     trend_labels = []
@@ -1461,7 +1485,7 @@ def analytics():
         if s.department == 'Management':
             continue
         staff_attendance = [a for a in current_attendance if a.staff_id == s.id]
-        if len(staff_attendance) >= 3:
+        if len(staff_attendance) >= 1:
             on_time = sum(1 for a in staff_attendance if not a.is_late)
             punctuality = round((on_time / len(staff_attendance)) * 100, 1)
             top_performers.append({
@@ -1495,6 +1519,7 @@ def analytics():
                          organizations=organizations,
                          selected_school_id=school_id,
                          selected_organization_id=organization_id,
+                         selected_department=department,
                          period=period,
                          start_date=start_date.strftime('%Y-%m-%d'),
                          end_date=end_date.strftime('%Y-%m-%d'),
@@ -1505,6 +1530,12 @@ def analytics():
                          total_staff=total_staff,
                          branch_count=branch_count,
                          total_records=total_records,
+                         avg_late_minutes=avg_late_minutes,
+                         total_late_count=total_late_count,
+                         early_arrival_count=early_arrival_count,
+                         total_overtime_hours=total_overtime_hours,
+                         total_overtime_mins=total_overtime_mins,
+                         overtime_staff_count=overtime_staff_count,
                          trend_labels=trend_labels,
                          trend_data=trend_data,
                          punctuality_data=punctuality_data,
