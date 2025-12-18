@@ -11,9 +11,10 @@
 <div class="card mb-4">
     <div class="card-body">
         <form method="GET" class="row g-3 align-items-end">
-            <div class="col-md-3">
+            <div class="col-md-2">
                 <label class="form-label"><i class="fas fa-calendar me-1"></i>Period</label>
                 <select name="period" id="periodSelect" class="form-select" onchange="toggleCustomDates()">
+                    <option value="today" {% if period == 'today' %}selected{% endif %}>Today</option>
                     <option value="this_week" {% if period == 'this_week' %}selected{% endif %}>This Week</option>
                     <option value="last_week" {% if period == 'last_week' %}selected{% endif %}>Last Week</option>
                     <option value="30" {% if period == '30' %}selected{% endif %}>Last 30 Days</option>
@@ -40,7 +41,7 @@
                 <select name="organization_id" id="organizationFilter" class="form-select" onchange="filterBranches()">
                     <option value="">All Organizations</option>
                     {% for org in organizations %}
-                    <option value="{{ org.id }}" {% if selected_organization_id == org.id %}selected{% endif %}>{{ org.name }}</option>
+                    <option value="{{ org.id }}" {% if selected_organization_id == org.id|string %}selected{% endif %}>{{ org.name }}</option>
                     {% endfor %}
                 </select>
             </div>
@@ -51,8 +52,19 @@
                 <select name="school_id" id="branchFilter" class="form-select">
                     <option value="">All Branches</option>
                     {% for school in schools %}
-                    <option value="{{ school.id }}" data-org="{{ school.organization_id or '' }}" {% if selected_school_id == school.id %}selected{% endif %}>{{ school.name }}</option>
+                    <option value="{{ school.id }}" data-org="{{ school.organization_id or '' }}" {% if selected_school_id == school.id|string %}selected{% endif %}>{{ school.name }}</option>
                     {% endfor %}
+                </select>
+            </div>
+            
+            <div class="col-md-2">
+                <label class="form-label"><i class="fas fa-sitemap me-1"></i>Department</label>
+                <select name="department" id="departmentFilter" class="form-select">
+                    <option value="">All Departments</option>
+                    <option value="Academic" {% if selected_department == 'Academic' %}selected{% endif %}>Academic</option>
+                    <option value="Admin" {% if selected_department == 'Admin' %}selected{% endif %}>Admin</option>
+                    <option value="Non-Academic" {% if selected_department == 'Non-Academic' %}selected{% endif %}>Non-Academic</option>
+                    <option value="Management" {% if selected_department == 'Management' %}selected{% endif %}>Management</option>
                 </select>
             </div>
             
@@ -65,7 +77,7 @@
     </div>
 </div>
 
-<!-- Key Metrics Cards -->
+<!-- Key Metrics Cards - Row 1 -->
 <div class="row mb-4">
     <div class="col-md-3">
         <div class="card h-100">
@@ -112,6 +124,50 @@
                 <h3 class="mb-0">{{ total_records }}</h3>
                 <small class="text-muted">Attendance Records</small>
                 <div class="text-muted mt-1">In selected period</div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Key Metrics Cards - Row 2 (New metrics) -->
+<div class="row mb-4">
+    <div class="col-md-3">
+        <div class="card h-100 border-warning">
+            <div class="card-body text-center">
+                <i class="fas fa-hourglass-half fa-2x mb-2 text-warning"></i>
+                <h3 class="mb-0">{{ avg_late_minutes }} mins</h3>
+                <small class="text-muted">Avg. Late Time</small>
+                <div class="text-muted mt-1">When staff are late</div>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="card h-100 border-info">
+            <div class="card-body text-center">
+                <i class="fas fa-business-time fa-2x mb-2 text-info"></i>
+                <h3 class="mb-0">{{ total_overtime_hours }}h {{ total_overtime_mins }}m</h3>
+                <small class="text-muted">Total Overtime</small>
+                <div class="text-muted mt-1">{{ overtime_staff_count }} staff worked extra</div>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="card h-100 border-danger">
+            <div class="card-body text-center">
+                <i class="fas fa-user-clock fa-2x mb-2 text-danger"></i>
+                <h3 class="mb-0">{{ total_late_count }}</h3>
+                <small class="text-muted">Late Arrivals</small>
+                <div class="text-muted mt-1">In selected period</div>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="card h-100 border-success">
+            <div class="card-body text-center">
+                <i class="fas fa-user-check fa-2x mb-2 text-success"></i>
+                <h3 class="mb-0">{{ early_arrival_count }}</h3>
+                <small class="text-muted">Early/On-Time</small>
+                <div class="text-muted mt-1">Punctual arrivals</div>
             </div>
         </div>
     </div>
