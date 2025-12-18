@@ -1400,6 +1400,29 @@ def analytics():
     needs_attention.sort(key=lambda x: x['late_count'], reverse=True)
     needs_attention = needs_attention[:5]
     
+    # Early vs On-Time vs Late Distribution
+    early_count_dist = 0
+    for s in all_staff:
+        if s.department == 'Management':
+            continue
+        for a in current_attendance:
+            if a.staff_id == s.id and a.sign_in_time and not a.is_late:
+                school = s.school
+                if school:
+                    day_of_week = a.date.weekday()
+                    start_time_str, _ = get_school_schedule(school, day_of_week)
+                    if start_time_str:
+                        scheduled_start = datetime.strptime(start_time_str, '%H:%M').time()
+                        if a.sign_in_time.time() < scheduled_start:
+                            early_count_dist += 1
+    
+    on_time_exact = on_time_count - early_count_dist
+    if on_time_exact < 0:
+        on_time_exact = 0
+    
+    distribution_data = [early_count_dist, on_time_exact, late_count]
+    distribution_labels = ['Early', 'On-Time', 'Late']
+    
     return render_template('analytics.html',
                          schools=schools,
                          organizations=organizations,
@@ -1436,7 +1459,9 @@ def analytics():
                          most_improved=most_improved,
                          attendance_streaks=attendance_streaks,
                          top_performers=top_performers,
-                         needs_attention=needs_attention)
+                         needs_attention=needs_attention,
+                         distribution_data=distribution_data,
+                         distribution_labels=distribution_labels)
 
 @app.route('/api/sync', methods=['GET', 'POST', 'OPTIONS'])
 def api_sync():
@@ -1751,4 +1776,3 @@ if __name__ == '__main__':
     with app.app_context():
         db.create_all()
     app.run(debug=True, host='0.0.0.0', port=int(os.environ.get('PORT', 5000)))
-
