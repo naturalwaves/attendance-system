@@ -1150,6 +1150,7 @@ def analytics():
         end_date = today
     
     previous_start = start_date - timedelta(days=period_days)
+    previous_end = start_date - timedelta(days=1)
     
     accessible_school_ids = current_user.get_accessible_school_ids()
     
@@ -1278,7 +1279,6 @@ def analytics():
             branch_attendance.append(min(school_rate, 100))
             branch_punctuality.append(school_punct)
     
-    # Early arrivals tracking
     early_arrivals = []
     for s in all_staff:
         if s.department == 'Management':
@@ -1309,7 +1309,6 @@ def analytics():
     early_arrivals.sort(key=lambda x: x['early_count'], reverse=True)
     early_arrivals = early_arrivals[:5]
     
-    # Perfect attendance
     perfect_attendance = []
     for s in all_staff:
         if s.department == 'Management':
@@ -1325,7 +1324,6 @@ def analytics():
     perfect_attendance.sort(key=lambda x: x['days'], reverse=True)
     perfect_attendance = perfect_attendance[:5]
     
-    # Most improved (reduced lateness)
     most_improved = []
     for s in all_staff:
         if s.department == 'Management':
@@ -1336,17 +1334,18 @@ def analytics():
         curr_late = sum(1 for a in curr_staff_att if a.is_late)
         if prev_late > 0 and curr_late < prev_late:
             reduction = prev_late - curr_late
+            improvement = round((reduction / prev_late) * 100, 1) if prev_late > 0 else 0
             most_improved.append({
                 'name': s.name,
                 'branch': s.school.short_name or s.school.name if s.school else 'N/A',
                 'prev_late': prev_late,
                 'curr_late': curr_late,
-                'reduction': reduction
+                'reduction': reduction,
+                'improvement': improvement
             })
     most_improved.sort(key=lambda x: x['reduction'], reverse=True)
     most_improved = most_improved[:5]
     
-    # Attendance streaks
     attendance_streaks = []
     for s in all_staff:
         if s.department == 'Management':
@@ -1437,6 +1436,7 @@ def analytics():
                          attendance_streaks=attendance_streaks,
                          top_performers=top_performers,
                          needs_attention=needs_attention)
+
 
 @app.route('/api/sync', methods=['GET', 'POST', 'OPTIONS'])
 def api_sync():
@@ -1702,6 +1702,7 @@ def api_sync():
     response.headers.add('Access-Control-Allow-Origin', '*')
     return response, 400
 
+
 @app.route('/init-db')
 def init_db():
     try:
@@ -1747,8 +1748,8 @@ def init_db():
     except Exception as e:
         return f'Error: {str(e)}'
 
+
 if __name__ == '__main__':
     with app.app_context():
         db.create_all()
     app.run(debug=True, host='0.0.0.0', port=int(os.environ.get('PORT', 5000)))
-
