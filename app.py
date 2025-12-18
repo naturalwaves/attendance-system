@@ -557,7 +557,8 @@ def bulk_upload():
     else:
         schools = [current_user.school]
     return render_template('bulk_upload.html', schools=schools)
-    Copy@app.route('/users')
+
+@app.route('/users')
 @login_required
 @role_required('super_admin')
 def users():
@@ -1097,7 +1098,8 @@ def download_overtime_report():
     output.seek(0)
     filename = f'overtime_{date_from}_to_{date_to}.csv'
     return Response(output.getvalue(), mimetype='text/csv', headers={'Content-Disposition': f'attachment; filename={filename}'})
-    @app.route('/reports/analytics')
+
+@app.route('/reports/analytics')
 @login_required
 def analytics():
     period = request.args.get('period', '30')
@@ -1285,7 +1287,6 @@ def analytics():
             branch_punctuality.append(school_punct)
             branch_trends.append(school_trend)
     
-    # Phase 3: Late Arrivals Heatmap
     hour_labels = ['7:00', '7:30', '8:00', '8:30', '9:00', '9:30', '10:00+']
     heatmap_data = [[0 for _ in range(5)] for _ in range(7)]
     
@@ -1317,7 +1318,6 @@ def analytics():
     
     heatmap_max = max(max(row) for row in heatmap_data) if any(any(row) for row in heatmap_data) else 1
     
-    # Early arrivals tracking
     early_arrivals = []
     for s in all_staff:
         if s.department == 'Management':
@@ -1348,7 +1348,6 @@ def analytics():
     early_arrivals.sort(key=lambda x: x['early_count'], reverse=True)
     early_arrivals = early_arrivals[:5]
     
-    # Perfect attendance
     perfect_attendance = []
     for s in all_staff:
         if s.department == 'Management':
@@ -1364,7 +1363,6 @@ def analytics():
     perfect_attendance.sort(key=lambda x: x['days'], reverse=True)
     perfect_attendance = perfect_attendance[:5]
     
-    # Most improved
     most_improved = []
     for s in all_staff:
         if s.department == 'Management':
@@ -1375,17 +1373,18 @@ def analytics():
         curr_late = sum(1 for a in curr_staff_att if a.is_late)
         if prev_late > 0 and curr_late < prev_late:
             reduction = prev_late - curr_late
+            improvement = round((reduction / prev_late) * 100, 1) if prev_late > 0 else 0
             most_improved.append({
                 'name': s.name,
                 'branch': s.school.short_name or s.school.name if s.school else 'N/A',
                 'prev_late': prev_late,
                 'curr_late': curr_late,
-                'reduction': reduction
+                'reduction': reduction,
+                'improvement': improvement
             })
     most_improved.sort(key=lambda x: x['reduction'], reverse=True)
     most_improved = most_improved[:5]
     
-    # Attendance streaks
     attendance_streaks = []
     for s in all_staff:
         if s.department == 'Management':
