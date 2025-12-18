@@ -3,12 +3,219 @@
 {% block title %}Analytics - Attendance System{% endblock %}
 
 {% block content %}
+<style>
+/* Analytics Card Styles */
+.metric-card {
+    border: none;
+    border-radius: 12px;
+    transition: all 0.3s ease;
+    overflow: hidden;
+}
+
+.metric-card:hover {
+    transform: translateY(-5px);
+    box-shadow: 0 8px 25px rgba(0,0,0,0.15);
+}
+
+.metric-card .card-body {
+    padding: 1.5rem;
+}
+
+.metric-card.gradient-primary {
+    background: linear-gradient(135deg, #dc3545 0%, #b02a37 100%);
+    color: white;
+}
+
+.metric-card.gradient-success {
+    background: linear-gradient(135deg, #198754 0%, #146c43 100%);
+    color: white;
+}
+
+.metric-card.gradient-info {
+    background: linear-gradient(135deg, #0dcaf0 0%, #0aa2c0 100%);
+    color: white;
+}
+
+.metric-card.gradient-warning {
+    background: linear-gradient(135deg, #ffc107 0%, #cc9a06 100%);
+    color: #212529;
+}
+
+.metric-card.border-left-primary {
+    border-left: 5px solid #dc3545 !important;
+    background: linear-gradient(135deg, #fff 0%, #fff5f5 100%);
+}
+
+.metric-card.border-left-success {
+    border-left: 5px solid #198754 !important;
+    background: linear-gradient(135deg, #fff 0%, #f0fff4 100%);
+}
+
+.metric-card.border-left-info {
+    border-left: 5px solid #0dcaf0 !important;
+    background: linear-gradient(135deg, #fff 0%, #f0faff 100%);
+}
+
+.metric-card.border-left-warning {
+    border-left: 5px solid #ffc107 !important;
+    background: linear-gradient(135deg, #fff 0%, #fffbf0 100%);
+}
+
+.metric-card.border-left-danger {
+    border-left: 5px solid #dc3545 !important;
+    background: linear-gradient(135deg, #fff 0%, #fff5f5 100%);
+}
+
+.metric-icon {
+    width: 60px;
+    height: 60px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 1.5rem;
+    margin-bottom: 1rem;
+}
+
+.metric-icon.bg-white-25 {
+    background: rgba(255,255,255,0.25);
+}
+
+.metric-icon.bg-primary-soft {
+    background: rgba(220, 53, 69, 0.15);
+    color: #dc3545;
+}
+
+.metric-icon.bg-success-soft {
+    background: rgba(25, 135, 84, 0.15);
+    color: #198754;
+}
+
+.metric-icon.bg-info-soft {
+    background: rgba(13, 202, 240, 0.15);
+    color: #0dcaf0;
+}
+
+.metric-icon.bg-warning-soft {
+    background: rgba(255, 193, 7, 0.15);
+    color: #cc9a06;
+}
+
+.metric-icon.bg-danger-soft {
+    background: rgba(220, 53, 69, 0.15);
+    color: #dc3545;
+}
+
+.metric-value {
+    font-size: 2rem;
+    font-weight: 700;
+    line-height: 1.2;
+    margin-bottom: 0.25rem;
+}
+
+.metric-label {
+    font-size: 0.875rem;
+    opacity: 0.85;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    font-weight: 500;
+}
+
+.metric-trend {
+    font-size: 0.8rem;
+    margin-top: 0.5rem;
+    padding: 0.25rem 0.5rem;
+    border-radius: 20px;
+    display: inline-block;
+}
+
+.metric-trend.up {
+    background: rgba(25, 135, 84, 0.15);
+    color: #198754;
+}
+
+.metric-trend.down {
+    background: rgba(220, 53, 69, 0.15);
+    color: #dc3545;
+}
+
+.metric-card.gradient-primary .metric-trend.up,
+.metric-card.gradient-success .metric-trend.up {
+    background: rgba(255,255,255,0.25);
+    color: white;
+}
+
+.metric-card.gradient-primary .metric-trend.down,
+.metric-card.gradient-success .metric-trend.down {
+    background: rgba(255,255,255,0.25);
+    color: white;
+}
+
+.metric-subtitle {
+    font-size: 0.75rem;
+    opacity: 0.7;
+    margin-top: 0.25rem;
+}
+
+/* Chart Cards */
+.chart-card {
+    border: none;
+    border-radius: 12px;
+    box-shadow: 0 2px 12px rgba(0,0,0,0.08);
+}
+
+.chart-card .card-header {
+    background: transparent;
+    border-bottom: 1px solid rgba(0,0,0,0.05);
+    font-weight: 600;
+    padding: 1rem 1.25rem;
+}
+
+/* Ranking Cards */
+.ranking-card {
+    border: none;
+    border-radius: 12px;
+    overflow: hidden;
+    box-shadow: 0 2px 12px rgba(0,0,0,0.08);
+}
+
+.ranking-card .card-header {
+    padding: 1rem 1.25rem;
+    font-weight: 600;
+}
+
+.ranking-card .table {
+    margin-bottom: 0;
+}
+
+.ranking-card .table th {
+    border-top: none;
+    font-weight: 600;
+    font-size: 0.8rem;
+    text-transform: uppercase;
+    color: #6c757d;
+}
+
+.ranking-card .table td {
+    vertical-align: middle;
+    padding: 0.75rem;
+}
+
+/* Filter Card */
+.filter-card {
+    border: none;
+    border-radius: 12px;
+    box-shadow: 0 2px 12px rgba(0,0,0,0.08);
+    background: linear-gradient(135deg, #f8f9fa 0%, #fff 100%);
+}
+</style>
+
 <div class="d-flex justify-content-between align-items-center mb-4">
-    <h2><i class="fas fa-chart-line me-2"></i>Analytics</h2>
+    <h2><i class="fas fa-chart-line me-2"></i>Analytics Dashboard</h2>
 </div>
 
 <!-- Filters -->
-<div class="card mb-4">
+<div class="card filter-card mb-4">
     <div class="card-body">
         <form method="GET" class="row g-3 align-items-end">
             <div class="col-md-2">
@@ -77,97 +284,129 @@
     </div>
 </div>
 
-<!-- Key Metrics Cards - Row 1 -->
+<!-- Key Metrics Cards - Row 1 (Primary Metrics with Gradients) -->
 <div class="row mb-4">
     <div class="col-md-3">
-        <div class="card h-100">
+        <div class="card metric-card gradient-primary h-100">
             <div class="card-body text-center">
-                <i class="fas fa-chart-pie fa-2x mb-2 text-primary"></i>
-                <h3 class="mb-0">{{ "%.1f"|format(attendance_rate) }}%</h3>
-                <small class="text-muted">Attendance Rate</small>
+                <div class="metric-icon bg-white-25 mx-auto">
+                    <i class="fas fa-chart-pie"></i>
+                </div>
+                <div class="metric-value">{{ "%.1f"|format(attendance_rate) }}%</div>
+                <div class="metric-label">Attendance Rate</div>
                 {% if attendance_trend >= 0 %}
-                <div class="text-success mt-1"><i class="fas fa-arrow-up"></i> {{ "%.1f"|format(attendance_trend) }}%</div>
+                <span class="metric-trend up"><i class="fas fa-arrow-up me-1"></i>{{ "%.1f"|format(attendance_trend) }}%</span>
                 {% else %}
-                <div class="text-danger mt-1"><i class="fas fa-arrow-down"></i> {{ "%.1f"|format(attendance_trend|abs) }}%</div>
+                <span class="metric-trend down"><i class="fas fa-arrow-down me-1"></i>{{ "%.1f"|format(attendance_trend|abs) }}%</span>
                 {% endif %}
             </div>
         </div>
     </div>
     <div class="col-md-3">
-        <div class="card h-100">
+        <div class="card metric-card gradient-success h-100">
             <div class="card-body text-center">
-                <i class="fas fa-clock fa-2x mb-2 text-success"></i>
-                <h3 class="mb-0">{{ "%.1f"|format(punctuality_rate) }}%</h3>
-                <small class="text-muted">Punctuality Rate</small>
+                <div class="metric-icon bg-white-25 mx-auto">
+                    <i class="fas fa-clock"></i>
+                </div>
+                <div class="metric-value">{{ "%.1f"|format(punctuality_rate) }}%</div>
+                <div class="metric-label">Punctuality Rate</div>
                 {% if punctuality_trend >= 0 %}
-                <div class="text-success mt-1"><i class="fas fa-arrow-up"></i> {{ "%.1f"|format(punctuality_trend) }}%</div>
+                <span class="metric-trend up"><i class="fas fa-arrow-up me-1"></i>{{ "%.1f"|format(punctuality_trend) }}%</span>
                 {% else %}
-                <div class="text-danger mt-1"><i class="fas fa-arrow-down"></i> {{ "%.1f"|format(punctuality_trend|abs) }}%</div>
+                <span class="metric-trend down"><i class="fas fa-arrow-down me-1"></i>{{ "%.1f"|format(punctuality_trend|abs) }}%</span>
                 {% endif %}
             </div>
         </div>
     </div>
     <div class="col-md-3">
-        <div class="card h-100">
+        <div class="card metric-card gradient-info h-100">
             <div class="card-body text-center">
-                <i class="fas fa-users fa-2x mb-2 text-info"></i>
-                <h3 class="mb-0">{{ total_staff }}</h3>
-                <small class="text-muted">Active Staff</small>
-                <div class="text-muted mt-1">Across {{ branch_count }} branch{{ 'es' if branch_count != 1 else '' }}</div>
+                <div class="metric-icon bg-white-25 mx-auto">
+                    <i class="fas fa-users"></i>
+                </div>
+                <div class="metric-value">{{ total_staff }}</div>
+                <div class="metric-label">Active Staff</div>
+                <div class="metric-subtitle">Across {{ branch_count }} branch{{ 'es' if branch_count != 1 else '' }}</div>
             </div>
         </div>
     </div>
     <div class="col-md-3">
-        <div class="card h-100">
+        <div class="card metric-card gradient-warning h-100">
             <div class="card-body text-center">
-                <i class="fas fa-calendar-check fa-2x mb-2 text-warning"></i>
-                <h3 class="mb-0">{{ total_records }}</h3>
-                <small class="text-muted">Attendance Records</small>
-                <div class="text-muted mt-1">In selected period</div>
+                <div class="metric-icon bg-white-25 mx-auto">
+                    <i class="fas fa-calendar-check"></i>
+                </div>
+                <div class="metric-value">{{ total_records }}</div>
+                <div class="metric-label">Attendance Records</div>
+                <div class="metric-subtitle">In selected period</div>
             </div>
         </div>
     </div>
 </div>
 
-<!-- Key Metrics Cards - Row 2 (New metrics) -->
+<!-- Key Metrics Cards - Row 2 (Secondary Metrics with Border) -->
 <div class="row mb-4">
     <div class="col-md-3">
-        <div class="card h-100 border-warning">
-            <div class="card-body text-center">
-                <i class="fas fa-hourglass-half fa-2x mb-2 text-warning"></i>
-                <h3 class="mb-0">{{ avg_late_minutes }} mins</h3>
-                <small class="text-muted">Avg. Late Time</small>
-                <div class="text-muted mt-1">When staff are late</div>
+        <div class="card metric-card border-left-warning h-100">
+            <div class="card-body">
+                <div class="d-flex align-items-center">
+                    <div class="metric-icon bg-warning-soft me-3">
+                        <i class="fas fa-hourglass-half"></i>
+                    </div>
+                    <div>
+                        <div class="metric-value text-warning">{{ avg_late_minutes }}<small class="fs-6">mins</small></div>
+                        <div class="metric-label text-muted">Avg. Late Time</div>
+                    </div>
+                </div>
+                <div class="metric-subtitle text-muted mt-2">When staff arrive late</div>
             </div>
         </div>
     </div>
     <div class="col-md-3">
-        <div class="card h-100 border-info">
-            <div class="card-body text-center">
-                <i class="fas fa-business-time fa-2x mb-2 text-info"></i>
-                <h3 class="mb-0">{{ total_overtime_hours }}h {{ total_overtime_mins }}m</h3>
-                <small class="text-muted">Total Overtime</small>
-                <div class="text-muted mt-1">{{ overtime_staff_count }} staff worked extra</div>
+        <div class="card metric-card border-left-info h-100">
+            <div class="card-body">
+                <div class="d-flex align-items-center">
+                    <div class="metric-icon bg-info-soft me-3">
+                        <i class="fas fa-business-time"></i>
+                    </div>
+                    <div>
+                        <div class="metric-value text-info">{{ total_overtime_hours }}<small class="fs-6">h</small> {{ total_overtime_mins }}<small class="fs-6">m</small></div>
+                        <div class="metric-label text-muted">Total Overtime</div>
+                    </div>
+                </div>
+                <div class="metric-subtitle text-muted mt-2">{{ overtime_staff_count }} staff worked extra</div>
             </div>
         </div>
     </div>
     <div class="col-md-3">
-        <div class="card h-100 border-danger">
-            <div class="card-body text-center">
-                <i class="fas fa-user-clock fa-2x mb-2 text-danger"></i>
-                <h3 class="mb-0">{{ total_late_count }}</h3>
-                <small class="text-muted">Late Arrivals</small>
-                <div class="text-muted mt-1">In selected period</div>
+        <div class="card metric-card border-left-danger h-100">
+            <div class="card-body">
+                <div class="d-flex align-items-center">
+                    <div class="metric-icon bg-danger-soft me-3">
+                        <i class="fas fa-user-clock"></i>
+                    </div>
+                    <div>
+                        <div class="metric-value text-danger">{{ total_late_count }}</div>
+                        <div class="metric-label text-muted">Late Arrivals</div>
+                    </div>
+                </div>
+                <div class="metric-subtitle text-muted mt-2">In selected period</div>
             </div>
         </div>
     </div>
     <div class="col-md-3">
-        <div class="card h-100 border-success">
-            <div class="card-body text-center">
-                <i class="fas fa-user-check fa-2x mb-2 text-success"></i>
-                <h3 class="mb-0">{{ early_arrival_count }}</h3>
-                <small class="text-muted">Early/On-Time</small>
-                <div class="text-muted mt-1">Punctual arrivals</div>
+        <div class="card metric-card border-left-success h-100">
+            <div class="card-body">
+                <div class="d-flex align-items-center">
+                    <div class="metric-icon bg-success-soft me-3">
+                        <i class="fas fa-user-check"></i>
+                    </div>
+                    <div>
+                        <div class="metric-value text-success">{{ early_arrival_count }}</div>
+                        <div class="metric-label text-muted">On-Time Arrivals</div>
+                    </div>
+                </div>
+                <div class="metric-subtitle text-muted mt-2">Punctual staff</div>
             </div>
         </div>
     </div>
@@ -176,9 +415,9 @@
 <!-- Charts Row 1 -->
 <div class="row mb-4">
     <div class="col-md-8">
-        <div class="card h-100">
+        <div class="card chart-card h-100">
             <div class="card-header">
-                <i class="fas fa-chart-line me-2"></i>Attendance Trend
+                <i class="fas fa-chart-line me-2 text-primary"></i>Attendance Trend
             </div>
             <div class="card-body">
                 <canvas id="attendanceTrendChart" height="100"></canvas>
@@ -186,9 +425,9 @@
         </div>
     </div>
     <div class="col-md-4">
-        <div class="card h-100">
+        <div class="card chart-card h-100">
             <div class="card-header">
-                <i class="fas fa-chart-bar me-2"></i>Late Arrivals by Day
+                <i class="fas fa-chart-bar me-2 text-danger"></i>Late Arrivals by Day
             </div>
             <div class="card-body">
                 <canvas id="lateByDayChart" height="200"></canvas>
@@ -200,9 +439,9 @@
 <!-- Charts Row 2 -->
 <div class="row mb-4">
     <div class="col-md-4">
-        <div class="card h-100">
+        <div class="card chart-card h-100">
             <div class="card-header">
-                <i class="fas fa-chart-doughnut me-2"></i>Department Performance
+                <i class="fas fa-chart-pie me-2 text-info"></i>Department Performance
             </div>
             <div class="card-body">
                 <canvas id="departmentChart" height="200"></canvas>
@@ -210,9 +449,9 @@
         </div>
     </div>
     <div class="col-md-8">
-        <div class="card h-100">
+        <div class="card chart-card h-100">
             <div class="card-header">
-                <i class="fas fa-code-branch me-2"></i>Branch Comparison
+                <i class="fas fa-code-branch me-2 text-success"></i>Branch Comparison
             </div>
             <div class="card-body">
                 <canvas id="branchComparisonChart" height="150"></canvas>
@@ -224,18 +463,18 @@
 <!-- Rankings -->
 <div class="row">
     <div class="col-md-6">
-        <div class="card h-100">
+        <div class="card ranking-card h-100">
             <div class="card-header bg-success text-white">
                 <i class="fas fa-trophy me-2"></i>Top 5 Performers
             </div>
             <div class="card-body p-0">
                 <table class="table table-hover mb-0">
-                    <thead>
+                    <thead class="bg-light">
                         <tr>
-                            <th>Rank</th>
+                            <th style="width: 60px;">Rank</th>
                             <th>Staff</th>
                             <th>Branch</th>
-                            <th>Punctuality</th>
+                            <th style="width: 100px;">Score</th>
                         </tr>
                     </thead>
                     <tbody>
@@ -243,24 +482,32 @@
                         <tr>
                             <td>
                                 {% if loop.index == 1 %}
-                                <span class="badge bg-warning text-dark"><i class="fas fa-medal"></i> 1</span>
+                                <span class="badge bg-warning text-dark"><i class="fas fa-crown me-1"></i>1</span>
                                 {% elif loop.index == 2 %}
-                                <span class="badge bg-secondary"><i class="fas fa-medal"></i> 2</span>
+                                <span class="badge bg-secondary"><i class="fas fa-medal me-1"></i>2</span>
                                 {% elif loop.index == 3 %}
-                                <span class="badge bg-danger"><i class="fas fa-medal"></i> 3</span>
+                                <span class="badge" style="background-color: #cd7f32; color: white;"><i class="fas fa-medal me-1"></i>3</span>
                                 {% else %}
                                 <span class="badge bg-light text-dark">{{ loop.index }}</span>
                                 {% endif %}
                             </td>
-                            <td>{{ performer.name }}</td>
+                            <td><strong>{{ performer.name }}</strong></td>
                             <td><small class="text-muted">{{ performer.branch }}</small></td>
                             <td>
-                                <span class="badge bg-success">{{ "%.0f"|format(performer.punctuality) }}%</span>
+                                <div class="d-flex align-items-center">
+                                    <div class="progress flex-grow-1 me-2" style="height: 6px;">
+                                        <div class="progress-bar bg-success" style="width: {{ performer.punctuality }}%"></div>
+                                    </div>
+                                    <small class="text-success fw-bold">{{ "%.0f"|format(performer.punctuality) }}%</small>
+                                </div>
                             </td>
                         </tr>
                         {% else %}
                         <tr>
-                            <td colspan="4" class="text-center text-muted">No data available</td>
+                            <td colspan="4" class="text-center text-muted py-4">
+                                <i class="fas fa-inbox fa-2x mb-2 d-block"></i>
+                                No data available
+                            </td>
                         </tr>
                         {% endfor %}
                     </tbody>
@@ -269,33 +516,38 @@
         </div>
     </div>
     <div class="col-md-6">
-        <div class="card h-100">
+        <div class="card ranking-card h-100">
             <div class="card-header bg-danger text-white">
                 <i class="fas fa-exclamation-triangle me-2"></i>Needs Attention
             </div>
             <div class="card-body p-0">
                 <table class="table table-hover mb-0">
-                    <thead>
+                    <thead class="bg-light">
                         <tr>
-                            <th>Rank</th>
+                            <th style="width: 60px;">Rank</th>
                             <th>Staff</th>
                             <th>Branch</th>
-                            <th>Late Count</th>
+                            <th style="width: 100px;">Late</th>
                         </tr>
                     </thead>
                     <tbody>
                         {% for staff in needs_attention %}
                         <tr>
                             <td><span class="badge bg-light text-dark">{{ loop.index }}</span></td>
-                            <td>{{ staff.name }}</td>
+                            <td><strong>{{ staff.name }}</strong></td>
                             <td><small class="text-muted">{{ staff.branch }}</small></td>
                             <td>
-                                <span class="badge bg-danger">{{ staff.late_count }} times</span>
+                                <span class="badge bg-danger rounded-pill">
+                                    <i class="fas fa-clock me-1"></i>{{ staff.late_count }}x
+                                </span>
                             </td>
                         </tr>
                         {% else %}
                         <tr>
-                            <td colspan="4" class="text-center text-muted">No data available</td>
+                            <td colspan="4" class="text-center text-muted py-4">
+                                <i class="fas fa-check-circle fa-2x mb-2 d-block text-success"></i>
+                                Everyone is on time!
+                            </td>
                         </tr>
                         {% endfor %}
                     </tbody>
@@ -331,7 +583,6 @@ function filterBranches() {
         }
     });
     
-    // Reset branch selection if current selection is hidden
     const currentBranch = branchSelect.options[branchSelect.selectedIndex];
     if (currentBranch && currentBranch.style.display === 'none') {
         branchSelect.value = '';
@@ -363,27 +614,51 @@ new Chart(trendCtx, {
             borderColor: primaryColor,
             backgroundColor: 'rgba(220, 53, 69, 0.1)',
             fill: true,
-            tension: 0.4
+            tension: 0.4,
+            borderWidth: 3,
+            pointBackgroundColor: primaryColor,
+            pointBorderColor: '#fff',
+            pointBorderWidth: 2,
+            pointRadius: 4,
+            pointHoverRadius: 6
         }, {
             label: 'Punctuality Rate',
             data: {{ punctuality_data|tojson }},
             borderColor: successColor,
             backgroundColor: 'rgba(25, 135, 84, 0.1)',
             fill: true,
-            tension: 0.4
+            tension: 0.4,
+            borderWidth: 3,
+            pointBackgroundColor: successColor,
+            pointBorderColor: '#fff',
+            pointBorderWidth: 2,
+            pointRadius: 4,
+            pointHoverRadius: 6
         }]
     },
     options: {
         responsive: true,
         plugins: {
             legend: {
-                position: 'bottom'
+                position: 'bottom',
+                labels: {
+                    usePointStyle: true,
+                    padding: 20
+                }
             }
         },
         scales: {
             y: {
                 beginAtZero: true,
-                max: 100
+                max: 100,
+                grid: {
+                    color: 'rgba(0,0,0,0.05)'
+                }
+            },
+            x: {
+                grid: {
+                    display: false
+                }
             }
         }
     }
@@ -399,14 +674,16 @@ new Chart(lateCtx, {
             label: 'Late Arrivals',
             data: {{ late_by_day|tojson }},
             backgroundColor: [
-                primaryColor,
-                'rgba(220, 53, 69, 0.8)',
+                'rgba(220, 53, 69, 1)',
+                'rgba(220, 53, 69, 0.85)',
                 'rgba(220, 53, 69, 0.7)',
                 'rgba(220, 53, 69, 0.6)',
                 'rgba(220, 53, 69, 0.5)',
                 'rgba(220, 53, 69, 0.4)',
                 'rgba(220, 53, 69, 0.3)'
-            ]
+            ],
+            borderRadius: 6,
+            borderSkipped: false
         }]
     },
     options: {
@@ -418,7 +695,15 @@ new Chart(lateCtx, {
         },
         scales: {
             y: {
-                beginAtZero: true
+                beginAtZero: true,
+                grid: {
+                    color: 'rgba(0,0,0,0.05)'
+                }
+            },
+            x: {
+                grid: {
+                    display: false
+                }
             }
         }
     }
@@ -441,14 +726,21 @@ new Chart(deptCtx, {
                 '#6f42c1',
                 '#fd7e14',
                 '#20c997'
-            ]
+            ],
+            borderWidth: 0,
+            hoverOffset: 10
         }]
     },
     options: {
         responsive: true,
+        cutout: '65%',
         plugins: {
             legend: {
-                position: 'bottom'
+                position: 'bottom',
+                labels: {
+                    usePointStyle: true,
+                    padding: 15
+                }
             }
         }
     }
@@ -463,11 +755,15 @@ new Chart(branchCtx, {
         datasets: [{
             label: 'Attendance %',
             data: {{ branch_attendance|tojson }},
-            backgroundColor: primaryColor
+            backgroundColor: 'rgba(220, 53, 69, 0.85)',
+            borderRadius: 4,
+            borderSkipped: false
         }, {
             label: 'Punctuality %',
             data: {{ branch_punctuality|tojson }},
-            backgroundColor: successColor
+            backgroundColor: 'rgba(25, 135, 84, 0.85)',
+            borderRadius: 4,
+            borderSkipped: false
         }]
     },
     options: {
@@ -475,13 +771,25 @@ new Chart(branchCtx, {
         responsive: true,
         plugins: {
             legend: {
-                position: 'bottom'
+                position: 'bottom',
+                labels: {
+                    usePointStyle: true,
+                    padding: 20
+                }
             }
         },
         scales: {
             x: {
                 beginAtZero: true,
-                max: 100
+                max: 100,
+                grid: {
+                    color: 'rgba(0,0,0,0.05)'
+                }
+            },
+            y: {
+                grid: {
+                    display: false
+                }
             }
         }
     }
