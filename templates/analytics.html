@@ -850,3 +850,219 @@
             </div>
         </div>
     </div>
+                                            <!-- Early Arrivals Champions -->
+            <div class="col-md-6 mb-4">
+                <div class="ranking-card">
+                    <div class="ranking-card-header">
+                        <h5 class="mb-0">🌅 Early Arrivals Champions</h5>
+                    </div>
+                    <div class="ranking-card-body">
+                        {% if early_arrivals %}
+                            {% for staff in early_arrivals[:5] %}
+                            <div class="ranking-item">
+                                <div class="d-flex align-items-center gap-2">
+                                    <span class="rank-badge {% if loop.index <= 3 %}top-3{% endif %}">{{ loop.index }}</span>
+                                    <span class="fw-medium">{{ staff.name }}</span>
+                                </div>
+                                <span class="score-badge excellent">{{ staff.early_count }} early</span>
+                            </div>
+                            {% endfor %}
+                        {% else %}
+                            <p class="text-muted mb-0">No early arrivals data available</p>
+                        {% endif %}
+                    </div>
+                </div>
+            </div>
+
+            <!-- Perfect Attendance -->
+            <div class="col-md-6 mb-4">
+                <div class="ranking-card">
+                    <div class="ranking-card-header">
+                        <h5 class="mb-0">⭐ Perfect Attendance</h5>
+                    </div>
+                    <div class="ranking-card-body">
+                        {% if perfect_attendance %}
+                            {% for staff in perfect_attendance[:5] %}
+                            <div class="ranking-item">
+                                <div class="d-flex align-items-center gap-2">
+                                    <span class="rank-badge {% if loop.index <= 3 %}top-3{% endif %}">{{ loop.index }}</span>
+                                    <span class="fw-medium">{{ staff.name }}</span>
+                                </div>
+                                <span class="score-badge excellent">{{ staff.days }} days</span>
+                            </div>
+                            {% endfor %}
+                        {% else %}
+                            <p class="text-muted mb-0">No perfect attendance data</p>
+                        {% endif %}
+                    </div>
+                </div>
+            </div>
+
+            <!-- Most Improved -->
+            <div class="col-md-6 mb-4">
+                <div class="ranking-card">
+                    <div class="ranking-card-header">
+                        <h5 class="mb-0">📈 Most Improved</h5>
+                    </div>
+                    <div class="ranking-card-body">
+                        {% if most_improved %}
+                            {% for staff in most_improved[:5] %}
+                            <div class="ranking-item">
+                                <div class="d-flex align-items-center gap-2">
+                                    <span class="rank-badge {% if loop.index <= 3 %}top-3{% endif %}">{{ loop.index }}</span>
+                                    <span class="fw-medium">{{ staff.name }}</span>
+                                </div>
+                                <span class="score-badge {% if staff.improvement > 20 %}excellent{% elif staff.improvement > 10 %}good{% else %}average{% endif %}">
+                                    +{{ "%.0f"|format(staff.improvement) }}%
+                                </span>
+                            </div>
+                            {% endfor %}
+                        {% else %}
+                            <p class="text-muted mb-0">No improvement data available</p>
+                        {% endif %}
+                    </div>
+                </div>
+            </div>
+
+            <!-- Attendance Streaks -->
+            <div class="col-md-6 mb-4">
+                <div class="ranking-card">
+                    <div class="ranking-card-header">
+                        <h5 class="mb-0">🔥 On-Time Streaks</h5>
+                    </div>
+                    <div class="ranking-card-body">
+                        {% if attendance_streaks %}
+                            {% for staff in attendance_streaks[:5] %}
+                            <div class="ranking-item">
+                                <div class="d-flex align-items-center gap-2">
+                                    <span class="rank-badge {% if loop.index <= 3 %}top-3{% endif %}">{{ loop.index }}</span>
+                                    <span class="fw-medium">{{ staff.name }}</span>
+                                </div>
+                                <span class="score-badge excellent">{{ staff.streak }} days</span>
+                            </div>
+                            {% endfor %}
+                        {% else %}
+                            <p class="text-muted mb-0">No streak data available</p>
+                        {% endif %}
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<script>
+// Attendance & Punctuality Trend Chart
+const trendCtx = document.getElementById('trendChart').getContext('2d');
+new Chart(trendCtx, {
+    type: 'line',
+    data: {
+        labels: {{ trend_labels|safe }},
+        datasets: [
+            {
+                label: 'Attendance Rate',
+                data: {{ attendance_trend|safe }},
+                borderColor: '#28a745',
+                backgroundColor: 'rgba(40, 167, 69, 0.1)',
+                fill: true,
+                tension: 0.4
+            },
+            {
+                label: 'Punctuality Rate',
+                data: {{ punctuality_trend|safe }},
+                borderColor: '#007bff',
+                backgroundColor: 'rgba(0, 123, 255, 0.1)',
+                fill: true,
+                tension: 0.4
+            }
+        ]
+    },
+    options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        plugins: {
+            legend: { position: 'bottom' }
+        },
+        scales: {
+            y: { beginAtZero: true, max: 100 }
+        }
+    }
+});
+
+// Late by Day of Week Chart
+const dayCtx = document.getElementById('lateByDayChart').getContext('2d');
+new Chart(dayCtx, {
+    type: 'bar',
+    data: {
+        labels: ['Mon', 'Tue', 'Wed', 'Thu', 'Fri'],
+        datasets: [{
+            label: 'Late Arrivals',
+            data: {{ late_by_day|safe }},
+            backgroundColor: ['#FF6384', '#36A2EB', '#FFCE56', '#4BC0C0', '#9966FF']
+        }]
+    },
+    options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        plugins: {
+            legend: { display: false }
+        },
+        scales: {
+            y: { beginAtZero: true }
+        }
+    }
+});
+
+// Department Performance Chart
+const deptCtx = document.getElementById('departmentChart').getContext('2d');
+new Chart(deptCtx, {
+    type: 'doughnut',
+    data: {
+        labels: {{ dept_labels|safe }},
+        datasets: [{
+            data: {{ dept_punctuality|safe }},
+            backgroundColor: ['#28a745', '#007bff', '#ffc107', '#dc3545', '#6f42c1', '#20c997']
+        }]
+    },
+    options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        plugins: {
+            legend: { position: 'bottom' }
+        }
+    }
+});
+
+// Branch Comparison Chart
+const branchCtx = document.getElementById('branchChart').getContext('2d');
+new Chart(branchCtx, {
+    type: 'bar',
+    data: {
+        labels: {{ branch_labels|safe }},
+        datasets: [
+            {
+                label: 'Attendance %',
+                data: {{ branch_attendance|safe }},
+                backgroundColor: 'rgba(40, 167, 69, 0.8)'
+            },
+            {
+                label: 'Punctuality %',
+                data: {{ branch_punctuality|safe }},
+                backgroundColor: 'rgba(0, 123, 255, 0.8)'
+            }
+        ]
+    },
+    options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        plugins: {
+            legend: { position: 'bottom' }
+        },
+        scales: {
+            y: { beginAtZero: true, max: 100 }
+        }
+    }
+});
+</script>
+{% endblock %}
