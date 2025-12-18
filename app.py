@@ -1,4 +1,4 @@
-Copyimport os
+import os
 from flask import Flask, render_template, request, redirect, url_for, flash, jsonify, Response
 from flask_sqlalchemy import SQLAlchemy
 from flask_login import LoginManager, UserMixin, login_user, login_required, logout_user, current_user
@@ -9,7 +9,6 @@ import csv
 import io
 import secrets
 import json
-import calendar
 
 app = Flask(__name__)
 app.config['SECRET_KEY'] = os.environ.get('SECRET_KEY', 'your-secret-key-here')
@@ -1258,107 +1257,26 @@ def analytics():
             department_labels.append(dept)
             department_data.append(dept_punctuality)
     
-    # Branch comparison with trends (Phase 3)
     branch_labels = []
     branch_attendance = []
     branch_punctuality = []
-    branch_trends = []
     
     for school in schools[:10]:
         school_staff = [s for s in all_staff if s.school_id == school.id]
         if school_staff:
             school_staff_ids = [s.id for s in school_staff]
             school_att = [a for a in current_attendance if a.staff_id in school_staff_ids]
-            prev_school_att = [a for a in previous_attendance if a.staff_id in school_staff_ids]
             
             school_working_days = working_days
             school_expected = len(school_staff) * school_working_days if school_staff else 1
             school_rate = round((len(school_att) / school_expected) * 100, 1) if school_expected > 0 else 0
             
-            prev_school_expected = len(school_staff) * prev_working_days if school_staff else 1
-            prev_school_rate = round((len(prev_school_att) / prev_school_expected) * 100, 1) if prev_school_expected > 0 else 0
-            
             school_on_time = sum(1 for a in school_att if not a.is_late)
             school_punct = round((school_on_time / len(school_att)) * 100, 1) if school_att else 100
-            
-            branch_trend = round(school_rate - prev_school_rate, 1)
             
             branch_labels.append(school.short_name or school.name[:15])
             branch_attendance.append(min(school_rate, 100))
             branch_punctuality.append(school_punct)
-            branch_trends.append(branch_trend)
-    
-    # Late arrivals heatmap data (Phase 3)
-    # Rows: hours (6am-12pm), Columns: days (Mon-Fri)
-    heatmap_data = [[0 for _ in range(5)] for _ in range(7)]  # 7 hours x 5 days
-    hour_labels = ['6:00', '7:00', '8:00', '9:00', '10:00', '11:00', '12:00']
-    
-    for a in current_attendance:
-        if a.is_late and a.sign_in_time:
-            hour = a.sign_in_time.hour
-            day = a.date.weekday()
-            if 6 <= hour <= 12 and day < 5:
-                heatmap_data[hour - 6][day] += 1
-    
-    # Find max value for heatmap scaling
-    heatmap_max = max(max(row) for row in heatmap_data) if heatmap_data else 1
-    if heatmap_max == 0:
-        heatmap_max = 1
-    
-    # Attendance calendar data (Phase 3)
-    # Get current month's calendar
-    cal_year = end_date.year
-    cal_month = end_date.month
-    cal = calendar.Calendar(firstweekday=0)
-    month_days = list(cal.itermonthdays2(cal_year, cal_month))
-    
-    # Build calendar data
-    calendar_data = []
-    current_week = []
-    
-    for day, weekday in month_days:
-        if day == 0:
-            current_week.append({'day': 0, 'status': 'empty'})
-        else:
-            day_date = date(cal_year, cal_month, day)
-            day_attendance = [a for a in current_attendance if a.date == day_date]
-            day_late = sum(1 for a in day_attendance if a.is_late)
-            day_ontime = sum(1 for a in day_attendance if not a.is_late)
-            
-            if day_date > today:
-                status = 'future'
-            elif day_date.weekday() >= 5:
-                status = 'weekend'
-            elif len(day_attendance) == 0:
-                status = 'no-data'
-            elif day_late == 0:
-                status = 'perfect'
-            elif day_late <= 2:
-                status = 'good'
-            elif day_late <= 5:
-                status = 'warning'
-            else:
-                status = 'bad'
-            
-            current_week.append({
-                'day': day,
-                'status': status,
-                'ontime': day_ontime,
-                'late': day_late,
-                'total': len(day_attendance)
-            })
-        
-        if len(current_week) == 7:
-            calendar_data.append(current_week)
-            current_week = []
-    
-    if current_week:
-        while len(current_week) < 7:
-            current_week.append({'day': 0, 'status': 'empty'})
-        calendar_data.append(current_week)
-    
-    calendar_month_name = calendar.month_name[cal_month]
-    calendar_year = cal_year
     
     # Early arrivals tracking
     early_arrivals = []
@@ -1513,13 +1431,6 @@ def analytics():
                          branch_labels=branch_labels,
                          branch_attendance=branch_attendance,
                          branch_punctuality=branch_punctuality,
-                         branch_trends=branch_trends,
-                         heatmap_data=heatmap_data,
-                         heatmap_max=heatmap_max,
-                         hour_labels=hour_labels,
-                         calendar_data=calendar_data,
-                         calendar_month_name=calendar_month_name,
-                         calendar_year=calendar_year,
                          early_arrivals=early_arrivals,
                          perfect_attendance=perfect_attendance,
                          most_improved=most_improved,
@@ -1840,3 +1751,4 @@ if __name__ == '__main__':
     with app.app_context():
         db.create_all()
     app.run(debug=True, host='0.0.0.0', port=int(os.environ.get('PORT', 5000)))
+
