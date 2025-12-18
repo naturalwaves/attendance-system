@@ -3,17 +3,188 @@
 {% block title %}Analytics - Attendance System{% endblock %}
 
 {% block content %}
+<style>
+    .metric-card {
+        border: none;
+        border-radius: 16px;
+        overflow: hidden;
+        transition: all 0.3s ease;
+        position: relative;
+    }
+    .metric-card:hover {
+        transform: translateY(-5px);
+        box-shadow: 0 12px 40px rgba(0,0,0,0.15) !important;
+    }
+    .metric-card .card-body {
+        padding: 1.5rem;
+        position: relative;
+        z-index: 1;
+    }
+    .metric-card.gradient-red {
+        background: linear-gradient(135deg, #dc3545 0%, #c82333 50%, #a71d2a 100%);
+    }
+    .metric-card.gradient-green {
+        background: linear-gradient(135deg, #28a745 0%, #20c997 100%);
+    }
+    .metric-card.gradient-blue {
+        background: linear-gradient(135deg, #007bff 0%, #6610f2 100%);
+    }
+    .metric-card.gradient-purple {
+        background: linear-gradient(135deg, #6f42c1 0%, #e83e8c 100%);
+    }
+    .metric-card.gradient-teal {
+        background: linear-gradient(135deg, #17a2b8 0%, #20c997 100%);
+    }
+    .metric-card.gradient-orange {
+        background: linear-gradient(135deg, #fd7e14 0%, #ffc107 100%);
+    }
+    .metric-card.gradient-pink {
+        background: linear-gradient(135deg, #e83e8c 0%, #fd7e14 100%);
+    }
+    .metric-card.gradient-dark {
+        background: linear-gradient(135deg, #343a40 0%, #6c757d 100%);
+    }
+    .metric-card .metric-icon {
+        width: 70px;
+        height: 70px;
+        border-radius: 50%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        background: rgba(255,255,255,0.2);
+        backdrop-filter: blur(10px);
+        font-size: 1.8rem;
+        color: white;
+    }
+    .metric-card .metric-value {
+        font-size: 2.5rem;
+        font-weight: 700;
+        color: white;
+        line-height: 1.1;
+        text-shadow: 0 2px 4px rgba(0,0,0,0.1);
+    }
+    .metric-card .metric-label {
+        font-size: 0.8rem;
+        text-transform: uppercase;
+        letter-spacing: 1px;
+        color: rgba(255,255,255,0.85);
+        margin-bottom: 0.5rem;
+    }
+    .metric-card .metric-trend {
+        font-size: 0.85rem;
+        color: rgba(255,255,255,0.9);
+        background: rgba(255,255,255,0.15);
+        padding: 4px 10px;
+        border-radius: 20px;
+        display: inline-block;
+    }
+    .metric-card .metric-subtitle {
+        font-size: 0.85rem;
+        color: rgba(255,255,255,0.8);
+    }
+    .metric-card .decoration {
+        position: absolute;
+        right: -30px;
+        bottom: -30px;
+        width: 150px;
+        height: 150px;
+        background: rgba(255,255,255,0.1);
+        border-radius: 50%;
+    }
+    .metric-card .decoration-2 {
+        position: absolute;
+        right: 40px;
+        top: -50px;
+        width: 100px;
+        height: 100px;
+        background: rgba(255,255,255,0.05);
+        border-radius: 50%;
+    }
+    .chart-card {
+        border: none;
+        border-radius: 16px;
+        box-shadow: 0 4px 20px rgba(0,0,0,0.08);
+        overflow: hidden;
+    }
+    .chart-card .card-header {
+        background: white;
+        border-bottom: 1px solid rgba(0,0,0,0.05);
+        padding: 1.25rem 1.5rem;
+    }
+    .chart-card .card-header h5 {
+        font-weight: 600;
+        margin: 0;
+    }
+    .ranking-card {
+        border: none;
+        border-radius: 16px;
+        overflow: hidden;
+        box-shadow: 0 4px 20px rgba(0,0,0,0.08);
+    }
+    .ranking-card .card-header {
+        padding: 1.25rem 1.5rem;
+        border: none;
+    }
+    .ranking-card .card-header h5 {
+        font-weight: 600;
+        margin: 0;
+    }
+    .ranking-card .table {
+        margin: 0;
+    }
+    .ranking-card .table th {
+        border-top: none;
+        font-weight: 600;
+        font-size: 0.75rem;
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+        color: #6c757d;
+        padding: 1rem 1.25rem;
+        background: #f8f9fa;
+    }
+    .ranking-card .table td {
+        padding: 1rem 1.25rem;
+        vertical-align: middle;
+        border-color: #f1f1f1;
+    }
+    .ranking-card .table tbody tr:hover {
+        background: #f8f9fa;
+    }
+    .filter-card {
+        border: none;
+        border-radius: 16px;
+        background: linear-gradient(135deg, #f8f9fa 0%, #ffffff 100%);
+        box-shadow: 0 4px 20px rgba(0,0,0,0.05);
+    }
+    .rank-badge {
+        width: 32px;
+        height: 32px;
+        border-radius: 50%;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        font-weight: 700;
+        font-size: 0.85rem;
+    }
+    .rank-1 { background: linear-gradient(135deg, #ffd700 0%, #ffb800 100%); color: #000; }
+    .rank-2 { background: linear-gradient(135deg, #c0c0c0 0%, #a8a8a8 100%); color: #000; }
+    .rank-3 { background: linear-gradient(135deg, #cd7f32 0%, #b8722c 100%); color: #fff; }
+</style>
+
 <div class="container-fluid">
     <div class="d-flex justify-content-between align-items-center mb-4">
-        <h2><i class="fas fa-chart-line me-2"></i>Analytics Dashboard</h2>
+        <div>
+            <h2 class="mb-1"><i class="fas fa-chart-line me-2 text-danger"></i>Analytics Dashboard</h2>
+            <p class="text-muted mb-0">Comprehensive attendance insights and performance metrics</p>
+        </div>
     </div>
 
     <!-- Filters -->
-    <div class="card mb-4" style="background: linear-gradient(135deg, #f8f9fa 0%, #fff 100%); border: none; box-shadow: 0 2px 12px rgba(0,0,0,0.08);">
-        <div class="card-body">
-            <form method="GET" class="row g-3" id="filterForm">
-                <div class="col-md-2">
-                    <label class="form-label fw-semibold">Period</label>
+    <div class="card filter-card mb-4">
+        <div class="card-body py-3">
+            <form method="GET" class="row g-3 align-items-end" id="filterForm">
+                <div class="col-lg-2 col-md-4">
+                    <label class="form-label fw-semibold small text-muted">PERIOD</label>
                     <select name="period" class="form-select" id="periodSelect">
                         <option value="today" {% if period == 'today' %}selected{% endif %}>Today</option>
                         <option value="7" {% if period == '7' %}selected{% endif %}>Last 7 Days</option>
@@ -26,17 +197,17 @@
                         <option value="custom" {% if period == 'custom' %}selected{% endif %}>Custom Range</option>
                     </select>
                 </div>
-                <div class="col-md-2 custom-date" style="{% if period != 'custom' %}display:none{% endif %}">
-                    <label class="form-label fw-semibold">Start Date</label>
+                <div class="col-lg-2 col-md-4 custom-date" style="{% if period != 'custom' %}display:none{% endif %}">
+                    <label class="form-label fw-semibold small text-muted">START DATE</label>
                     <input type="date" name="start_date" class="form-control" value="{{ start_date }}">
                 </div>
-                <div class="col-md-2 custom-date" style="{% if period != 'custom' %}display:none{% endif %}">
-                    <label class="form-label fw-semibold">End Date</label>
+                <div class="col-lg-2 col-md-4 custom-date" style="{% if period != 'custom' %}display:none{% endif %}">
+                    <label class="form-label fw-semibold small text-muted">END DATE</label>
                     <input type="date" name="end_date" class="form-control" value="{{ end_date }}">
                 </div>
                 {% if organizations %}
-                <div class="col-md-2">
-                    <label class="form-label fw-semibold">Organization</label>
+                <div class="col-lg-2 col-md-4">
+                    <label class="form-label fw-semibold small text-muted">ORGANIZATION</label>
                     <select name="organization_id" class="form-select" id="orgSelect">
                         <option value="">All Organizations</option>
                         {% for org in organizations %}
@@ -45,8 +216,8 @@
                     </select>
                 </div>
                 {% endif %}
-                <div class="col-md-2">
-                    <label class="form-label fw-semibold">Branch</label>
+                <div class="col-lg-2 col-md-4">
+                    <label class="form-label fw-semibold small text-muted">BRANCH</label>
                     <select name="school_id" class="form-select">
                         <option value="">All Branches</option>
                         {% for school in schools %}
@@ -54,8 +225,8 @@
                         {% endfor %}
                     </select>
                 </div>
-                <div class="col-md-2">
-                    <label class="form-label fw-semibold">Department</label>
+                <div class="col-lg-2 col-md-4">
+                    <label class="form-label fw-semibold small text-muted">DEPARTMENT</label>
                     <select name="department" class="form-select">
                         <option value="">All Departments</option>
                         {% for dept in departments %}
@@ -63,9 +234,9 @@
                         {% endfor %}
                     </select>
                 </div>
-                <div class="col-md-2 d-flex align-items-end">
-                    <button type="submit" class="btn btn-danger w-100">
-                        <i class="fas fa-filter me-1"></i> Apply
+                <div class="col-lg-2 col-md-4">
+                    <button type="submit" class="btn btn-danger w-100 py-2">
+                        <i class="fas fa-search me-2"></i>Apply Filters
                     </button>
                 </div>
             </form>
@@ -73,78 +244,86 @@
     </div>
 
     <!-- Key Metrics Cards - Row 1 -->
-    <div class="row mb-4">
-        <div class="col-md-3">
-            <div class="card border-0 shadow-sm h-100" style="border-left: 4px solid #dc3545 !important;">
+    <div class="row mb-4 g-4">
+        <div class="col-xl-3 col-lg-6">
+            <div class="card metric-card gradient-red shadow-lg h-100">
+                <div class="decoration"></div>
+                <div class="decoration-2"></div>
                 <div class="card-body">
                     <div class="d-flex justify-content-between align-items-start">
                         <div>
-                            <h6 class="text-muted text-uppercase mb-2" style="font-size: 0.75rem; letter-spacing: 0.5px;">Attendance Rate</h6>
-                            <h2 class="mb-1 fw-bold">{{ attendance_rate }}%</h2>
-                            <div class="{% if attendance_trend >= 0 %}text-success{% else %}text-danger{% endif %}" style="font-size: 0.85rem;">
+                            <p class="metric-label mb-2">Attendance Rate</p>
+                            <h2 class="metric-value mb-2">{{ attendance_rate }}%</h2>
+                            <span class="metric-trend">
                                 <i class="fas fa-{% if attendance_trend >= 0 %}arrow-up{% else %}arrow-down{% endif %} me-1"></i>
-                                {{ attendance_trend|abs }}% vs prev period
-                            </div>
+                                {{ attendance_trend|abs }}% vs prev
+                            </span>
                         </div>
-                        <div class="rounded-circle d-flex align-items-center justify-content-center" style="width: 56px; height: 56px; background: linear-gradient(135deg, #dc3545 0%, #c82333 100%);">
-                            <i class="fas fa-chart-pie text-white" style="font-size: 1.4rem;"></i>
+                        <div class="metric-icon">
+                            <i class="fas fa-chart-pie"></i>
                         </div>
                     </div>
                 </div>
             </div>
         </div>
-        <div class="col-md-3">
-            <div class="card border-0 shadow-sm h-100" style="border-left: 4px solid #28a745 !important;">
+        <div class="col-xl-3 col-lg-6">
+            <div class="card metric-card gradient-green shadow-lg h-100">
+                <div class="decoration"></div>
+                <div class="decoration-2"></div>
                 <div class="card-body">
                     <div class="d-flex justify-content-between align-items-start">
                         <div>
-                            <h6 class="text-muted text-uppercase mb-2" style="font-size: 0.75rem; letter-spacing: 0.5px;">Punctuality Rate</h6>
-                            <h2 class="mb-1 fw-bold">{{ punctuality_rate }}%</h2>
-                            <div class="{% if punctuality_trend >= 0 %}text-success{% else %}text-danger{% endif %}" style="font-size: 0.85rem;">
+                            <p class="metric-label mb-2">Punctuality Rate</p>
+                            <h2 class="metric-value mb-2">{{ punctuality_rate }}%</h2>
+                            <span class="metric-trend">
                                 <i class="fas fa-{% if punctuality_trend >= 0 %}arrow-up{% else %}arrow-down{% endif %} me-1"></i>
-                                {{ punctuality_trend|abs }}% vs prev period
-                            </div>
+                                {{ punctuality_trend|abs }}% vs prev
+                            </span>
                         </div>
-                        <div class="rounded-circle d-flex align-items-center justify-content-center" style="width: 56px; height: 56px; background: linear-gradient(135deg, #28a745 0%, #1e7e34 100%);">
-                            <i class="fas fa-clock text-white" style="font-size: 1.4rem;"></i>
+                        <div class="metric-icon">
+                            <i class="fas fa-clock"></i>
                         </div>
                     </div>
                 </div>
             </div>
         </div>
-        <div class="col-md-3">
-            <div class="card border-0 shadow-sm h-100" style="border-left: 4px solid #007bff !important;">
+        <div class="col-xl-3 col-lg-6">
+            <div class="card metric-card gradient-blue shadow-lg h-100">
+                <div class="decoration"></div>
+                <div class="decoration-2"></div>
                 <div class="card-body">
                     <div class="d-flex justify-content-between align-items-start">
                         <div>
-                            <h6 class="text-muted text-uppercase mb-2" style="font-size: 0.75rem; letter-spacing: 0.5px;">Active Staff</h6>
-                            <h2 class="mb-1 fw-bold">{{ total_staff }}</h2>
-                            <div class="text-muted" style="font-size: 0.85rem;">
+                            <p class="metric-label mb-2">Active Staff</p>
+                            <h2 class="metric-value mb-2">{{ total_staff }}</h2>
+                            <span class="metric-subtitle">
                                 <i class="fas fa-building me-1"></i>
                                 {{ branch_count }} branch{% if branch_count != 1 %}es{% endif %}
-                            </div>
+                            </span>
                         </div>
-                        <div class="rounded-circle d-flex align-items-center justify-content-center" style="width: 56px; height: 56px; background: linear-gradient(135deg, #007bff 0%, #0056b3 100%);">
-                            <i class="fas fa-users text-white" style="font-size: 1.4rem;"></i>
+                        <div class="metric-icon">
+                            <i class="fas fa-users"></i>
                         </div>
                     </div>
                 </div>
             </div>
         </div>
-        <div class="col-md-3">
-            <div class="card border-0 shadow-sm h-100" style="border-left: 4px solid #6f42c1 !important;">
+        <div class="col-xl-3 col-lg-6">
+            <div class="card metric-card gradient-purple shadow-lg h-100">
+                <div class="decoration"></div>
+                <div class="decoration-2"></div>
                 <div class="card-body">
                     <div class="d-flex justify-content-between align-items-start">
                         <div>
-                            <h6 class="text-muted text-uppercase mb-2" style="font-size: 0.75rem; letter-spacing: 0.5px;">Attendance Records</h6>
-                            <h2 class="mb-1 fw-bold">{{ total_records }}</h2>
-                            <div class="text-muted" style="font-size: 0.85rem;">
+                            <p class="metric-label mb-2">Total Records</p>
+                            <h2 class="metric-value mb-2">{{ total_records }}</h2>
+                            <span class="metric-subtitle">
                                 <i class="fas fa-calendar-check me-1"></i>
                                 In selected period
-                            </div>
+                            </span>
                         </div>
-                        <div class="rounded-circle d-flex align-items-center justify-content-center" style="width: 56px; height: 56px; background: linear-gradient(135deg, #6f42c1 0%, #59359a 100%);">
-                            <i class="fas fa-clipboard-list text-white" style="font-size: 1.4rem;"></i>
+                        <div class="metric-icon">
+                            <i class="fas fa-clipboard-list"></i>
                         </div>
                     </div>
                 </div>
@@ -153,78 +332,86 @@
     </div>
 
     <!-- Key Metrics Cards - Row 2 -->
-    <div class="row mb-4">
-        <div class="col-md-3">
-            <div class="card border-0 shadow-sm h-100" style="border-left: 4px solid #17a2b8 !important;">
+    <div class="row mb-4 g-4">
+        <div class="col-xl-3 col-lg-6">
+            <div class="card metric-card gradient-teal shadow-lg h-100">
+                <div class="decoration"></div>
+                <div class="decoration-2"></div>
                 <div class="card-body">
                     <div class="d-flex justify-content-between align-items-start">
                         <div>
-                            <h6 class="text-muted text-uppercase mb-2" style="font-size: 0.75rem; letter-spacing: 0.5px;">On Time Arrivals</h6>
-                            <h2 class="mb-1 fw-bold">{{ on_time_count }}</h2>
-                            <div class="text-success" style="font-size: 0.85rem;">
+                            <p class="metric-label mb-2">On Time Arrivals</p>
+                            <h2 class="metric-value mb-2">{{ on_time_count }}</h2>
+                            <span class="metric-subtitle">
                                 <i class="fas fa-check-circle me-1"></i>
-                                Early/On-time
-                            </div>
+                                Early / On-time
+                            </span>
                         </div>
-                        <div class="rounded-circle d-flex align-items-center justify-content-center" style="width: 56px; height: 56px; background: linear-gradient(135deg, #17a2b8 0%, #117a8b 100%);">
-                            <i class="fas fa-check text-white" style="font-size: 1.4rem;"></i>
+                        <div class="metric-icon">
+                            <i class="fas fa-user-check"></i>
                         </div>
                     </div>
                 </div>
             </div>
         </div>
-        <div class="col-md-3">
-            <div class="card border-0 shadow-sm h-100" style="border-left: 4px solid #ffc107 !important;">
+        <div class="col-xl-3 col-lg-6">
+            <div class="card metric-card gradient-orange shadow-lg h-100">
+                <div class="decoration"></div>
+                <div class="decoration-2"></div>
                 <div class="card-body">
                     <div class="d-flex justify-content-between align-items-start">
                         <div>
-                            <h6 class="text-muted text-uppercase mb-2" style="font-size: 0.75rem; letter-spacing: 0.5px;">Late Arrivals</h6>
-                            <h2 class="mb-1 fw-bold">{{ late_count }}</h2>
-                            <div class="text-warning" style="font-size: 0.85rem;">
+                            <p class="metric-label mb-2">Late Arrivals</p>
+                            <h2 class="metric-value mb-2">{{ late_count }}</h2>
+                            <span class="metric-subtitle">
                                 <i class="fas fa-exclamation-triangle me-1"></i>
                                 After start time
-                            </div>
+                            </span>
                         </div>
-                        <div class="rounded-circle d-flex align-items-center justify-content-center" style="width: 56px; height: 56px; background: linear-gradient(135deg, #ffc107 0%, #d39e00 100%);">
-                            <i class="fas fa-hourglass-half text-white" style="font-size: 1.4rem;"></i>
+                        <div class="metric-icon">
+                            <i class="fas fa-user-clock"></i>
                         </div>
                     </div>
                 </div>
             </div>
         </div>
-        <div class="col-md-3">
-            <div class="card border-0 shadow-sm h-100" style="border-left: 4px solid #fd7e14 !important;">
+        <div class="col-xl-3 col-lg-6">
+            <div class="card metric-card gradient-pink shadow-lg h-100">
+                <div class="decoration"></div>
+                <div class="decoration-2"></div>
                 <div class="card-body">
                     <div class="d-flex justify-content-between align-items-start">
                         <div>
-                            <h6 class="text-muted text-uppercase mb-2" style="font-size: 0.75rem; letter-spacing: 0.5px;">Avg Late Time</h6>
-                            <h2 class="mb-1 fw-bold">{{ avg_late_minutes }} min</h2>
-                            <div class="text-muted" style="font-size: 0.85rem;">
+                            <p class="metric-label mb-2">Avg Late Time</p>
+                            <h2 class="metric-value mb-2">{{ avg_late_minutes }}<small class="fs-5">min</small></h2>
+                            <span class="metric-subtitle">
                                 <i class="fas fa-stopwatch me-1"></i>
                                 Per late arrival
-                            </div>
+                            </span>
                         </div>
-                        <div class="rounded-circle d-flex align-items-center justify-content-center" style="width: 56px; height: 56px; background: linear-gradient(135deg, #fd7e14 0%, #dc6502 100%);">
-                            <i class="fas fa-stopwatch text-white" style="font-size: 1.4rem;"></i>
+                        <div class="metric-icon">
+                            <i class="fas fa-hourglass-half"></i>
                         </div>
                     </div>
                 </div>
             </div>
         </div>
-        <div class="col-md-3">
-            <div class="card border-0 shadow-sm h-100" style="border-left: 4px solid #20c997 !important;">
+        <div class="col-xl-3 col-lg-6">
+            <div class="card metric-card gradient-dark shadow-lg h-100">
+                <div class="decoration"></div>
+                <div class="decoration-2"></div>
                 <div class="card-body">
                     <div class="d-flex justify-content-between align-items-start">
                         <div>
-                            <h6 class="text-muted text-uppercase mb-2" style="font-size: 0.75rem; letter-spacing: 0.5px;">Total Overtime</h6>
-                            <h2 class="mb-1 fw-bold">{{ overtime_hours }}h {{ overtime_mins }}m</h2>
-                            <div class="text-muted" style="font-size: 0.85rem;">
+                            <p class="metric-label mb-2">Total Overtime</p>
+                            <h2 class="metric-value mb-2">{{ overtime_hours }}<small class="fs-5">h</small> {{ overtime_mins }}<small class="fs-5">m</small></h2>
+                            <span class="metric-subtitle">
                                 <i class="fas fa-business-time me-1"></i>
                                 Extra hours worked
-                            </div>
+                            </span>
                         </div>
-                        <div class="rounded-circle d-flex align-items-center justify-content-center" style="width: 56px; height: 56px; background: linear-gradient(135deg, #20c997 0%, #17a689 100%);">
-                            <i class="fas fa-business-time text-white" style="font-size: 1.4rem;"></i>
+                        <div class="metric-icon">
+                            <i class="fas fa-briefcase"></i>
                         </div>
                     </div>
                 </div>
@@ -233,60 +420,60 @@
     </div>
 
     <!-- Charts Row 1 -->
-    <div class="row mb-4">
-        <div class="col-md-8">
-            <div class="card border-0 shadow-sm h-100">
-                <div class="card-header bg-white border-0 pt-3">
-                    <h5 class="mb-0"><i class="fas fa-chart-area text-danger me-2"></i>Attendance Trend</h5>
+    <div class="row mb-4 g-4">
+        <div class="col-lg-8">
+            <div class="card chart-card h-100">
+                <div class="card-header">
+                    <h5><i class="fas fa-chart-area text-danger me-2"></i>Attendance & Punctuality Trend</h5>
                 </div>
                 <div class="card-body">
                     <canvas id="attendanceTrendChart" height="100"></canvas>
                 </div>
             </div>
         </div>
-        <div class="col-md-4">
-            <div class="card border-0 shadow-sm h-100">
-                <div class="card-header bg-white border-0 pt-3">
-                    <h5 class="mb-0"><i class="fas fa-calendar-week text-warning me-2"></i>Late Arrivals by Day</h5>
+        <div class="col-lg-4">
+            <div class="card chart-card h-100">
+                <div class="card-header">
+                    <h5><i class="fas fa-calendar-week text-warning me-2"></i>Late by Day of Week</h5>
                 </div>
                 <div class="card-body">
-                    <canvas id="lateByDayChart" height="200"></canvas>
+                    <canvas id="lateByDayChart" height="220"></canvas>
                 </div>
             </div>
         </div>
     </div>
 
     <!-- Charts Row 2 -->
-    <div class="row mb-4">
-        <div class="col-md-6">
-            <div class="card border-0 shadow-sm h-100">
-                <div class="card-header bg-white border-0 pt-3">
-                    <h5 class="mb-0"><i class="fas fa-building text-primary me-2"></i>Department Performance</h5>
+    <div class="row mb-4 g-4">
+        <div class="col-lg-5">
+            <div class="card chart-card h-100">
+                <div class="card-header">
+                    <h5><i class="fas fa-sitemap text-primary me-2"></i>Department Performance</h5>
                 </div>
-                <div class="card-body">
+                <div class="card-body d-flex align-items-center justify-content-center">
                     {% if department_labels %}
-                    <canvas id="departmentChart" height="200"></canvas>
+                    <canvas id="departmentChart" height="250"></canvas>
                     {% else %}
                     <div class="text-center text-muted py-5">
-                        <i class="fas fa-chart-bar fa-3x mb-3 opacity-50"></i>
-                        <p>No department data available</p>
+                        <i class="fas fa-chart-pie fa-3x mb-3 opacity-25"></i>
+                        <p class="mb-0">No department data available</p>
                     </div>
                     {% endif %}
                 </div>
             </div>
         </div>
-        <div class="col-md-6">
-            <div class="card border-0 shadow-sm h-100">
-                <div class="card-header bg-white border-0 pt-3">
-                    <h5 class="mb-0"><i class="fas fa-code-branch text-success me-2"></i>Branch Comparison</h5>
+        <div class="col-lg-7">
+            <div class="card chart-card h-100">
+                <div class="card-header">
+                    <h5><i class="fas fa-code-branch text-success me-2"></i>Branch Comparison</h5>
                 </div>
                 <div class="card-body">
                     {% if branch_labels %}
                     <canvas id="branchChart" height="200"></canvas>
                     {% else %}
                     <div class="text-center text-muted py-5">
-                        <i class="fas fa-code-branch fa-3x mb-3 opacity-50"></i>
-                        <p>No branch data available</p>
+                        <i class="fas fa-code-branch fa-3x mb-3 opacity-25"></i>
+                        <p class="mb-0">No branch data available</p>
                     </div>
                     {% endif %}
                 </div>
@@ -295,20 +482,20 @@
     </div>
 
     <!-- Rankings Row 1 -->
-    <div class="row mb-4">
-        <div class="col-md-6">
-            <div class="card border-0 shadow-sm h-100">
-                <div class="card-header text-white border-0 pt-3" style="background: linear-gradient(135deg, #28a745 0%, #1e7e34 100%);">
-                    <h5 class="mb-0"><i class="fas fa-trophy me-2"></i>Top Performers</h5>
+    <div class="row mb-4 g-4">
+        <div class="col-lg-6">
+            <div class="card ranking-card h-100">
+                <div class="card-header text-white" style="background: linear-gradient(135deg, #28a745 0%, #20c997 100%);">
+                    <h5><i class="fas fa-trophy me-2"></i>Top Performers</h5>
                 </div>
                 <div class="card-body p-0">
                     {% if top_performers %}
                     <div class="table-responsive">
-                        <table class="table table-hover mb-0">
-                            <thead class="table-light">
+                        <table class="table mb-0">
+                            <thead>
                                 <tr>
-                                    <th style="width: 50px;">#</th>
-                                    <th>Staff</th>
+                                    <th style="width: 60px;">Rank</th>
+                                    <th>Staff Member</th>
                                     <th>Branch</th>
                                     <th class="text-end">Punctuality</th>
                                 </tr>
@@ -317,20 +504,18 @@
                                 {% for staff in top_performers %}
                                 <tr>
                                     <td>
-                                        {% if loop.index == 1 %}
-                                        <span class="badge bg-warning text-dark"><i class="fas fa-medal"></i></span>
-                                        {% elif loop.index == 2 %}
-                                        <span class="badge bg-secondary"><i class="fas fa-medal"></i></span>
-                                        {% elif loop.index == 3 %}
-                                        <span class="badge" style="background: #cd7f32;"><i class="fas fa-medal"></i></span>
+                                        {% if loop.index <= 3 %}
+                                        <span class="rank-badge rank-{{ loop.index }}">{{ loop.index }}</span>
                                         {% else %}
-                                        <span class="text-muted">{{ loop.index }}</span>
+                                        <span class="rank-badge bg-light text-dark">{{ loop.index }}</span>
                                         {% endif %}
                                     </td>
-                                    <td class="fw-semibold">{{ staff.name }}</td>
-                                    <td><span class="badge bg-light text-dark">{{ staff.branch }}</span></td>
+                                    <td>
+                                        <span class="fw-semibold">{{ staff.name }}</span>
+                                    </td>
+                                    <td><span class="badge bg-light text-dark border">{{ staff.branch }}</span></td>
                                     <td class="text-end">
-                                        <span class="badge bg-success">{{ staff.punctuality }}%</span>
+                                        <span class="badge bg-success px-3 py-2">{{ staff.punctuality }}%</span>
                                     </td>
                                 </tr>
                                 {% endfor %}
@@ -338,27 +523,27 @@
                         </table>
                     </div>
                     {% else %}
-                    <div class="text-center text-muted py-4">
-                        <i class="fas fa-trophy fa-2x mb-2 opacity-50"></i>
-                        <p class="mb-0">No data available</p>
+                    <div class="text-center text-muted py-5">
+                        <i class="fas fa-trophy fa-3x mb-3 opacity-25"></i>
+                        <p class="mb-0">No performance data available</p>
                     </div>
                     {% endif %}
                 </div>
             </div>
         </div>
-        <div class="col-md-6">
-            <div class="card border-0 shadow-sm h-100">
-                <div class="card-header text-white border-0 pt-3" style="background: linear-gradient(135deg, #dc3545 0%, #c82333 100%);">
-                    <h5 class="mb-0"><i class="fas fa-exclamation-circle me-2"></i>Needs Attention</h5>
+        <div class="col-lg-6">
+            <div class="card ranking-card h-100">
+                <div class="card-header text-white" style="background: linear-gradient(135deg, #dc3545 0%, #c82333 100%);">
+                    <h5><i class="fas fa-exclamation-circle me-2"></i>Needs Attention</h5>
                 </div>
                 <div class="card-body p-0">
                     {% if needs_attention %}
                     <div class="table-responsive">
-                        <table class="table table-hover mb-0">
-                            <thead class="table-light">
+                        <table class="table mb-0">
+                            <thead>
                                 <tr>
-                                    <th style="width: 50px;">#</th>
-                                    <th>Staff</th>
+                                    <th style="width: 60px;">#</th>
+                                    <th>Staff Member</th>
                                     <th>Branch</th>
                                     <th class="text-end">Late Count</th>
                                 </tr>
@@ -366,11 +551,11 @@
                             <tbody>
                                 {% for staff in needs_attention %}
                                 <tr>
-                                    <td><span class="text-muted">{{ loop.index }}</span></td>
-                                    <td class="fw-semibold">{{ staff.name }}</td>
-                                    <td><span class="badge bg-light text-dark">{{ staff.branch }}</span></td>
+                                    <td><span class="rank-badge bg-danger text-white">{{ loop.index }}</span></td>
+                                    <td><span class="fw-semibold">{{ staff.name }}</span></td>
+                                    <td><span class="badge bg-light text-dark border">{{ staff.branch }}</span></td>
                                     <td class="text-end">
-                                        <span class="badge bg-danger">{{ staff.late_count }} times</span>
+                                        <span class="badge bg-danger px-3 py-2">{{ staff.late_count }} times</span>
                                     </td>
                                 </tr>
                                 {% endfor %}
@@ -378,9 +563,9 @@
                         </table>
                     </div>
                     {% else %}
-                    <div class="text-center text-muted py-4">
-                        <i class="fas fa-check-circle fa-2x mb-2 text-success opacity-50"></i>
-                        <p class="mb-0">Everyone is doing great!</p>
+                    <div class="text-center py-5">
+                        <i class="fas fa-check-circle fa-3x mb-3 text-success opacity-50"></i>
+                        <p class="text-muted mb-0">Everyone is doing great!</p>
                     </div>
                     {% endif %}
                 </div>
@@ -388,21 +573,21 @@
         </div>
     </div>
 
-    <!-- Rankings Row 2 - Phase 2 Features -->
-    <div class="row mb-4">
-        <div class="col-md-6">
-            <div class="card border-0 shadow-sm h-100">
-                <div class="card-header text-white border-0 pt-3" style="background: linear-gradient(135deg, #17a2b8 0%, #117a8b 100%);">
-                    <h5 class="mb-0"><i class="fas fa-sun me-2"></i>Early Arrivals</h5>
+    <!-- Rankings Row 2 -->
+    <div class="row mb-4 g-4">
+        <div class="col-lg-6">
+            <div class="card ranking-card h-100">
+                <div class="card-header text-white" style="background: linear-gradient(135deg, #17a2b8 0%, #138496 100%);">
+                    <h5><i class="fas fa-sun me-2"></i>Early Arrivals Champions</h5>
                 </div>
                 <div class="card-body p-0">
                     {% if early_arrivals %}
                     <div class="table-responsive">
-                        <table class="table table-hover mb-0">
-                            <thead class="table-light">
+                        <table class="table mb-0">
+                            <thead>
                                 <tr>
-                                    <th style="width: 50px;">#</th>
-                                    <th>Staff</th>
+                                    <th style="width: 60px;">Rank</th>
+                                    <th>Staff Member</th>
                                     <th>Branch</th>
                                     <th class="text-end">Early Days</th>
                                     <th class="text-end">Avg Early</th>
@@ -413,48 +598,48 @@
                                 <tr>
                                     <td>
                                         {% if loop.index == 1 %}
-                                        <span class="badge bg-info"><i class="fas fa-star"></i></span>
+                                        <span class="rank-badge" style="background: linear-gradient(135deg, #17a2b8 0%, #20c997 100%); color: white;">
+                                            <i class="fas fa-star"></i>
+                                        </span>
                                         {% else %}
-                                        <span class="text-muted">{{ loop.index }}</span>
+                                        <span class="rank-badge bg-light text-dark">{{ loop.index }}</span>
                                         {% endif %}
                                     </td>
-                                    <td class="fw-semibold">{{ staff.name }}</td>
-                                    <td><span class="badge bg-light text-dark">{{ staff.branch }}</span></td>
+                                    <td><span class="fw-semibold">{{ staff.name }}</span></td>
+                                    <td><span class="badge bg-light text-dark border">{{ staff.branch }}</span></td>
                                     <td class="text-end">
-                                        <span class="badge bg-info">{{ staff.early_count }} days</span>
+                                        <span class="badge bg-info px-3 py-2">{{ staff.early_count }} days</span>
                                     </td>
-                                    <td class="text-end">
-                                        <span class="text-muted">{{ staff.avg_early_mins }} min</span>
-                                    </td>
+                                    <td class="text-end text-muted">{{ staff.avg_early_mins }} min</td>
                                 </tr>
                                 {% endfor %}
                             </tbody>
                         </table>
                     </div>
                     {% else %}
-                    <div class="text-center text-muted py-4">
-                        <i class="fas fa-sun fa-2x mb-2 opacity-50"></i>
+                    <div class="text-center text-muted py-5">
+                        <i class="fas fa-sun fa-3x mb-3 opacity-25"></i>
                         <p class="mb-0">No early arrivals data</p>
                     </div>
                     {% endif %}
                 </div>
             </div>
         </div>
-        <div class="col-md-6">
-            <div class="card border-0 shadow-sm h-100">
-                <div class="card-header text-white border-0 pt-3" style="background: linear-gradient(135deg, #6f42c1 0%, #59359a 100%);">
-                    <h5 class="mb-0"><i class="fas fa-award me-2"></i>Perfect Attendance</h5>
+        <div class="col-lg-6">
+            <div class="card ranking-card h-100">
+                <div class="card-header text-white" style="background: linear-gradient(135deg, #6f42c1 0%, #e83e8c 100%);">
+                    <h5><i class="fas fa-award me-2"></i>Perfect Attendance</h5>
                 </div>
                 <div class="card-body p-0">
                     {% if perfect_attendance %}
                     <div class="table-responsive">
-                        <table class="table table-hover mb-0">
-                            <thead class="table-light">
+                        <table class="table mb-0">
+                            <thead>
                                 <tr>
-                                    <th style="width: 50px;">#</th>
-                                    <th>Staff</th>
+                                    <th style="width: 60px;">Rank</th>
+                                    <th>Staff Member</th>
                                     <th>Branch</th>
-                                    <th class="text-end">Days</th>
+                                    <th class="text-end">Perfect Days</th>
                                 </tr>
                             </thead>
                             <tbody>
@@ -462,15 +647,17 @@
                                 <tr>
                                     <td>
                                         {% if loop.index == 1 %}
-                                        <span class="badge bg-warning text-dark"><i class="fas fa-crown"></i></span>
+                                        <span class="rank-badge" style="background: linear-gradient(135deg, #6f42c1 0%, #e83e8c 100%); color: white;">
+                                            <i class="fas fa-crown"></i>
+                                        </span>
                                         {% else %}
-                                        <span class="text-muted">{{ loop.index }}</span>
+                                        <span class="rank-badge bg-light text-dark">{{ loop.index }}</span>
                                         {% endif %}
                                     </td>
-                                    <td class="fw-semibold">{{ staff.name }}</td>
-                                    <td><span class="badge bg-light text-dark">{{ staff.branch }}</span></td>
+                                    <td><span class="fw-semibold">{{ staff.name }}</span></td>
+                                    <td><span class="badge bg-light text-dark border">{{ staff.branch }}</span></td>
                                     <td class="text-end">
-                                        <span class="badge" style="background: #6f42c1;">{{ staff.days }} days</span>
+                                        <span class="badge px-3 py-2" style="background: linear-gradient(135deg, #6f42c1 0%, #e83e8c 100%);">{{ staff.days }} days</span>
                                     </td>
                                 </tr>
                                 {% endfor %}
@@ -478,8 +665,8 @@
                         </table>
                     </div>
                     {% else %}
-                    <div class="text-center text-muted py-4">
-                        <i class="fas fa-award fa-2x mb-2 opacity-50"></i>
+                    <div class="text-center text-muted py-5">
+                        <i class="fas fa-award fa-3x mb-3 opacity-25"></i>
                         <p class="mb-0">No perfect attendance yet</p>
                     </div>
                     {% endif %}
@@ -488,21 +675,21 @@
         </div>
     </div>
 
-    <!-- Rankings Row 3 - Phase 2 Features -->
-    <div class="row mb-4">
-        <div class="col-md-6">
-            <div class="card border-0 shadow-sm h-100">
-                <div class="card-header text-white border-0 pt-3" style="background: linear-gradient(135deg, #20c997 0%, #17a689 100%);">
-                    <h5 class="mb-0"><i class="fas fa-chart-line me-2"></i>Most Improved</h5>
+    <!-- Rankings Row 3 -->
+    <div class="row mb-4 g-4">
+        <div class="col-lg-6">
+            <div class="card ranking-card h-100">
+                <div class="card-header text-white" style="background: linear-gradient(135deg, #20c997 0%, #17a2b8 100%);">
+                    <h5><i class="fas fa-chart-line me-2"></i>Most Improved</h5>
                 </div>
                 <div class="card-body p-0">
                     {% if most_improved %}
                     <div class="table-responsive">
-                        <table class="table table-hover mb-0">
-                            <thead class="table-light">
+                        <table class="table mb-0">
+                            <thead>
                                 <tr>
-                                    <th style="width: 50px;">#</th>
-                                    <th>Staff</th>
+                                    <th style="width: 60px;">Rank</th>
+                                    <th>Staff Member</th>
                                     <th>Branch</th>
                                     <th class="text-end">Improvement</th>
                                 </tr>
@@ -512,17 +699,19 @@
                                 <tr>
                                     <td>
                                         {% if loop.index == 1 %}
-                                        <span class="badge" style="background: #20c997;"><i class="fas fa-arrow-up"></i></span>
+                                        <span class="rank-badge" style="background: linear-gradient(135deg, #20c997 0%, #17a2b8 100%); color: white;">
+                                            <i class="fas fa-rocket"></i>
+                                        </span>
                                         {% else %}
-                                        <span class="text-muted">{{ loop.index }}</span>
+                                        <span class="rank-badge bg-light text-dark">{{ loop.index }}</span>
                                         {% endif %}
                                     </td>
-                                    <td class="fw-semibold">{{ staff.name }}</td>
-                                    <td><span class="badge bg-light text-dark">{{ staff.branch }}</span></td>
+                                    <td><span class="fw-semibold">{{ staff.name }}</span></td>
+                                    <td><span class="badge bg-light text-dark border">{{ staff.branch }}</span></td>
                                     <td class="text-end">
-                                        <span class="text-danger text-decoration-line-through me-1">{{ staff.prev_late }}</span>
-                                        <i class="fas fa-arrow-right text-muted mx-1"></i>
-                                        <span class="badge bg-success">{{ staff.curr_late }} late</span>
+                                        <span class="text-danger text-decoration-line-through me-2">{{ staff.prev_late }}</span>
+                                        <i class="fas fa-long-arrow-alt-right text-muted mx-1"></i>
+                                        <span class="badge bg-success px-3 py-2">{{ staff.curr_late }} late</span>
                                     </td>
                                 </tr>
                                 {% endfor %}
@@ -530,27 +719,27 @@
                         </table>
                     </div>
                     {% else %}
-                    <div class="text-center text-muted py-4">
-                        <i class="fas fa-chart-line fa-2x mb-2 opacity-50"></i>
+                    <div class="text-center text-muted py-5">
+                        <i class="fas fa-chart-line fa-3x mb-3 opacity-25"></i>
                         <p class="mb-0">No improvement data yet</p>
                     </div>
                     {% endif %}
                 </div>
             </div>
         </div>
-        <div class="col-md-6">
-            <div class="card border-0 shadow-sm h-100">
-                <div class="card-header text-white border-0 pt-3" style="background: linear-gradient(135deg, #fd7e14 0%, #dc6502 100%);">
-                    <h5 class="mb-0"><i class="fas fa-fire me-2"></i>Attendance Streaks</h5>
+        <div class="col-lg-6">
+            <div class="card ranking-card h-100">
+                <div class="card-header text-white" style="background: linear-gradient(135deg, #fd7e14 0%, #ffc107 100%);">
+                    <h5><i class="fas fa-fire-alt me-2"></i>On-Time Streaks</h5>
                 </div>
                 <div class="card-body p-0">
                     {% if attendance_streaks %}
                     <div class="table-responsive">
-                        <table class="table table-hover mb-0">
-                            <thead class="table-light">
+                        <table class="table mb-0">
+                            <thead>
                                 <tr>
-                                    <th style="width: 50px;">#</th>
-                                    <th>Staff</th>
+                                    <th style="width: 60px;">Rank</th>
+                                    <th>Staff Member</th>
                                     <th>Branch</th>
                                     <th class="text-end">Streak</th>
                                 </tr>
@@ -560,15 +749,19 @@
                                 <tr>
                                     <td>
                                         {% if loop.index == 1 %}
-                                        <span class="badge" style="background: #fd7e14;"><i class="fas fa-fire"></i></span>
+                                        <span class="rank-badge" style="background: linear-gradient(135deg, #fd7e14 0%, #ffc107 100%); color: white;">
+                                            <i class="fas fa-fire-alt"></i>
+                                        </span>
                                         {% else %}
-                                        <span class="text-muted">{{ loop.index }}</span>
+                                        <span class="rank-badge bg-light text-dark">{{ loop.index }}</span>
                                         {% endif %}
                                     </td>
-                                    <td class="fw-semibold">{{ staff.name }}</td>
-                                    <td><span class="badge bg-light text-dark">{{ staff.branch }}</span></td>
+                                    <td><span class="fw-semibold">{{ staff.name }}</span></td>
+                                    <td><span class="badge bg-light text-dark border">{{ staff.branch }}</span></td>
                                     <td class="text-end">
-                                        <span class="badge" style="background: #fd7e14;">{{ staff.streak }} days <i class="fas fa-fire ms-1"></i></span>
+                                        <span class="badge px-3 py-2" style="background: linear-gradient(135deg, #fd7e14 0%, #ffc107 100%);">
+                                            {{ staff.streak }} days <i class="fas fa-fire-alt ms-1"></i>
+                                        </span>
                                     </td>
                                 </tr>
                                 {% endfor %}
@@ -576,9 +769,9 @@
                         </table>
                     </div>
                     {% else %}
-                    <div class="text-center text-muted py-4">
-                        <i class="fas fa-fire fa-2x mb-2 opacity-50"></i>
-                        <p class="mb-0">No streaks yet (min 3 days)</p>
+                    <div class="text-center text-muted py-5">
+                        <i class="fas fa-fire-alt fa-3x mb-3 opacity-25"></i>
+                        <p class="mb-0">No streaks yet (min 3 consecutive days)</p>
                     </div>
                     {% endif %}
                 </div>
@@ -600,8 +793,20 @@ document.addEventListener('DOMContentLoaded', function() {
         }
     });
 
+    // Chart.js default settings
+    Chart.defaults.font.family = "'Segoe UI', 'Helvetica Neue', Arial, sans-serif";
+    Chart.defaults.plugins.legend.labels.usePointStyle = true;
+
     // Attendance Trend Chart
     var trendCtx = document.getElementById('attendanceTrendChart').getContext('2d');
+    var trendGradient1 = trendCtx.createLinearGradient(0, 0, 0, 300);
+    trendGradient1.addColorStop(0, 'rgba(220, 53, 69, 0.3)');
+    trendGradient1.addColorStop(1, 'rgba(220, 53, 69, 0)');
+    
+    var trendGradient2 = trendCtx.createLinearGradient(0, 0, 0, 300);
+    trendGradient2.addColorStop(0, 'rgba(40, 167, 69, 0.3)');
+    trendGradient2.addColorStop(1, 'rgba(40, 167, 69, 0)');
+
     new Chart(trendCtx, {
         type: 'line',
         data: {
@@ -610,25 +815,48 @@ document.addEventListener('DOMContentLoaded', function() {
                 label: 'Attendance %',
                 data: {{ trend_data | tojson }},
                 borderColor: '#dc3545',
-                backgroundColor: 'rgba(220, 53, 69, 0.1)',
+                backgroundColor: trendGradient1,
+                borderWidth: 3,
                 fill: true,
-                tension: 0.4
+                tension: 0.4,
+                pointBackgroundColor: '#dc3545',
+                pointBorderColor: '#fff',
+                pointBorderWidth: 2,
+                pointRadius: 4,
+                pointHoverRadius: 6
             }, {
                 label: 'Punctuality %',
                 data: {{ punctuality_data | tojson }},
                 borderColor: '#28a745',
-                backgroundColor: 'rgba(40, 167, 69, 0.1)',
+                backgroundColor: trendGradient2,
+                borderWidth: 3,
                 fill: true,
-                tension: 0.4
+                tension: 0.4,
+                pointBackgroundColor: '#28a745',
+                pointBorderColor: '#fff',
+                pointBorderWidth: 2,
+                pointRadius: 4,
+                pointHoverRadius: 6
             }]
         },
         options: {
             responsive: true,
+            maintainAspectRatio: true,
             plugins: {
-                legend: { position: 'top' }
+                legend: { 
+                    position: 'top',
+                    labels: { padding: 20 }
+                }
             },
             scales: {
-                y: { beginAtZero: true, max: 100 }
+                y: { 
+                    beginAtZero: true, 
+                    max: 100,
+                    grid: { color: 'rgba(0,0,0,0.05)' }
+                },
+                x: {
+                    grid: { display: false }
+                }
             }
         }
     });
@@ -642,13 +870,41 @@ document.addEventListener('DOMContentLoaded', function() {
             datasets: [{
                 label: 'Late Arrivals',
                 data: {{ late_by_day | tojson }},
-                backgroundColor: '#ffc107'
+                backgroundColor: [
+                    'rgba(255, 193, 7, 0.8)',
+                    'rgba(255, 193, 7, 0.8)',
+                    'rgba(255, 193, 7, 0.8)',
+                    'rgba(255, 193, 7, 0.8)',
+                    'rgba(255, 193, 7, 0.8)',
+                    'rgba(108, 117, 125, 0.5)',
+                    'rgba(108, 117, 125, 0.5)'
+                ],
+                borderColor: [
+                    '#ffc107',
+                    '#ffc107',
+                    '#ffc107',
+                    '#ffc107',
+                    '#ffc107',
+                    '#6c757d',
+                    '#6c757d'
+                ],
+                borderWidth: 2,
+                borderRadius: 8
             }]
         },
         options: {
             responsive: true,
             plugins: {
                 legend: { display: false }
+            },
+            scales: {
+                y: { 
+                    beginAtZero: true,
+                    grid: { color: 'rgba(0,0,0,0.05)' }
+                },
+                x: {
+                    grid: { display: false }
+                }
             }
         }
     });
@@ -662,13 +918,26 @@ document.addEventListener('DOMContentLoaded', function() {
             labels: {{ department_labels | tojson }},
             datasets: [{
                 data: {{ department_data | tojson }},
-                backgroundColor: ['#dc3545', '#007bff', '#28a745', '#6f42c1']
+                backgroundColor: [
+                    'rgba(220, 53, 69, 0.85)',
+                    'rgba(0, 123, 255, 0.85)',
+                    'rgba(40, 167, 69, 0.85)',
+                    'rgba(111, 66, 193, 0.85)'
+                ],
+                borderColor: '#fff',
+                borderWidth: 3,
+                hoverOffset: 10
             }]
         },
         options: {
             responsive: true,
+            maintainAspectRatio: true,
+            cutout: '60%',
             plugins: {
-                legend: { position: 'bottom' }
+                legend: { 
+                    position: 'bottom',
+                    labels: { padding: 20 }
+                }
             }
         }
     });
@@ -684,20 +953,36 @@ document.addEventListener('DOMContentLoaded', function() {
             datasets: [{
                 label: 'Attendance %',
                 data: {{ branch_attendance | tojson }},
-                backgroundColor: '#dc3545'
+                backgroundColor: 'rgba(220, 53, 69, 0.8)',
+                borderColor: '#dc3545',
+                borderWidth: 2,
+                borderRadius: 6
             }, {
                 label: 'Punctuality %',
                 data: {{ branch_punctuality | tojson }},
-                backgroundColor: '#28a745'
+                backgroundColor: 'rgba(40, 167, 69, 0.8)',
+                borderColor: '#28a745',
+                borderWidth: 2,
+                borderRadius: 6
             }]
         },
         options: {
             responsive: true,
             plugins: {
-                legend: { position: 'top' }
+                legend: { 
+                    position: 'top',
+                    labels: { padding: 15 }
+                }
             },
             scales: {
-                y: { beginAtZero: true, max: 100 }
+                y: { 
+                    beginAtZero: true, 
+                    max: 100,
+                    grid: { color: 'rgba(0,0,0,0.05)' }
+                },
+                x: {
+                    grid: { display: false }
+                }
             }
         }
     });
