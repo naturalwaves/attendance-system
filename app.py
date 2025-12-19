@@ -778,14 +778,14 @@ def late_report():
                     punctuality = round(((period_total - period_late) / period_total) * 100, 1)
                     lateness = round((period_late / period_total) * 100, 1)
                 else:
-                    punctuality = 100.0
+                    punctuality = 0.0
                     lateness = 0.0
             else:
                 if all_total > 0:
                     punctuality = round(((all_total - all_late) / all_total) * 100, 1)
                     lateness = round((all_late / all_total) * 100, 1)
                 else:
-                    punctuality = 100.0
+                    punctuality = 0.0
                     lateness = 0.0
             late_staff.append({
                 'staff': s,
@@ -863,14 +863,14 @@ def download_late_report():
                     punctuality = round(((period_total - period_late) / period_total) * 100, 1)
                     lateness = round((period_late / period_total) * 100, 1)
                 else:
-                    punctuality = 100.0
+                    punctuality = 0.0
                     lateness = 0.0
             else:
                 if all_total > 0:
                     punctuality = round(((all_total - all_late) / all_total) * 100, 1)
                     lateness = round((all_late / all_total) * 100, 1)
                 else:
-                    punctuality = 100.0
+                    punctuality = 0.0
                     lateness = 0.0
             writer.writerow([
                 s.staff_id,
@@ -1196,22 +1196,40 @@ def analytics():
     working_days = sum(1 for i in range(period_days) if (start_date + timedelta(days=i)).weekday() < 5)
     expected_attendance = total_staff * working_days if total_staff > 0 else 1
     
-    attendance_rate = round((total_records / expected_attendance) * 100, 1) if expected_attendance > 0 else 0
-    attendance_rate = min(attendance_rate, 100)
+    # FIX: Show 0% when no records instead of calculating
+    if total_records == 0:
+        attendance_rate = 0
+    else:
+        attendance_rate = round((total_records / expected_attendance) * 100, 1) if expected_attendance > 0 else 0
+        attendance_rate = min(attendance_rate, 100)
     
     prev_working_days = sum(1 for i in range(period_days) if (previous_start + timedelta(days=i)).weekday() < 5)
     prev_expected = total_staff * prev_working_days if total_staff > 0 else 1
-    prev_attendance_rate = round((len(previous_attendance) / prev_expected) * 100, 1) if prev_expected > 0 else 0
-    prev_attendance_rate = min(prev_attendance_rate, 100)
+    
+    if len(previous_attendance) == 0:
+        prev_attendance_rate = 0
+    else:
+        prev_attendance_rate = round((len(previous_attendance) / prev_expected) * 100, 1) if prev_expected > 0 else 0
+        prev_attendance_rate = min(prev_attendance_rate, 100)
     
     attendance_trend = round(attendance_rate - prev_attendance_rate, 1)
     
     on_time_count = sum(1 for a in current_attendance if not a.is_late)
     late_count = sum(1 for a in current_attendance if a.is_late)
-    punctuality_rate = round((on_time_count / total_records) * 100, 1) if total_records > 0 else 100
     
+    # FIX: Show 0% punctuality when no records
+    if total_records == 0:
+        punctuality_rate = 0
+    else:
+        punctuality_rate = round((on_time_count / total_records) * 100, 1)
+    
+    # FIX: Show 0% for previous punctuality when no records
     prev_on_time = sum(1 for a in previous_attendance if not a.is_late)
-    prev_punctuality = round((prev_on_time / len(previous_attendance)) * 100, 1) if previous_attendance else 100
+    if len(previous_attendance) == 0:
+        prev_punctuality = 0
+    else:
+        prev_punctuality = round((prev_on_time / len(previous_attendance)) * 100, 1)
+    
     punctuality_trend = round(punctuality_rate - prev_punctuality, 1)
     
     total_late_minutes = sum(a.late_minutes for a in current_attendance if a.is_late)
@@ -1232,7 +1250,8 @@ def analytics():
             day_count = len(day_attendance)
             day_rate = round((day_count / total_staff) * 100, 1) if total_staff > 0 else 0
             day_on_time = sum(1 for a in day_attendance if not a.is_late)
-            day_punctuality = round((day_on_time / day_count) * 100, 1) if day_count > 0 else 100
+            # FIX: Show 0% for daily punctuality when no attendance
+            day_punctuality = round((day_on_time / day_count) * 100, 1) if day_count > 0 else 0
             
             trend_labels.append(current_date.strftime('%d %b'))
             trend_data.append(min(day_rate, 100))
@@ -1244,6 +1263,105 @@ def analytics():
         if a.is_late:
             late_by_day[a.date.weekday()] += 1
     
+    # NEW: Absence by day of week
+    absent_by_day = [0, 0, 0, 0, 0, 0, 0]
+    non_mgmt_staff = [s for s in all_staff if s.department != 'Management']
+    current_date = start_date
+    while current_date <= end_date:
+        if current_date.weekday() < 5:
+            for s in non_mgmt_staff:
+                has_attendance = any(a.date == current_date and a.staff_id == s.id for a in current_attendance)
+                if not has_attendance:
+                    absent_by_day[current_date.weekday()] += 1
+        current_date += timedelta(days=1)
+    
+    # NEW: Peak late hours (time slots when people are late)
+    peak_late_hours = {
+        '08:00-08:15': 0,
+        '08:15-08:30': 0,
+        '08:30-08:45': 0,
+        '08:45-09:00': 0,
+        '09:00-09:30': 0,
+        '09:30+': 0
+    }
+    
+    for a in current_attendance:
+        if a.is_late and a.sign_in_time:
+            sign_in_hour = a.sign_in_time.hour
+            sign_in_minute = a.sign_in_time.minute
+            total_minutes = sign_in_hour * 60 + sign_in_minute
+            
+            if total_minutes < 8 * 60 + 15:
+                peak_late_hours['08:00-08:15'] += 1
+            elif total_minutes < 8 * 60 + 30:
+                peak_late_hours['08:15-08:30'] += 1
+            elif total_minutes < 8 * 60 + 45:
+                peak_late_hours['08:30-08:45'] += 1
+            elif total_minutes < 9 * 60:
+                peak_late_hours['08:45-09:00'] += 1
+            elif total_minutes < 9 * 60 + 30:
+                peak_late_hours['09:00-09:30'] += 1
+            else:
+                peak_late_hours['09:30+'] += 1
+    
+    peak_late_labels = list(peak_late_hours.keys())
+    peak_late_data = list(peak_late_hours.values())
+    
+    # NEW: Monthly comparison (this month vs last month)
+    this_month_start = today.replace(day=1)
+    this_month_end = today
+    last_month_end = this_month_start - timedelta(days=1)
+    last_month_start = last_month_end.replace(day=1)
+    
+    this_month_attendance = Attendance.query.filter(
+        Attendance.staff_id.in_(staff_ids),
+        Attendance.date >= this_month_start,
+        Attendance.date <= this_month_end
+    ).all() if staff_ids else []
+    
+    last_month_attendance = Attendance.query.filter(
+        Attendance.staff_id.in_(staff_ids),
+        Attendance.date >= last_month_start,
+        Attendance.date <= last_month_end
+    ).all() if staff_ids else []
+    
+    this_month_days = sum(1 for i in range((this_month_end - this_month_start).days + 1) if (this_month_start + timedelta(days=i)).weekday() < 5)
+    last_month_days = sum(1 for i in range((last_month_end - last_month_start).days + 1) if (last_month_start + timedelta(days=i)).weekday() < 5)
+    
+    this_month_expected = len(non_mgmt_staff) * this_month_days if non_mgmt_staff else 1
+    last_month_expected = len(non_mgmt_staff) * last_month_days if non_mgmt_staff else 1
+    
+    # FIX: 0% when no attendance
+    if len(this_month_attendance) == 0:
+        this_month_att_rate = 0
+    else:
+        this_month_att_rate = round((len(this_month_attendance) / this_month_expected) * 100, 1) if this_month_expected > 0 else 0
+        this_month_att_rate = min(this_month_att_rate, 100)
+    
+    if len(last_month_attendance) == 0:
+        last_month_att_rate = 0
+    else:
+        last_month_att_rate = round((len(last_month_attendance) / last_month_expected) * 100, 1) if last_month_expected > 0 else 0
+        last_month_att_rate = min(last_month_att_rate, 100)
+    
+    this_month_on_time = sum(1 for a in this_month_attendance if not a.is_late)
+    last_month_on_time = sum(1 for a in last_month_attendance if not a.is_late)
+    
+    # FIX: 0% punctuality when no attendance
+    if len(this_month_attendance) == 0:
+        this_month_punct_rate = 0
+    else:
+        this_month_punct_rate = round((this_month_on_time / len(this_month_attendance)) * 100, 1)
+    
+    if len(last_month_attendance) == 0:
+        last_month_punct_rate = 0
+    else:
+        last_month_punct_rate = round((last_month_on_time / len(last_month_attendance)) * 100, 1)
+    
+    monthly_comparison_labels = ['Attendance %', 'Punctuality %']
+    monthly_this_month = [this_month_att_rate, this_month_punct_rate]
+    monthly_last_month = [last_month_att_rate, last_month_punct_rate]
+    
     dept_list = ['Academic', 'Admin', 'Non-Academic', 'Management']
     department_labels = []
     department_data = []
@@ -1253,6 +1371,7 @@ def analytics():
             dept_staff_ids = [s.id for s in dept_staff]
             dept_attendance = [a for a in current_attendance if a.staff_id in dept_staff_ids]
             dept_on_time = sum(1 for a in dept_attendance if not a.is_late)
+            # FIX: 0% when no attendance
             dept_punctuality = round((dept_on_time / len(dept_attendance)) * 100) if dept_attendance else 0
             department_labels.append(dept)
             department_data.append(dept_punctuality)
@@ -1269,10 +1388,16 @@ def analytics():
             
             school_working_days = working_days
             school_expected = len(school_staff) * school_working_days if school_staff else 1
-            school_rate = round((len(school_att) / school_expected) * 100, 1) if school_expected > 0 else 0
+            
+            # FIX: 0% when no attendance
+            if len(school_att) == 0:
+                school_rate = 0
+            else:
+                school_rate = round((len(school_att) / school_expected) * 100, 1) if school_expected > 0 else 0
             
             school_on_time = sum(1 for a in school_att if not a.is_late)
-            school_punct = round((school_on_time / len(school_att)) * 100, 1) if school_att else 100
+            # FIX: 0% when no attendance
+            school_punct = round((school_on_time / len(school_att)) * 100, 1) if school_att else 0
             
             branch_labels.append(school.short_name or school.name[:15])
             branch_attendance.append(min(school_rate, 100))
@@ -1424,7 +1549,6 @@ def analytics():
     distribution_labels = ['Early', 'On-Time', 'Late']
     
     # Chart 2: Present vs Absent
-    non_mgmt_staff = [s for s in all_staff if s.department != 'Management']
     total_expected_records = len(non_mgmt_staff) * working_days
     present_count = total_records
     absent_count = total_expected_records - present_count
@@ -1458,16 +1582,32 @@ def analytics():
     this_week_expected = len(non_mgmt_staff) * this_week_days if non_mgmt_staff else 1
     last_week_expected = len(non_mgmt_staff) * last_week_days if non_mgmt_staff else 1
     
-    this_week_att_rate = round((len(this_week_attendance) / this_week_expected) * 100, 1) if this_week_expected > 0 else 0
-    last_week_att_rate = round((len(last_week_attendance) / last_week_expected) * 100, 1) if last_week_expected > 0 else 0
-    this_week_att_rate = min(this_week_att_rate, 100)
-    last_week_att_rate = min(last_week_att_rate, 100)
+    # FIX: 0% when no attendance
+    if len(this_week_attendance) == 0:
+        this_week_att_rate = 0
+    else:
+        this_week_att_rate = round((len(this_week_attendance) / this_week_expected) * 100, 1) if this_week_expected > 0 else 0
+        this_week_att_rate = min(this_week_att_rate, 100)
+    
+    if len(last_week_attendance) == 0:
+        last_week_att_rate = 0
+    else:
+        last_week_att_rate = round((len(last_week_attendance) / last_week_expected) * 100, 1) if last_week_expected > 0 else 0
+        last_week_att_rate = min(last_week_att_rate, 100)
     
     this_week_on_time = sum(1 for a in this_week_attendance if not a.is_late)
     last_week_on_time = sum(1 for a in last_week_attendance if not a.is_late)
     
-    this_week_punct_rate = round((this_week_on_time / len(this_week_attendance)) * 100, 1) if this_week_attendance else 100
-    last_week_punct_rate = round((last_week_on_time / len(last_week_attendance)) * 100, 1) if last_week_attendance else 100
+    # FIX: 0% punctuality when no attendance
+    if len(this_week_attendance) == 0:
+        this_week_punct_rate = 0
+    else:
+        this_week_punct_rate = round((this_week_on_time / len(this_week_attendance)) * 100, 1)
+    
+    if len(last_week_attendance) == 0:
+        last_week_punct_rate = 0
+    else:
+        last_week_punct_rate = round((last_week_on_time / len(last_week_attendance)) * 100, 1)
     
     weekly_comparison_labels = ['Attendance %', 'Punctuality %']
     weekly_this_week = [this_week_att_rate, this_week_punct_rate]
@@ -1499,6 +1639,12 @@ def analytics():
                          trend_data=trend_data,
                          punctuality_data=punctuality_data,
                          late_by_day=late_by_day,
+                         absent_by_day=absent_by_day,
+                         peak_late_labels=peak_late_labels,
+                         peak_late_data=peak_late_data,
+                         monthly_comparison_labels=monthly_comparison_labels,
+                         monthly_this_month=monthly_this_month,
+                         monthly_last_month=monthly_last_month,
                          department_labels=department_labels,
                          department_data=department_data,
                          branch_labels=branch_labels,
