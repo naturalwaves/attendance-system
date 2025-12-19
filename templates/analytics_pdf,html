@@ -1,0 +1,449 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <style>
+        @page {
+            size: A4;
+            margin: 1.5cm;
+        }
+        body {
+            font-family: Helvetica, Arial, sans-serif;
+            font-size: 11px;
+            color: #333;
+            line-height: 1.4;
+        }
+        .header {
+            text-align: center;
+            border-bottom: 3px solid #667eea;
+            padding-bottom: 15px;
+            margin-bottom: 20px;
+        }
+        .header h1 {
+            color: #667eea;
+            margin: 0 0 5px 0;
+            font-size: 24px;
+        }
+        .header p {
+            color: #666;
+            margin: 0;
+            font-size: 12px;
+        }
+        .date-range {
+            background: #f8f9fa;
+            padding: 10px 15px;
+            border-radius: 5px;
+            margin-bottom: 20px;
+            text-align: center;
+        }
+        .date-range strong {
+            color: #667eea;
+        }
+        .section-title {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 8px 15px;
+            margin: 20px 0 10px 0;
+            font-size: 14px;
+            font-weight: bold;
+        }
+        .metrics-grid {
+            width: 100%;
+            border-collapse: collapse;
+            margin-bottom: 20px;
+        }
+        .metrics-grid td {
+            width: 25%;
+            padding: 10px;
+            text-align: center;
+            border: 1px solid #eee;
+        }
+        .metric-value {
+            font-size: 24px;
+            font-weight: bold;
+            color: #333;
+        }
+        .metric-value.green { color: #28a745; }
+        .metric-value.red { color: #dc3545; }
+        .metric-value.blue { color: #007bff; }
+        .metric-value.purple { color: #6f42c1; }
+        .metric-value.teal { color: #17a2b8; }
+        .metric-value.orange { color: #fd7e14; }
+        .metric-label {
+            font-size: 10px;
+            color: #666;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+        .metric-trend {
+            font-size: 10px;
+            padding: 2px 6px;
+            border-radius: 10px;
+            display: inline-block;
+            margin-top: 3px;
+        }
+        .trend-up {
+            background: #d4edda;
+            color: #155724;
+        }
+        .trend-down {
+            background: #f8d7da;
+            color: #721c24;
+        }
+        table.data-table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-bottom: 15px;
+        }
+        table.data-table th {
+            background: #f8f9fa;
+            padding: 8px 10px;
+            text-align: left;
+            font-size: 10px;
+            text-transform: uppercase;
+            color: #666;
+            border-bottom: 2px solid #dee2e6;
+        }
+        table.data-table td {
+            padding: 8px 10px;
+            border-bottom: 1px solid #eee;
+        }
+        table.data-table tr:nth-child(even) {
+            background: #fafafa;
+        }
+        .rank-badge {
+            display: inline-block;
+            width: 22px;
+            height: 22px;
+            line-height: 22px;
+            text-align: center;
+            border-radius: 50%;
+            font-weight: bold;
+            font-size: 10px;
+        }
+        .rank-gold { background: #ffd700; color: #664d00; }
+        .rank-silver { background: #c0c0c0; color: #555; }
+        .rank-bronze { background: #cd7f32; color: #fff; }
+        .rank-default { background: #f1f3f4; color: #666; }
+        .score-badge {
+            padding: 3px 8px;
+            border-radius: 10px;
+            font-size: 10px;
+            font-weight: bold;
+        }
+        .badge-success { background: #d4edda; color: #155724; }
+        .badge-danger { background: #f8d7da; color: #721c24; }
+        .badge-info { background: #d1ecf1; color: #0c5460; }
+        .footer {
+            margin-top: 30px;
+            padding-top: 15px;
+            border-top: 1px solid #eee;
+            text-align: center;
+            font-size: 10px;
+            color: #999;
+        }
+        .two-column {
+            width: 100%;
+        }
+        .two-column td {
+            width: 50%;
+            vertical-align: top;
+            padding: 0 10px;
+        }
+        .two-column td:first-child {
+            padding-left: 0;
+        }
+        .two-column td:last-child {
+            padding-right: 0;
+        }
+        .summary-box {
+            background: #f8f9fa;
+            border: 1px solid #eee;
+            border-radius: 5px;
+            padding: 15px;
+            margin-bottom: 15px;
+        }
+        .summary-box h4 {
+            margin: 0 0 10px 0;
+            color: #333;
+            font-size: 12px;
+        }
+        .summary-item {
+            display: flex;
+            justify-content: space-between;
+            padding: 5px 0;
+            border-bottom: 1px solid #eee;
+        }
+        .summary-item:last-child {
+            border-bottom: none;
+        }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <h1>📊 Attendance Analytics Report</h1>
+        <p>Generated on {{ generated_date }}</p>
+    </div>
+
+    <div class="date-range">
+        <strong>Report Period:</strong> {{ start_date }} to {{ end_date }}
+        {% if selected_branch %} | <strong>Branch:</strong> {{ selected_branch }}{% endif %}
+        {% if selected_department %} | <strong>Department:</strong> {{ selected_department }}{% endif %}
+    </div>
+
+    <div class="section-title">📈 Key Metrics Overview</div>
+    
+    <table class="metrics-grid">
+        <tr>
+            <td>
+                <div class="metric-label">Attendance Rate</div>
+                <div class="metric-value red">{{ attendance_rate }}%</div>
+                <span class="metric-trend {% if attendance_trend >= 0 %}trend-up{% else %}trend-down{% endif %}">
+                    {% if attendance_trend >= 0 %}↑{% else %}↓{% endif %} {{ attendance_trend|abs }}%
+                </span>
+            </td>
+            <td>
+                <div class="metric-label">Punctuality Rate</div>
+                <div class="metric-value green">{{ punctuality_rate }}%</div>
+                <span class="metric-trend {% if punctuality_trend >= 0 %}trend-up{% else %}trend-down{% endif %}">
+                    {% if punctuality_trend >= 0 %}↑{% else %}↓{% endif %} {{ punctuality_trend|abs }}%
+                </span>
+            </td>
+            <td>
+                <div class="metric-label">Active Staff</div>
+                <div class="metric-value blue">{{ total_staff }}</div>
+                <div style="font-size: 10px; color: #666;">{{ branch_count }} branch{% if branch_count != 1 %}es{% endif %}</div>
+            </td>
+            <td>
+                <div class="metric-label">Total Records</div>
+                <div class="metric-value purple">{{ total_records }}</div>
+                <div style="font-size: 10px; color: #666;">In period</div>
+            </td>
+        </tr>
+        <tr>
+            <td>
+                <div class="metric-label">On Time Arrivals</div>
+                <div class="metric-value teal">{{ on_time_count }}</div>
+                <div style="font-size: 10px; color: #28a745;">Early / On-time</div>
+            </td>
+            <td>
+                <div class="metric-label">Late Arrivals</div>
+                <div class="metric-value orange">{{ late_count }}</div>
+                <div style="font-size: 10px; color: #fd7e14;">After start time</div>
+            </td>
+            <td>
+                <div class="metric-label">Avg Late Time</div>
+                <div class="metric-value">{{ avg_late_minutes }} min</div>
+                <div style="font-size: 10px; color: #666;">Per late arrival</div>
+            </td>
+            <td>
+                <div class="metric-label">Total Overtime</div>
+                <div class="metric-value">{{ overtime_hours }}h {{ overtime_mins }}m</div>
+                <div style="font-size: 10px; color: #666;">Extra hours</div>
+            </td>
+        </tr>
+    </table>
+
+    <table class="two-column">
+        <tr>
+            <td>
+                <div class="section-title">🏆 Top Performers</div>
+                {% if top_performers %}
+                <table class="data-table">
+                    <thead>
+                        <tr>
+                            <th style="width: 40px;">Rank</th>
+                            <th>Staff Member</th>
+                            <th>Branch</th>
+                            <th style="text-align: right;">Punctuality</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for staff in top_performers %}
+                        <tr>
+                            <td>
+                                {% if loop.index == 1 %}<span class="rank-badge rank-gold">1</span>
+                                {% elif loop.index == 2 %}<span class="rank-badge rank-silver">2</span>
+                                {% elif loop.index == 3 %}<span class="rank-badge rank-bronze">3</span>
+                                {% else %}<span class="rank-badge rank-default">{{ loop.index }}</span>{% endif %}
+                            </td>
+                            <td><strong>{{ staff.name }}</strong></td>
+                            <td>{{ staff.branch }}</td>
+                            <td style="text-align: right;"><span class="score-badge badge-success">{{ staff.punctuality }}%</span></td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+                {% else %}
+                <p style="color: #999; text-align: center; padding: 20px;">No performance data available</p>
+                {% endif %}
+            </td>
+            <td>
+                <div class="section-title">⚠️ Needs Attention</div>
+                {% if needs_attention %}
+                <table class="data-table">
+                    <thead>
+                        <tr>
+                            <th style="width: 40px;">#</th>
+                            <th>Staff Member</th>
+                            <th>Branch</th>
+                            <th style="text-align: right;">Late Count</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for staff in needs_attention %}
+                        <tr>
+                            <td><span class="rank-badge rank-default">{{ loop.index }}</span></td>
+                            <td><strong>{{ staff.name }}</strong></td>
+                            <td>{{ staff.branch }}</td>
+                            <td style="text-align: right;"><span class="score-badge badge-danger">{{ staff.late_count }} late</span></td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+                {% else %}
+                <p style="color: #999; text-align: center; padding: 20px;">No attention needed</p>
+                {% endif %}
+            </td>
+        </tr>
+    </table>
+
+    <table class="two-column">
+        <tr>
+            <td>
+                <div class="section-title">🌅 Early Arrivals Champions</div>
+                {% if early_arrivals %}
+                <table class="data-table">
+                    <thead>
+                        <tr>
+                            <th style="width: 40px;">Rank</th>
+                            <th>Staff Member</th>
+                            <th>Branch</th>
+                            <th style="text-align: right;">Avg Early</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for staff in early_arrivals %}
+                        <tr>
+                            <td>
+                                {% if loop.index == 1 %}<span class="rank-badge rank-gold">1</span>
+                                {% elif loop.index == 2 %}<span class="rank-badge rank-silver">2</span>
+                                {% elif loop.index == 3 %}<span class="rank-badge rank-bronze">3</span>
+                                {% else %}<span class="rank-badge rank-default">{{ loop.index }}</span>{% endif %}
+                            </td>
+                            <td><strong>{{ staff.name }}</strong></td>
+                            <td>{{ staff.branch }}</td>
+                            <td style="text-align: right;"><span class="score-badge badge-info">{{ staff.avg_early_mins }} min</span></td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+                {% else %}
+                <p style="color: #999; text-align: center; padding: 20px;">No early arrival data</p>
+                {% endif %}
+            </td>
+            <td>
+                <div class="section-title">⭐ Perfect Attendance</div>
+                {% if perfect_attendance %}
+                <table class="data-table">
+                    <thead>
+                        <tr>
+                            <th style="width: 40px;">★</th>
+                            <th>Staff Member</th>
+                            <th>Branch</th>
+                            <th style="text-align: right;">Days</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for staff in perfect_attendance %}
+                        <tr>
+                            <td><span class="rank-badge rank-gold">★</span></td>
+                            <td><strong>{{ staff.name }}</strong></td>
+                            <td>{{ staff.branch }}</td>
+                            <td style="text-align: right;"><span class="score-badge badge-info">{{ staff.days }} days</span></td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+                {% else %}
+                <p style="color: #999; text-align: center; padding: 20px;">No perfect attendance records</p>
+                {% endif %}
+            </td>
+        </tr>
+    </table>
+
+    <table class="two-column">
+        <tr>
+            <td>
+                <div class="section-title">📈 Most Improved</div>
+                {% if most_improved %}
+                <table class="data-table">
+                    <thead>
+                        <tr>
+                            <th style="width: 40px;">Rank</th>
+                            <th>Staff Member</th>
+                            <th>Branch</th>
+                            <th style="text-align: right;">Improvement</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for staff in most_improved %}
+                        <tr>
+                            <td>
+                                {% if loop.index == 1 %}<span class="rank-badge rank-gold">1</span>
+                                {% elif loop.index == 2 %}<span class="rank-badge rank-silver">2</span>
+                                {% elif loop.index == 3 %}<span class="rank-badge rank-bronze">3</span>
+                                {% else %}<span class="rank-badge rank-default">{{ loop.index }}</span>{% endif %}
+                            </td>
+                            <td><strong>{{ staff.name }}</strong></td>
+                            <td>{{ staff.branch }}</td>
+                            <td style="text-align: right;"><span class="score-badge badge-success">↑ {{ staff.reduction }} fewer</span></td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+                {% else %}
+                <p style="color: #999; text-align: center; padding: 20px;">No improvement data</p>
+                {% endif %}
+            </td>
+            <td>
+                <div class="section-title">🔥 On-Time Streaks</div>
+                {% if attendance_streaks %}
+                <table class="data-table">
+                    <thead>
+                        <tr>
+                            <th style="width: 40px;">🔥</th>
+                            <th>Staff Member</th>
+                            <th>Branch</th>
+                            <th style="text-align: right;">Streak</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for staff in attendance_streaks %}
+                        <tr>
+                            <td>
+                                {% if loop.index == 1 %}<span class="rank-badge rank-gold">1</span>
+                                {% elif loop.index == 2 %}<span class="rank-badge rank-silver">2</span>
+                                {% elif loop.index == 3 %}<span class="rank-badge rank-bronze">3</span>
+                                {% else %}<span class="rank-badge rank-default">{{ loop.index }}</span>{% endif %}
+                            </td>
+                            <td><strong>{{ staff.name }}</strong></td>
+                            <td>{{ staff.branch }}</td>
+                            <td style="text-align: right;"><span class="score-badge badge-info">{{ staff.streak }} days</span></td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+                {% else %}
+                <p style="color: #999; text-align: center; padding: 20px;">No streak data</p>
+                {% endif %}
+            </td>
+        </tr>
+    </table>
+
+    <div class="footer">
+        <p>This report was automatically generated by the Attendance Management System</p>
+        <p>© {{ current_year }} - Confidential</p>
+    </div>
+</body>
+</html>
