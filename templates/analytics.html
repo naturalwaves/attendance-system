@@ -372,7 +372,7 @@
         </div>
     </div>
 
-    <!-- Three Summary Charts Row -->
+    <!-- Charts Row 3 - Summary Charts -->
     <div class="row mb-4 g-4">
         <div class="col-lg-4">
             <div class="card chart-card h-100">
@@ -418,6 +418,43 @@
                 </div>
                 <div class="card-body d-flex align-items-center justify-content-center" style="min-height: 220px;">
                     <canvas id="weeklyComparisonChart"></canvas>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Charts Row 4 - NEW Charts -->
+    <div class="row mb-4 g-4">
+        <div class="col-lg-4">
+            <div class="card chart-card h-100">
+                <div class="card-header d-flex align-items-center">
+                    <span class="header-icon" style="background: linear-gradient(135deg, #e83e8c 0%, #d31a72 100%);"><i class="fas fa-clock"></i></span>
+                    <h5 class="mb-0">Peak Late Hours</h5>
+                </div>
+                <div class="card-body d-flex align-items-center justify-content-center" style="min-height: 220px;">
+                    <canvas id="peakLateChart"></canvas>
+                </div>
+            </div>
+        </div>
+        <div class="col-lg-4">
+            <div class="card chart-card h-100">
+                <div class="card-header d-flex align-items-center">
+                    <span class="header-icon" style="background: linear-gradient(135deg, #dc3545 0%, #c82333 100%);"><i class="fas fa-user-times"></i></span>
+                    <h5 class="mb-0">Absence by Day of Week</h5>
+                </div>
+                <div class="card-body d-flex align-items-center justify-content-center" style="min-height: 220px;">
+                    <canvas id="absentByDayChart"></canvas>
+                </div>
+            </div>
+        </div>
+        <div class="col-lg-4">
+            <div class="card chart-card h-100">
+                <div class="card-header d-flex align-items-center">
+                    <span class="header-icon" style="background: linear-gradient(135deg, #20c997 0%, #17a2b8 100%);"><i class="fas fa-calendar-alt"></i></span>
+                    <h5 class="mb-0">This Month vs Last Month</h5>
+                </div>
+                <div class="card-body d-flex align-items-center justify-content-center" style="min-height: 220px;">
+                    <canvas id="monthlyComparisonChart"></canvas>
                 </div>
             </div>
         </div>
@@ -677,7 +714,7 @@ new Chart(branchCtx, {
 });
 {% endif %}
 
-// Distribution Chart (Arrival Distribution)
+// Distribution Chart
 {% if total_records > 0 %}
 const distCtx = document.getElementById('distributionChart').getContext('2d');
 new Chart(distCtx, {
@@ -693,7 +730,7 @@ new Chart(distCtx, {
 });
 {% endif %}
 
-// Presence Chart (Present vs Absent)
+// Presence Chart
 {% if total_records > 0 or presence_data[1] > 0 %}
 const presenceCtx = document.getElementById('presenceChart').getContext('2d');
 new Chart(presenceCtx, {
@@ -726,6 +763,67 @@ new Chart(weeklyCtx, {
         }]
     },
     options: { responsive: true, plugins: { legend: { position: 'bottom' } }, scales: { y: { beginAtZero: true, max: 100 } } }
+});
+
+// NEW: Peak Late Hours Chart
+const peakLateCtx = document.getElementById('peakLateChart').getContext('2d');
+new Chart(peakLateCtx, {
+    type: 'bar',
+    data: {
+        labels: {{ peak_late_labels|tojson }},
+        datasets: [{
+            label: 'Late Arrivals',
+            data: {{ peak_late_data|tojson }},
+            backgroundColor: ['#e83e8c', '#d31a72', '#c21860', '#b0154e', '#9e123c', '#8c0f2a']
+        }]
+    },
+    options: { 
+        responsive: true, 
+        plugins: { legend: { display: false } },
+        scales: { y: { beginAtZero: true } }
+    }
+});
+
+// NEW: Absent by Day Chart
+const absentDayCtx = document.getElementById('absentByDayChart').getContext('2d');
+new Chart(absentDayCtx, {
+    type: 'bar',
+    data: {
+        labels: ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'],
+        datasets: [{
+            label: 'Absences',
+            data: {{ absent_by_day|tojson }},
+            backgroundColor: ['#dc3545', '#e04555', '#e45565', '#e86575', '#ec7585', '#f08595', '#f495a5']
+        }]
+    },
+    options: { 
+        responsive: true, 
+        plugins: { legend: { display: false } },
+        scales: { y: { beginAtZero: true } }
+    }
+});
+
+// NEW: Monthly Comparison Chart
+const monthlyCtx = document.getElementById('monthlyComparisonChart').getContext('2d');
+new Chart(monthlyCtx, {
+    type: 'bar',
+    data: {
+        labels: {{ monthly_comparison_labels|tojson }},
+        datasets: [{
+            label: 'This Month',
+            data: {{ monthly_this_month|tojson }},
+            backgroundColor: 'rgba(32, 201, 151, 0.8)'
+        }, {
+            label: 'Last Month',
+            data: {{ monthly_last_month|tojson }},
+            backgroundColor: 'rgba(108, 117, 125, 0.6)'
+        }]
+    },
+    options: { 
+        responsive: true, 
+        plugins: { legend: { position: 'bottom' } }, 
+        scales: { y: { beginAtZero: true, max: 100 } } 
+    }
 });
 </script>
 {% endblock %}
