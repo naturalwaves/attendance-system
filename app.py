@@ -226,7 +226,6 @@ def add_organization():
         db.session.add(org)
         db.session.commit()
         
-        # Add default departments based on organization type
         if is_school:
             default_depts = ['Academic', 'Non-Academic', 'Administration', 'Support Staff']
         else:
@@ -266,13 +265,12 @@ def delete_organization(id):
     flash('Organization deleted successfully!', 'success')
     return redirect(url_for('organizations'))
 
-# Department Management - FIXED FOR SCHOOL_ADMIN
+# Department Management
 @app.route('/organizations/<int:org_id>/departments')
 @login_required
 def manage_departments(org_id):
     org = Organization.query.get_or_404(org_id)
     
-    # Check access: super_admin can access any, school_admin only their own
     if current_user.role == 'school_admin':
         if current_user.organization_id != org_id:
             flash('Access denied.', 'danger')
@@ -289,7 +287,6 @@ def manage_departments(org_id):
 def add_department(org_id):
     org = Organization.query.get_or_404(org_id)
     
-    # Check access
     if current_user.role == 'school_admin':
         if current_user.organization_id != org_id:
             flash('Access denied.', 'danger')
@@ -316,7 +313,6 @@ def delete_department(id):
     dept = Department.query.get_or_404(id)
     org_id = dept.organization_id
     
-    # Check access
     if current_user.role == 'school_admin':
         if current_user.organization_id != org_id:
             flash('Access denied.', 'danger')
@@ -335,7 +331,6 @@ def delete_department(id):
 def seed_default_departments(org_id):
     org = Organization.query.get_or_404(org_id)
     
-    # Check access
     if current_user.role == 'school_admin':
         if current_user.organization_id != org_id:
             flash('Access denied.', 'danger')
@@ -385,7 +380,6 @@ def add_school():
         address = request.form.get('address', '')
         organization_id = request.form.get('organization_id')
         
-        # For school_admin, force their organization
         if current_user.role == 'school_admin':
             organization_id = current_user.organization_id
         
@@ -438,7 +432,7 @@ def delete_school(id):
     flash('Branch deleted successfully!', 'success')
     return redirect(url_for('schools'))
 
-# Staff Management - FIXED FOR SCHOOL_ADMIN
+# Staff Management
 @app.route('/staff')
 @login_required
 def staff():
@@ -477,18 +471,14 @@ def add_staff():
         flash('Staff added successfully!', 'success')
         return redirect(url_for('staff'))
     
-    # Get schools and departments based on user role
     if current_user.role == 'super_admin':
         schools_list = School.query.filter_by(is_active=True).all()
         organizations = Organization.query.filter_by(is_active=True).all()
-        # Get all departments for super_admin
         departments = Department.query.filter_by(is_active=True).all()
         user_org = None
     else:
-        # School admin - only their organization
         organizations = Organization.query.filter_by(id=current_user.organization_id).all()
         schools_list = School.query.filter_by(organization_id=current_user.organization_id, is_active=True).all()
-        # Get departments for their organization only
         departments = Department.query.filter_by(organization_id=current_user.organization_id, is_active=True).all()
         user_org = Organization.query.get(current_user.organization_id)
     
@@ -683,7 +673,7 @@ def delete_user(id):
     flash('User deleted successfully!', 'success')
     return redirect(url_for('users'))
 
-# Attendance Reports
+# Reports
 @app.route('/reports/attendance')
 @login_required
 def attendance_report():
@@ -828,7 +818,6 @@ def overtime_report():
     start_date = request.args.get('start_date', date.today().replace(day=1).isoformat())
     end_date = request.args.get('end_date', date.today().isoformat())
     
-    # Get records with check_out after 5 PM
     query = Attendance.query.filter(
         Attendance.date >= start_date,
         Attendance.date <= end_date,
@@ -847,7 +836,6 @@ def overtime_report():
     
     all_records = query.order_by(Attendance.date.desc()).all()
     
-    # Filter for overtime (after 17:00)
     from datetime import time
     overtime_cutoff = time(17, 0)
     records = [r for r in all_records if r.check_out and r.check_out > overtime_cutoff]
@@ -893,13 +881,13 @@ def analytics():
         schools_list = []
         school_ids = []
     
-    total_staff = Staff.query.filter(Staff.school_id.in_(school_ids), Staff.is_active==True).count()
+    total_staff = Staff.query.filter(Staff.school_id.in_(school_ids), Staff.is_active==True).count() if school_ids else 0
     
     attendance_records = Attendance.query.filter(
         Attendance.school_id.in_(school_ids),
         Attendance.date >= start_date,
         Attendance.date <= end_date
-    ).all()
+    ).all() if school_ids else []
     
     total_records = len(attendance_records)
     present_count = len([r for r in attendance_records if r.status == 'present'])
@@ -908,7 +896,6 @@ def analytics():
     
     attendance_rate = round((present_count + late_count) / total_records * 100, 1) if total_records > 0 else 0
     
-    # Branch performance
     branch_stats = []
     for school in schools_list:
         school_records = [r for r in attendance_records if r.school_id == school.id]
@@ -950,13 +937,13 @@ def analytics_pdf():
         schools_list = []
         school_ids = []
     
-    total_staff = Staff.query.filter(Staff.school_id.in_(school_ids), Staff.is_active==True).count()
+    total_staff = Staff.query.filter(Staff.school_id.in_(school_ids), Staff.is_active==True).count() if school_ids else 0
     
     attendance_records = Attendance.query.filter(
         Attendance.school_id.in_(school_ids),
         Attendance.date >= start_date,
         Attendance.date <= end_date
-    ).all()
+    ).all() if school_ids else []
     
     total_records = len(attendance_records)
     present_count = len([r for r in attendance_records if r.status == 'present'])
@@ -989,9 +976,6 @@ def analytics_pdf():
             body {{ font-family: Arial, sans-serif; margin: 40px; }}
             h1 {{ color: #333; border-bottom: 2px solid #007bff; padding-bottom: 10px; }}
             .header {{ text-align: center; margin-bottom: 30px; }}
-            .stats-grid {{ display: flex; justify-content: space-around; margin: 20px 0; }}
-            .stat-box {{ text-align: center; padding: 15px; background: #f8f9fa; border-radius: 8px; }}
-            .stat-number {{ font-size: 24px; font-weight: bold; color: #007bff; }}
             table {{ width: 100%; border-collapse: collapse; margin-top: 20px; }}
             th, td {{ border: 1px solid #ddd; padding: 12px; text-align: left; }}
             th {{ background-color: #007bff; color: white; }}
@@ -1073,7 +1057,6 @@ def api_sync():
             check_in = datetime.strptime(record.get('check_in'), '%H:%M').time() if record.get('check_in') else None
             check_out = datetime.strptime(record.get('check_out'), '%H:%M').time() if record.get('check_out') else None
             
-            # Determine status
             from datetime import time
             late_time = time(8, 15)
             status = 'present'
@@ -1112,14 +1095,12 @@ def api_sync():
 def init_db():
     db.create_all()
     
-    # Create default admin if not exists
     admin = User.query.filter_by(username='admin').first()
     if not admin:
         admin = User(username='admin', email='admin@example.com', role='super_admin')
         admin.set_password('admin123')
         db.session.add(admin)
     
-    # Create default settings if not exists
     settings = SystemSettings.query.first()
     if not settings:
         settings = SystemSettings(
@@ -1131,38 +1112,141 @@ def init_db():
     db.session.commit()
     return 'Database initialized! <a href="/login">Go to Login</a>'
 
-# TEMPORARY - Remove after first use
+# TEMPORARY - Remove after migration works
 @app.route('/migrate-departments')
 def migrate_departments():
     try:
         from sqlalchemy import text
         
-        # Add is_school column to organization
+        results = []
+        
+        # Check and add user columns one by one
         try:
-            db.session.execute(text("ALTER TABLE organization ADD COLUMN is_school BOOLEAN DEFAULT TRUE"))
-            db.session.commit()
+            db.session.execute(text("SELECT organization_id FROM \"user\" LIMIT 1"))
+            results.append("user.organization_id already exists")
         except:
             db.session.rollback()
+            db.session.execute(text("ALTER TABLE \"user\" ADD COLUMN organization_id INTEGER"))
+            db.session.commit()
+            results.append("Added user.organization_id")
+        
+        try:
+            db.session.execute(text("SELECT school_id FROM \"user\" LIMIT 1"))
+            results.append("user.school_id already exists")
+        except:
+            db.session.rollback()
+            db.session.execute(text("ALTER TABLE \"user\" ADD COLUMN school_id INTEGER"))
+            db.session.commit()
+            results.append("Added user.school_id")
+        
+        try:
+            db.session.execute(text("SELECT is_active FROM \"user\" LIMIT 1"))
+            results.append("user.is_active already exists")
+        except:
+            db.session.rollback()
+            db.session.execute(text("ALTER TABLE \"user\" ADD COLUMN is_active BOOLEAN DEFAULT TRUE"))
+            db.session.commit()
+            results.append("Added user.is_active")
+        
+        try:
+            db.session.execute(text("SELECT created_at FROM \"user\" LIMIT 1"))
+            results.append("user.created_at already exists")
+        except:
+            db.session.rollback()
+            db.session.execute(text("ALTER TABLE \"user\" ADD COLUMN created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP"))
+            db.session.commit()
+            results.append("Added user.created_at")
+        
+        # Organization columns
+        try:
+            db.session.execute(text("SELECT is_school FROM organization LIMIT 1"))
+            results.append("organization.is_school already exists")
+        except:
+            db.session.rollback()
+            db.session.execute(text("ALTER TABLE organization ADD COLUMN is_school BOOLEAN DEFAULT TRUE"))
+            db.session.commit()
+            results.append("Added organization.is_school")
+        
+        try:
+            db.session.execute(text("SELECT is_active FROM organization LIMIT 1"))
+            results.append("organization.is_active already exists")
+        except:
+            db.session.rollback()
+            db.session.execute(text("ALTER TABLE organization ADD COLUMN is_active BOOLEAN DEFAULT TRUE"))
+            db.session.commit()
+            results.append("Added organization.is_active")
+        
+        # School columns
+        try:
+            db.session.execute(text("SELECT is_active FROM school LIMIT 1"))
+            results.append("school.is_active already exists")
+        except:
+            db.session.rollback()
+            db.session.execute(text("ALTER TABLE school ADD COLUMN is_active BOOLEAN DEFAULT TRUE"))
+            db.session.commit()
+            results.append("Added school.is_active")
+        
+        # Staff columns
+        try:
+            db.session.execute(text("SELECT is_active FROM staff LIMIT 1"))
+            results.append("staff.is_active already exists")
+        except:
+            db.session.rollback()
+            db.session.execute(text("ALTER TABLE staff ADD COLUMN is_active BOOLEAN DEFAULT TRUE"))
+            db.session.commit()
+            results.append("Added staff.is_active")
         
         # Create departments table
-        db.create_all()
+        try:
+            db.session.execute(text("SELECT id FROM department LIMIT 1"))
+            results.append("department table already exists")
+        except:
+            db.session.rollback()
+            db.session.execute(text("""
+                CREATE TABLE department (
+                    id SERIAL PRIMARY KEY,
+                    name VARCHAR(100) NOT NULL,
+                    organization_id INTEGER,
+                    is_active BOOLEAN DEFAULT TRUE,
+                    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+                )
+            """))
+            db.session.commit()
+            results.append("Created department table")
         
-        # Add default departments to existing organizations
-        orgs = Organization.query.all()
-        for org in orgs:
-            existing_depts = Department.query.filter_by(organization_id=org.id).count()
-            if existing_depts == 0:
-                if org.is_school or org.is_school is None:
-                    default_depts = ['Academic', 'Non-Academic', 'Administration', 'Support Staff']
-                else:
-                    default_depts = ['Operations', 'Finance', 'Human Resources', 'IT', 'Marketing', 'Administration']
-                
-                for dept_name in default_depts:
-                    dept = Department(name=dept_name, organization_id=org.id)
-                    db.session.add(dept)
+        # Set defaults
+        try:
+            db.session.execute(text("UPDATE \"user\" SET is_active = TRUE WHERE is_active IS NULL"))
+            db.session.execute(text("UPDATE organization SET is_active = TRUE WHERE is_active IS NULL"))
+            db.session.execute(text("UPDATE organization SET is_school = TRUE WHERE is_school IS NULL"))
+            db.session.execute(text("UPDATE school SET is_active = TRUE WHERE is_active IS NULL"))
+            db.session.execute(text("UPDATE staff SET is_active = TRUE WHERE is_active IS NULL"))
+            db.session.commit()
+            results.append("Set default values")
+        except Exception as e:
+            db.session.rollback()
+            results.append(f"Default values error: {str(e)}")
         
-        db.session.commit()
-        return 'Migration complete: Departments table created and default departments added to all organizations. <a href="/settings">Go to Settings</a>'
+        # Add default departments
+        try:
+            orgs = Organization.query.all()
+            for org in orgs:
+                existing = Department.query.filter_by(organization_id=org.id).count()
+                if existing == 0:
+                    if org.is_school:
+                        depts = ['Academic', 'Non-Academic', 'Administration', 'Support Staff']
+                    else:
+                        depts = ['Operations', 'Finance', 'HR', 'IT', 'Marketing', 'Admin']
+                    for d in depts:
+                        db.session.add(Department(name=d, organization_id=org.id))
+            db.session.commit()
+            results.append("Added default departments")
+        except Exception as e:
+            db.session.rollback()
+            results.append(f"Departments error: {str(e)}")
+        
+        return '<h2>Migration Results:</h2><ul>' + ''.join([f'<li>{r}</li>' for r in results]) + '</ul><br><a href="/login">Go to Login</a>'
+    
     except Exception as e:
         db.session.rollback()
         return f'Migration error: {str(e)}'
