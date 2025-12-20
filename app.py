@@ -163,25 +163,33 @@ def dashboard():
     if current_user.role == 'super_admin':
         total_staff = Staff.query.filter_by(is_active=True).count()
         total_schools = School.query.filter_by(is_active=True).count()
-        today_attendance = Attendance.query.filter_by(date=today).count()
+        today_attendance = Attendance.query.filter_by(date=today, status='present').count()
+        late_today = Attendance.query.filter_by(date=today, status='late').count()
+        absent_today = Attendance.query.filter_by(date=today, status='absent').count()
         organizations = Organization.query.filter_by(is_active=True).all()
     elif current_user.role == 'school_admin' and current_user.organization_id:
         org_schools = School.query.filter_by(organization_id=current_user.organization_id, is_active=True).all()
         school_ids = [s.id for s in org_schools]
         total_staff = Staff.query.filter(Staff.school_id.in_(school_ids), Staff.is_active==True).count() if school_ids else 0
         total_schools = len(org_schools)
-        today_attendance = Attendance.query.filter(Attendance.school_id.in_(school_ids), Attendance.date==today).count() if school_ids else 0
+        today_attendance = Attendance.query.filter(Attendance.school_id.in_(school_ids), Attendance.date==today, Attendance.status=='present').count() if school_ids else 0
+        late_today = Attendance.query.filter(Attendance.school_id.in_(school_ids), Attendance.date==today, Attendance.status=='late').count() if school_ids else 0
+        absent_today = Attendance.query.filter(Attendance.school_id.in_(school_ids), Attendance.date==today, Attendance.status=='absent').count() if school_ids else 0
         organizations = Organization.query.filter_by(id=current_user.organization_id).all()
     else:
         total_staff = 0
         total_schools = 0
         today_attendance = 0
+        late_today = 0
+        absent_today = 0
         organizations = []
     
     return render_template('dashboard.html', 
                          total_staff=total_staff,
                          total_schools=total_schools,
                          today_attendance=today_attendance,
+                         late_today=late_today,
+                         absent_today=absent_today,
                          organizations=organizations)
 
 @app.route('/settings', methods=['GET', 'POST'])
@@ -1026,41 +1034,33 @@ def init_db():
     db.session.commit()
     return 'Database initialized! <a href="/login">Go to Login</a>'
 
-# COMPREHENSIVE MIGRATION - Fixes ALL missing columns
 @app.route('/migrate-departments')
 def migrate_departments():
     try:
         from sqlalchemy import text
         results = []
         
-        # ALL columns that need to exist
         columns_to_add = [
-            # User table
             ("\"user\"", "organization_id", "INTEGER"),
             ("\"user\"", "school_id", "INTEGER"),
             ("\"user\"", "is_active", "BOOLEAN DEFAULT TRUE"),
             ("\"user\"", "created_at", "TIMESTAMP DEFAULT CURRENT_TIMESTAMP"),
-            # Organization table
             ("organization", "logo_url", "VARCHAR(500)"),
             ("organization", "is_school", "BOOLEAN DEFAULT TRUE"),
             ("organization", "is_active", "BOOLEAN DEFAULT TRUE"),
             ("organization", "created_at", "TIMESTAMP DEFAULT CURRENT_TIMESTAMP"),
-            # School table
             ("school", "address", "VARCHAR(200)"),
             ("school", "is_active", "BOOLEAN DEFAULT TRUE"),
             ("school", "created_at", "TIMESTAMP DEFAULT CURRENT_TIMESTAMP"),
-            # Staff table
             ("staff", "department", "VARCHAR(100)"),
             ("staff", "position", "VARCHAR(100)"),
             ("staff", "is_active", "BOOLEAN DEFAULT TRUE"),
             ("staff", "created_at", "TIMESTAMP DEFAULT CURRENT_TIMESTAMP"),
-            # Attendance table
             ("attendance", "school_id", "INTEGER"),
             ("attendance", "check_in", "TIME"),
             ("attendance", "check_out", "TIME"),
             ("attendance", "status", "VARCHAR(20) DEFAULT 'present'"),
             ("attendance", "created_at", "TIMESTAMP DEFAULT CURRENT_TIMESTAMP"),
-            # SystemSettings table
             ("system_settings", "company_logo_url", "VARCHAR(500)"),
             ("system_settings", "api_key", "VARCHAR(100)"),
             ("system_settings", "created_at", "TIMESTAMP DEFAULT CURRENT_TIMESTAMP"),
@@ -1080,7 +1080,6 @@ def migrate_departments():
                     db.session.rollback()
                     results.append(f"✗ Error {table}.{column}: {str(e)[:50]}")
         
-        # Create department table if not exists
         try:
             db.session.execute(text("SELECT id FROM department LIMIT 1"))
             results.append("✓ department table exists")
@@ -1102,7 +1101,6 @@ def migrate_departments():
                 db.session.rollback()
                 results.append(f"✗ Department table error: {str(e)[:50]}")
         
-        # Set default values for NULL fields
         try:
             db.session.execute(text("UPDATE \"user\" SET is_active = TRUE WHERE is_active IS NULL"))
             db.session.execute(text("UPDATE organization SET is_active = TRUE WHERE is_active IS NULL"))
@@ -1116,7 +1114,6 @@ def migrate_departments():
             db.session.rollback()
             results.append(f"✗ Defaults error: {str(e)[:50]}")
         
-        # Update attendance.school_id from staff if NULL
         try:
             db.session.execute(text("""
                 UPDATE attendance 
@@ -1131,7 +1128,6 @@ def migrate_departments():
             db.session.rollback()
             results.append(f"Note: attendance school_id update: {str(e)[:50]}")
         
-        # Add default departments to organizations
         try:
             orgs = Organization.query.all()
             added_depts = 0
