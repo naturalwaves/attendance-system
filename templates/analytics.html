@@ -1,386 +1,599 @@
-{% extends 'base.html' %}
+{% extends "base.html" %}
 
-{% block title %}Analytics Dashboard - Attendance System{% endblock %}
+{% block title %}Analytics - Attendance System{% endblock %}
 
 {% block content %}
 <style>
     .metric-card {
-        border-radius: 10px;
-        padding: 20px;
-        text-align: center;
-        color: white;
-        margin-bottom: 15px;
-    }
-    .metric-card h2 {
-        font-size: 2.5rem;
-        margin-bottom: 5px;
-    }
-    .metric-card small {
-        opacity: 0.9;
-    }
-    .bg-gradient-primary { background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); }
-    .bg-gradient-success { background: linear-gradient(135deg, #11998e 0%, #38ef7d 100%); }
-    .bg-gradient-info { background: linear-gradient(135deg, #2193b0 0%, #6dd5ed 100%); }
-    .bg-gradient-warning { background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%); }
-    .bg-gradient-secondary { background: linear-gradient(135deg, #4b6cb7 0%, #182848 100%); }
-    .bg-gradient-dark { background: linear-gradient(135deg, #0f0c29 0%, #302b63 50%, #24243e 100%); }
-    .chart-container {
+        border: none;
+        border-radius: 16px;
+        overflow: hidden;
+        transition: all 0.3s ease;
         position: relative;
-        height: 300px;
     }
-    .ranking-table th, .ranking-table td {
-        padding: 8px 12px;
+    .metric-card:hover {
+        transform: translateY(-4px);
+        box-shadow: 0 12px 30px rgba(0,0,0,0.15) !important;
     }
-    .badge-rank {
-        width: 25px;
-        height: 25px;
-        border-radius: 50%;
-        display: inline-flex;
-        align-items: center;
-        justify-content: center;
-        font-weight: bold;
+    .metric-card .card-body {
+        padding: 1.5rem;
+        position: relative;
+        z-index: 2;
     }
+    .metric-card.soft-red { background: linear-gradient(145deg, #fff 0%, #fff5f5 50%, #ffe8e8 100%); border: 1px solid rgba(220, 53, 69, 0.15); }
+    .metric-card.soft-green { background: linear-gradient(145deg, #fff 0%, #f0fff4 50%, #dcffe4 100%); border: 1px solid rgba(40, 167, 69, 0.15); }
+    .metric-card.soft-blue { background: linear-gradient(145deg, #fff 0%, #f0f7ff 50%, #e0efff 100%); border: 1px solid rgba(0, 123, 255, 0.15); }
+    .metric-card.soft-purple { background: linear-gradient(145deg, #fff 0%, #f8f5ff 50%, #efe8ff 100%); border: 1px solid rgba(111, 66, 193, 0.15); }
+    .metric-card.soft-teal { background: linear-gradient(145deg, #fff 0%, #f0fdff 50%, #d9f7fa 100%); border: 1px solid rgba(23, 162, 184, 0.15); }
+    .metric-card.soft-orange { background: linear-gradient(145deg, #fff 0%, #fff9f0 50%, #fff0db 100%); border: 1px solid rgba(253, 126, 20, 0.15); }
+    .metric-card.soft-pink { background: linear-gradient(145deg, #fff 0%, #fff5f9 50%, #ffe8f1 100%); border: 1px solid rgba(232, 62, 140, 0.15); }
+    .metric-card.soft-dark { background: linear-gradient(145deg, #fff 0%, #f8f9fa 50%, #eef0f2 100%); border: 1px solid rgba(52, 58, 64, 0.15); }
+    .metric-card .bg-shape { position: absolute; right: -20px; bottom: -20px; width: 120px; height: 120px; border-radius: 50%; opacity: 0.08; z-index: 1; }
+    .metric-card.soft-red .bg-shape { background: #dc3545; }
+    .metric-card.soft-green .bg-shape { background: #28a745; }
+    .metric-card.soft-blue .bg-shape { background: #007bff; }
+    .metric-card.soft-purple .bg-shape { background: #6f42c1; }
+    .metric-card.soft-teal .bg-shape { background: #17a2b8; }
+    .metric-card.soft-orange .bg-shape { background: #fd7e14; }
+    .metric-card.soft-pink .bg-shape { background: #e83e8c; }
+    .metric-card.soft-dark .bg-shape { background: #343a40; }
+    .metric-card .metric-icon { width: 56px; height: 56px; border-radius: 14px; display: flex; align-items: center; justify-content: center; font-size: 1.4rem; color: #fff; box-shadow: 0 4px 15px rgba(0,0,0,0.2); }
+    .metric-card.soft-red .metric-icon { background: linear-gradient(135deg, #dc3545 0%, #c82333 100%); }
+    .metric-card.soft-green .metric-icon { background: linear-gradient(135deg, #28a745 0%, #1e7e34 100%); }
+    .metric-card.soft-blue .metric-icon { background: linear-gradient(135deg, #007bff 0%, #0056b3 100%); }
+    .metric-card.soft-purple .metric-icon { background: linear-gradient(135deg, #6f42c1 0%, #59359a 100%); }
+    .metric-card.soft-teal .metric-icon { background: linear-gradient(135deg, #17a2b8 0%, #117a8b 100%); }
+    .metric-card.soft-orange .metric-icon { background: linear-gradient(135deg, #fd7e14 0%, #e06b0a 100%); }
+    .metric-card.soft-pink .metric-icon { background: linear-gradient(135deg, #e83e8c 0%, #d31a72 100%); }
+    .metric-card.soft-dark .metric-icon { background: linear-gradient(135deg, #495057 0%, #343a40 100%); }
+    .metric-card .metric-label { font-size: 0.75rem; text-transform: uppercase; letter-spacing: 0.8px; color: #6c757d; font-weight: 600; margin-bottom: 0.35rem; }
+    .metric-card .metric-value { font-size: 2rem; font-weight: 700; line-height: 1.2; margin-bottom: 0.25rem; }
+    .metric-card.soft-red .metric-value { color: #c82333; }
+    .metric-card.soft-green .metric-value { color: #1e7e34; }
+    .metric-card.soft-blue .metric-value { color: #0056b3; }
+    .metric-card.soft-purple .metric-value { color: #59359a; }
+    .metric-card.soft-teal .metric-value { color: #117a8b; }
+    .metric-card.soft-orange .metric-value { color: #e06b0a; }
+    .metric-card.soft-pink .metric-value { color: #d31a72; }
+    .metric-card.soft-dark .metric-value { color: #343a40; }
+    .metric-card .metric-trend { font-size: 0.8rem; font-weight: 600; padding: 3px 10px; border-radius: 20px; display: inline-flex; align-items: center; }
+    .metric-trend.up { background: rgba(40, 167, 69, 0.15); color: #1e7e34; }
+    .metric-trend.down { background: rgba(220, 53, 69, 0.15); color: #c82333; }
+    .metric-card .metric-subtitle { font-size: 0.8rem; color: #6c757d; font-weight: 500; }
+    .chart-card { border: none; border-radius: 16px; box-shadow: 0 4px 20px rgba(0,0,0,0.08); background: #fff; overflow: hidden; }
+    .chart-card .card-header { background: linear-gradient(135deg, #f8f9fa 0%, #fff 100%); border-bottom: 1px solid #eee; padding: 1.15rem 1.5rem; }
+    .chart-card .card-header h5 { font-weight: 600; font-size: 0.95rem; margin: 0; color: #333; }
+    .chart-card .card-header .header-icon { width: 36px; height: 36px; border-radius: 10px; display: inline-flex; align-items: center; justify-content: center; margin-right: 10px; font-size: 1rem; color: #fff; }
+    .chart-card .card-body { padding: 1.5rem; }
+    .ranking-card { border: none; border-radius: 16px; overflow: hidden; box-shadow: 0 4px 20px rgba(0,0,0,0.08); background: #fff; }
+    .ranking-card .card-header { padding: 1.15rem 1.5rem; border: none; position: relative; overflow: hidden; }
+    .ranking-card .card-header::before { content: ''; position: absolute; top: 0; right: 0; width: 100px; height: 100%; background: rgba(255,255,255,0.1); transform: skewX(-20deg); }
+    .ranking-card .card-header h5 { font-weight: 600; font-size: 0.95rem; margin: 0; position: relative; z-index: 1; }
+    .ranking-card .table { margin: 0; }
+    .ranking-card .table th { border-top: none; font-weight: 600; font-size: 0.7rem; text-transform: uppercase; letter-spacing: 0.5px; color: #6c757d; padding: 0.9rem 1.25rem; background: #fafbfc; }
+    .ranking-card .table td { padding: 0.9rem 1.25rem; vertical-align: middle; border-color: #f3f3f3; font-size: 0.875rem; }
+    .ranking-card .table tbody tr { transition: background 0.2s ease; }
+    .ranking-card .table tbody tr:hover { background: #f8f9fa; }
+    .ranking-card .empty-state { padding: 2.5rem 1rem; }
+    .ranking-card .empty-state i { font-size: 2.5rem; opacity: 0.2; margin-bottom: 0.75rem; }
+    .rank-badge { width: 32px; height: 32px; border-radius: 50%; display: inline-flex; align-items: center; justify-content: center; font-weight: 700; font-size: 0.75rem; }
+    .rank-gold { background: linear-gradient(135deg, #ffd700 0%, #ffb800 100%); color: #664d00; box-shadow: 0 3px 10px rgba(255, 184, 0, 0.4); }
+    .rank-silver { background: linear-gradient(135deg, #e8e8e8 0%, #c0c0c0 100%); color: #555; box-shadow: 0 3px 10px rgba(192, 192, 192, 0.4); }
+    .rank-bronze { background: linear-gradient(135deg, #cd7f32 0%, #b8722c 100%); color: #fff; box-shadow: 0 3px 10px rgba(205, 127, 50, 0.4); }
+    .rank-default { background: #f1f3f4; color: #5f6368; }
+    .filter-card { border: none; border-radius: 16px; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); box-shadow: 0 4px 20px rgba(102, 126, 234, 0.3); }
+    .filter-card .card-body { padding: 1.25rem 1.5rem; }
+    .filter-card .form-label { font-size: 0.7rem; text-transform: uppercase; letter-spacing: 0.5px; color: rgba(255,255,255,0.85); font-weight: 600; margin-bottom: 0.4rem; }
+    .filter-card .form-select, .filter-card .form-control { background: rgba(255,255,255,0.95); border: none; font-size: 0.875rem; padding: 0.5rem 0.75rem; }
+    .filter-card .form-select:focus, .filter-card .form-control:focus { box-shadow: 0 0 0 3px rgba(255,255,255,0.3); }
+    .filter-card .btn-filter { background: #fff; color: #667eea; border: none; font-weight: 600; padding: 0.5rem 1rem; transition: all 0.2s ease; }
+    .filter-card .btn-filter:hover { background: #f8f9fa; transform: translateY(-1px); box-shadow: 0 4px 12px rgba(0,0,0,0.15); }
+    .filter-card .btn-pdf { background: #dc3545; color: #fff; border: none; font-weight: 600; padding: 0.5rem 1rem; transition: all 0.2s ease; text-decoration: none; display: inline-flex; align-items: center; justify-content: center; }
+    .filter-card .btn-pdf:hover { background: #c82333; color: #fff; transform: translateY(-1px); box-shadow: 0 4px 12px rgba(0,0,0,0.15); }
+    .branch-badge { background: linear-gradient(135deg, #f1f3f4 0%, #e8eaed 100%); color: #5f6368; font-weight: 500; padding: 4px 10px; border-radius: 6px; font-size: 0.75rem; }
+    .score-badge { padding: 5px 12px; border-radius: 20px; font-weight: 600; font-size: 0.8rem; }
+    .score-badge.success { background: linear-gradient(135deg, #d4edda 0%, #c3e6cb 100%); color: #155724; }
+    .score-badge.danger { background: linear-gradient(135deg, #f8d7da 0%, #f5c6cb 100%); color: #721c24; }
+    .score-badge.info { background: linear-gradient(135deg, #d1ecf1 0%, #bee5eb 100%); color: #0c5460; }
+    .score-badge.purple { background: linear-gradient(135deg, #e2d9f3 0%, #d4c4ed 100%); color: #4a2c82; }
+    .score-badge.orange { background: linear-gradient(135deg, #ffecd2 0%, #fcb69f 100%); color: #8a4500; }
 </style>
 
-<div class="d-flex justify-content-between align-items-center mb-4">
-    <h2><i class="fas fa-chart-line me-2"></i>Analytics Dashboard</h2>
-    <a href="{{ url_for('analytics_pdf') }}" class="btn btn-outline-danger">
-        <i class="fas fa-file-pdf me-1"></i>Download PDF
-    </a>
-</div>
+<div class="container-fluid">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <div>
+            <h2 class="mb-1 fw-bold"><i class="fas fa-chart-line me-2 text-danger"></i>Analytics Dashboard</h2>
+            <p class="text-muted mb-0">Comprehensive attendance insights and performance metrics</p>
+        </div>
+        <div class="text-muted">
+            <i class="fas fa-calendar-alt me-1"></i>
+            {{ start_date }} to {{ end_date }}
+        </div>
+    </div>
 
-<!-- Filters -->
-<div class="card mb-4">
-    <div class="card-body">
-        <form method="GET" class="row g-3">
-            <div class="col-md-3">
-                <label class="form-label">Period</label>
-                <select name="period" class="form-select">
-                    <option value="7" {% if selected_period == '7' %}selected{% endif %}>Last 7 Days</option>
-                    <option value="30" {% if selected_period == '30' or not selected_period %}selected{% endif %}>Last 30 Days</option>
-                    <option value="90" {% if selected_period == '90' %}selected{% endif %}>Last 90 Days</option>
-                    <option value="365" {% if selected_period == '365' %}selected{% endif %}>Last Year</option>
-                </select>
-            </div>
-            {% if current_user.role == 'super_admin' %}
-            <div class="col-md-3">
-                <label class="form-label">Organization</label>
-                <select name="organization" class="form-select">
-                    <option value="">All Organizations</option>
-                    {% for org in organizations %}
-                    <option value="{{ org.id }}" {% if selected_org|string == org.id|string %}selected{% endif %}>{{ org.name }}</option>
-                    {% endfor %}
-                </select>
-            </div>
-            {% endif %}
-            <div class="col-md-3">
-                <label class="form-label">Branch</label>
-                <select name="school" class="form-select">
-                    <option value="">All Branches</option>
-                    {% for school in schools %}
-                    <option value="{{ school.id }}" {% if selected_school|string == school.id|string %}selected{% endif %}>{{ school.name }}</option>
-                    {% endfor %}
-                </select>
-            </div>
-            <div class="col-md-3">
-                <label class="form-label">Department</label>
-                <select name="department" class="form-select">
-                    <option value="">All Departments</option>
-                    {% for dept in departments %}
-                    <option value="{{ dept }}" {% if selected_department == dept %}selected{% endif %}>{{ dept }}</option>
-                    {% endfor %}
-                </select>
-            </div>
-            <div class="col-12">
-                <button type="submit" class="btn btn-primary">
-                    <i class="fas fa-filter me-1"></i>Apply Filters
-                </button>
-            </div>
-        </form>
+    <div class="card filter-card mb-4">
+        <div class="card-body">
+            <form method="GET" class="row g-3 align-items-end" id="filterForm">
+                <div class="col-xl-2 col-lg-3 col-md-4">
+                    <label class="form-label">Period</label>
+                    <select name="period" class="form-select" id="periodSelect">
+                        <option value="today" {% if period == 'today' %}selected{% endif %}>Today</option>
+                        <option value="7" {% if period == '7' %}selected{% endif %}>Last 7 Days</option>
+                        <option value="14" {% if period == '14' %}selected{% endif %}>Last 14 Days</option>
+                        <option value="30" {% if period == '30' %}selected{% endif %}>Last 30 Days</option>
+                        <option value="this_week" {% if period == 'this_week' %}selected{% endif %}>This Week</option>
+                        <option value="last_week" {% if period == 'last_week' %}selected{% endif %}>Last Week</option>
+                        <option value="this_month" {% if period == 'this_month' %}selected{% endif %}>This Month</option>
+                        <option value="last_month" {% if period == 'last_month' %}selected{% endif %}>Last Month</option>
+                        <option value="custom" {% if period == 'custom' %}selected{% endif %}>Custom Range</option>
+                    </select>
+                </div>
+                <div class="col-xl-2 col-lg-3 col-md-4 custom-date" style="{% if period != 'custom' %}display:none{% endif %}">
+                    <label class="form-label">Start Date</label>
+                    <input type="date" name="start_date" class="form-control" value="{{ start_date }}">
+                </div>
+                <div class="col-xl-2 col-lg-3 col-md-4 custom-date" style="{% if period != 'custom' %}display:none{% endif %}">
+                    <label class="form-label">End Date</label>
+                    <input type="date" name="end_date" class="form-control" value="{{ end_date }}">
+                </div>
+                {% if organizations %}
+                <div class="col-xl-2 col-lg-3 col-md-4">
+                    <label class="form-label">Organization</label>
+                    <select name="organization_id" class="form-select">
+                        <option value="">All Organizations</option>
+                        {% for org in organizations %}
+                        <option value="{{ org.id }}" {% if selected_organization_id == org.id|string %}selected{% endif %}>{{ org.name }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+                {% endif %}
+                <div class="col-xl-2 col-lg-3 col-md-4">
+                    <label class="form-label">Branch</label>
+                    <select name="school_id" class="form-select">
+                        <option value="">All Branches</option>
+                        {% for school in schools %}
+                        <option value="{{ school.id }}" {% if selected_school_id == school.id|string %}selected{% endif %}>{{ school.short_name or school.name }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+                <div class="col-xl-2 col-lg-3 col-md-4">
+                    <label class="form-label">Department</label>
+                    <select name="department" class="form-select">
+                        <option value="">All Departments</option>
+                        {% for dept in departments %}
+                        <option value="{{ dept }}" {% if selected_department == dept %}selected{% endif %}>{{ dept }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+                <div class="col-auto">
+                    <button type="submit" class="btn btn-filter">
+                        <i class="fas fa-filter me-1"></i> Apply Filters
+                    </button>
+                </div>
+                <div class="col-auto">
+                    <a href="{{ url_for('analytics_pdf', period=request.args.get('period', 'today'), school_id=request.args.get('school_id', ''), organization_id=request.args.get('organization_id', ''), department=request.args.get('department', ''), start_date=request.args.get('start_date', ''), end_date=request.args.get('end_date', '')) }}" class="btn btn-pdf">
+                        <i class="fas fa-file-pdf me-1"></i> Download PDF
+                    </a>
+                </div>
+            </form>
+        </div>
     </div>
-</div>
 
-<!-- Metric Cards -->
-<div class="row mb-4">
-    <div class="col-md-3">
-        <div class="metric-card bg-gradient-primary">
-            <i class="fas fa-chart-pie fa-2x mb-2"></i>
-            <h2>{{ attendance_rate|default(0) }}%</h2>
-            <small>Attendance Rate</small>
-        </div>
-    </div>
-    <div class="col-md-3">
-        <div class="metric-card bg-gradient-success">
-            <i class="fas fa-clock fa-2x mb-2"></i>
-            <h2>{{ punctuality_rate|default(0) }}%</h2>
-            <small>Punctuality Rate</small>
-        </div>
-    </div>
-    <div class="col-md-3">
-        <div class="metric-card bg-gradient-info">
-            <i class="fas fa-users fa-2x mb-2"></i>
-            <h2>{{ total_staff|default(0) }}</h2>
-            <small>Active Staff</small>
-        </div>
-    </div>
-    <div class="col-md-3">
-        <div class="metric-card bg-gradient-secondary">
-            <i class="fas fa-calendar-check fa-2x mb-2"></i>
-            <h2>{{ total_records|default(0) }}</h2>
-            <small>Total Records</small>
-        </div>
-    </div>
-</div>
-
-<div class="row mb-4">
-    <div class="col-md-3">
-        <div class="metric-card bg-gradient-success">
-            <h2>{{ on_time_count|default(0) }}</h2>
-            <small>On Time Arrivals</small>
-        </div>
-    </div>
-    <div class="col-md-3">
-        <div class="metric-card bg-gradient-warning">
-            <h2>{{ late_count|default(0) }}</h2>
-            <small>Late Arrivals</small>
-        </div>
-    </div>
-    <div class="col-md-3">
-        <div class="metric-card bg-gradient-dark">
-            <h2>{{ avg_late_time|default(0) }} min</h2>
-            <small>Avg Late Time</small>
-        </div>
-    </div>
-    <div class="col-md-3">
-        <div class="metric-card bg-gradient-info">
-            <h2>{{ overtime_hours|default(0) }} hrs</h2>
-            <small>Total Overtime</small>
-        </div>
-    </div>
-</div>
-
-<!-- Charts Row 1 -->
-<div class="row mb-4">
-    <div class="col-md-8">
-        <div class="card">
-            <div class="card-header">
-                <i class="fas fa-chart-line me-2"></i>Attendance & Punctuality Trend
+    <!-- Metrics Row 1 -->
+    <div class="row mb-4 g-4">
+        <div class="col-xl-3 col-sm-6">
+            <div class="card metric-card soft-red h-100 shadow-sm">
+                <div class="bg-shape"></div>
+                <div class="card-body">
+                    <div class="d-flex justify-content-between">
+                        <div>
+                            <p class="metric-label">Attendance Rate</p>
+                            <h3 class="metric-value">{{ attendance_rate }}%</h3>
+                            <span class="metric-trend {% if attendance_trend >= 0 %}up{% else %}down{% endif %}">
+                                <i class="fas fa-{% if attendance_trend >= 0 %}arrow-up{% else %}arrow-down{% endif %} me-1"></i>
+                                {{ attendance_trend|abs }}%
+                            </span>
+                        </div>
+                        <div class="metric-icon"><i class="fas fa-chart-pie"></i></div>
+                    </div>
+                </div>
             </div>
-            <div class="card-body">
-                <div class="chart-container">
-                    <canvas id="trendChart"></canvas>
+        </div>
+        <div class="col-xl-3 col-sm-6">
+            <div class="card metric-card soft-green h-100 shadow-sm">
+                <div class="bg-shape"></div>
+                <div class="card-body">
+                    <div class="d-flex justify-content-between">
+                        <div>
+                            <p class="metric-label">Punctuality Rate</p>
+                            <h3 class="metric-value">{{ punctuality_rate }}%</h3>
+                            <span class="metric-trend {% if punctuality_trend >= 0 %}up{% else %}down{% endif %}">
+                                <i class="fas fa-{% if punctuality_trend >= 0 %}arrow-up{% else %}arrow-down{% endif %} me-1"></i>
+                                {{ punctuality_trend|abs }}%
+                            </span>
+                        </div>
+                        <div class="metric-icon"><i class="fas fa-clock"></i></div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="col-xl-3 col-sm-6">
+            <div class="card metric-card soft-blue h-100 shadow-sm">
+                <div class="bg-shape"></div>
+                <div class="card-body">
+                    <div class="d-flex justify-content-between">
+                        <div>
+                            <p class="metric-label">Active Staff</p>
+                            <h3 class="metric-value">{{ total_staff }}</h3>
+                            <span class="metric-subtitle"><i class="fas fa-building me-1"></i>{{ branch_count }} branch{% if branch_count != 1 %}es{% endif %}</span>
+                        </div>
+                        <div class="metric-icon"><i class="fas fa-users"></i></div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="col-xl-3 col-sm-6">
+            <div class="card metric-card soft-purple h-100 shadow-sm">
+                <div class="bg-shape"></div>
+                <div class="card-body">
+                    <div class="d-flex justify-content-between">
+                        <div>
+                            <p class="metric-label">Total Records</p>
+                            <h3 class="metric-value">{{ total_records }}</h3>
+                            <span class="metric-subtitle"><i class="fas fa-calendar-check me-1"></i>In selected period</span>
+                        </div>
+                        <div class="metric-icon"><i class="fas fa-clipboard-list"></i></div>
+                    </div>
                 </div>
             </div>
         </div>
     </div>
-    <div class="col-md-4">
-        <div class="card">
-            <div class="card-header">
-                <i class="fas fa-clock me-2"></i>Late Arrivals by Day
+
+    <!-- Metrics Row 2 -->
+    <div class="row mb-4 g-4">
+        <div class="col-xl-3 col-sm-6">
+            <div class="card metric-card soft-teal h-100 shadow-sm">
+                <div class="bg-shape"></div>
+                <div class="card-body">
+                    <div class="d-flex justify-content-between">
+                        <div>
+                            <p class="metric-label">On Time Arrivals</p>
+                            <h3 class="metric-value">{{ on_time_count }}</h3>
+                            <span class="metric-subtitle text-success"><i class="fas fa-check-circle me-1"></i>Early / On-time</span>
+                        </div>
+                        <div class="metric-icon"><i class="fas fa-user-check"></i></div>
+                    </div>
+                </div>
             </div>
-            <div class="card-body">
-                <div class="chart-container">
-                    <canvas id="lateByDayChart"></canvas>
+        </div>
+        <div class="col-xl-3 col-sm-6">
+            <div class="card metric-card soft-orange h-100 shadow-sm">
+                <div class="bg-shape"></div>
+                <div class="card-body">
+                    <div class="d-flex justify-content-between">
+                        <div>
+                            <p class="metric-label">Late Arrivals</p>
+                            <h3 class="metric-value">{{ late_count }}</h3>
+                            <span class="metric-subtitle text-warning"><i class="fas fa-exclamation-circle me-1"></i>After start time</span>
+                        </div>
+                        <div class="metric-icon"><i class="fas fa-user-clock"></i></div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="col-xl-3 col-sm-6">
+            <div class="card metric-card soft-pink h-100 shadow-sm">
+                <div class="bg-shape"></div>
+                <div class="card-body">
+                    <div class="d-flex justify-content-between">
+                        <div>
+                            <p class="metric-label">Avg Late Time</p>
+                            <h3 class="metric-value">{{ avg_late_minutes }} <small class="fs-6 fw-normal">min</small></h3>
+                            <span class="metric-subtitle"><i class="fas fa-stopwatch me-1"></i>Per late arrival</span>
+                        </div>
+                        <div class="metric-icon"><i class="fas fa-hourglass-half"></i></div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="col-xl-3 col-sm-6">
+            <div class="card metric-card soft-dark h-100 shadow-sm">
+                <div class="bg-shape"></div>
+                <div class="card-body">
+                    <div class="d-flex justify-content-between">
+                        <div>
+                            <p class="metric-label">Total Overtime</p>
+                            <h3 class="metric-value">{{ overtime_hours }}<small class="fs-6 fw-normal">h</small> {{ overtime_mins }}<small class="fs-6 fw-normal">m</small></h3>
+                            <span class="metric-subtitle"><i class="fas fa-business-time me-1"></i>Extra hours worked</span>
+                        </div>
+                        <div class="metric-icon"><i class="fas fa-briefcase"></i></div>
+                    </div>
                 </div>
             </div>
         </div>
     </div>
-</div>
 
-<!-- Charts Row 2 -->
-<div class="row mb-4">
-    <div class="col-md-6">
-        <div class="card">
-            <div class="card-header">
-                <i class="fas fa-building me-2"></i>Department Performance
+    <!-- Charts Row 1 -->
+    <div class="row mb-4 g-4">
+        <div class="col-lg-8">
+            <div class="card chart-card h-100">
+                <div class="card-header d-flex align-items-center">
+                    <span class="header-icon" style="background: linear-gradient(135deg, #dc3545 0%, #c82333 100%);"><i class="fas fa-chart-area"></i></span>
+                    <h5 class="mb-0">Attendance & Punctuality Trend</h5>
+                </div>
+                <div class="card-body">
+                    <canvas id="attendanceTrendChart" height="100"></canvas>
+                </div>
             </div>
-            <div class="card-body">
-                <div class="chart-container">
+        </div>
+        <div class="col-lg-4">
+            <div class="card chart-card h-100">
+                <div class="card-header d-flex align-items-center">
+                    <span class="header-icon" style="background: linear-gradient(135deg, #ffc107 0%, #e0a800 100%);"><i class="fas fa-calendar-week"></i></span>
+                    <h5 class="mb-0">Late by Day of Week</h5>
+                </div>
+                <div class="card-body">
+                    <canvas id="lateByDayChart" height="220"></canvas>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Charts Row 2 -->
+    <div class="row mb-4 g-4">
+        <div class="col-lg-5">
+            <div class="card chart-card h-100">
+                <div class="card-header d-flex align-items-center">
+                    <span class="header-icon" style="background: linear-gradient(135deg, #007bff 0%, #0056b3 100%);"><i class="fas fa-sitemap"></i></span>
+                    <h5 class="mb-0">Department Performance</h5>
+                </div>
+                <div class="card-body d-flex align-items-center justify-content-center" style="min-height: 280px;">
+                    {% if department_labels %}
                     <canvas id="departmentChart"></canvas>
+                    {% else %}
+                    <div class="text-center text-muted">
+                        <i class="fas fa-chart-pie fa-3x mb-3" style="opacity: 0.2;"></i>
+                        <p class="mb-0">No department data available</p>
+                    </div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+        <div class="col-lg-7">
+            <div class="card chart-card h-100">
+                <div class="card-header d-flex align-items-center">
+                    <span class="header-icon" style="background: linear-gradient(135deg, #28a745 0%, #1e7e34 100%);"><i class="fas fa-code-branch"></i></span>
+                    <h5 class="mb-0">Branch Comparison</h5>
+                </div>
+                <div class="card-body">
+                    {% if branch_labels %}
+                    <canvas id="branchChart" height="160"></canvas>
+                    {% else %}
+                    <div class="text-center text-muted py-5">
+                        <i class="fas fa-code-branch fa-3x mb-3" style="opacity: 0.2;"></i>
+                        <p class="mb-0">No branch data available</p>
+                    </div>
+                    {% endif %}
                 </div>
             </div>
         </div>
     </div>
-    <div class="col-md-6">
-        <div class="card">
-            <div class="card-header">
-                <i class="fas fa-code-branch me-2"></i>Branch Comparison
-            </div>
-            <div class="card-body">
-                <div class="chart-container">
-                    <canvas id="branchChart"></canvas>
-                </div>
-            </div>
-        </div>
-    </div>
-</div>
 
-<!-- Charts Row 3 -->
-<div class="row mb-4">
-    <div class="col-md-4">
-        <div class="card">
-            <div class="card-header">
-                <i class="fas fa-clock me-2"></i>Arrival Time Distribution
+    <!-- Three Summary Charts Row -->
+    <div class="row mb-4 g-4">
+        <div class="col-lg-4">
+            <div class="card chart-card h-100">
+                <div class="card-header d-flex align-items-center">
+                    <span class="header-icon" style="background: linear-gradient(135deg, #6f42c1 0%, #59359a 100%);"><i class="fas fa-chart-pie"></i></span>
+                    <h5 class="mb-0">Arrival Distribution</h5>
+                </div>
+                <div class="card-body d-flex align-items-center justify-content-center" style="min-height: 220px;">
+                    {% if total_records > 0 %}
+                    <canvas id="distributionChart"></canvas>
+                    {% else %}
+                    <div class="text-center text-muted">
+                        <i class="fas fa-chart-pie fa-3x mb-3" style="opacity: 0.2;"></i>
+                        <p class="mb-0">No data available</p>
+                    </div>
+                    {% endif %}
+                </div>
             </div>
-            <div class="card-body">
-                <div class="chart-container">
-                    <canvas id="arrivalChart"></canvas>
+        </div>
+        <div class="col-lg-4">
+            <div class="card chart-card h-100">
+                <div class="card-header d-flex align-items-center">
+                    <span class="header-icon" style="background: linear-gradient(135deg, #17a2b8 0%, #117a8b 100%);"><i class="fas fa-user-check"></i></span>
+                    <h5 class="mb-0">Present vs Absent</h5>
+                </div>
+                <div class="card-body d-flex align-items-center justify-content-center" style="min-height: 220px;">
+                    {% if total_records > 0 or presence_data[1] > 0 %}
+                    <canvas id="presenceChart"></canvas>
+                    {% else %}
+                    <div class="text-center text-muted">
+                        <i class="fas fa-users fa-3x mb-3" style="opacity: 0.2;"></i>
+                        <p class="mb-0">No data available</p>
+                    </div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+        <div class="col-lg-4">
+            <div class="card chart-card h-100">
+                <div class="card-header d-flex align-items-center">
+                    <span class="header-icon" style="background: linear-gradient(135deg, #fd7e14 0%, #e06b0a 100%);"><i class="fas fa-balance-scale"></i></span>
+                    <h5 class="mb-0">This Week vs Last Week</h5>
+                </div>
+                <div class="card-body d-flex align-items-center justify-content-center" style="min-height: 220px;">
+                    <canvas id="weeklyComparisonChart"></canvas>
                 </div>
             </div>
         </div>
     </div>
-    <div class="col-md-4">
-        <div class="card">
-            <div class="card-header">
-                <i class="fas fa-chart-pie me-2"></i>Present vs Absent
-            </div>
-            <div class="card-body">
-                <div class="chart-container">
-                    <canvas id="presentAbsentChart"></canvas>
-                </div>
-            </div>
-        </div>
-    </div>
-    <div class="col-md-4">
-        <div class="card">
-            <div class="card-header">
-                <i class="fas fa-calendar-week me-2"></i>Weekly Comparison
-            </div>
-            <div class="card-body">
-                <div class="chart-container">
-                    <canvas id="weeklyChart"></canvas>
-                </div>
-            </div>
-        </div>
-    </div>
-</div>
 
-<!-- Rankings -->
-<div class="row mb-4">
-    <div class="col-md-6">
-        <div class="card">
-            <div class="card-header bg-success text-white">
-                <i class="fas fa-trophy me-2"></i>Top Performers
+    <!-- Rankings Row 1 -->
+    <div class="row mb-4 g-4">
+        <div class="col-lg-6">
+            <div class="card ranking-card h-100">
+                <div class="card-header text-white" style="background: linear-gradient(135deg, #28a745 0%, #20c997 100%);">
+                    <h5><i class="fas fa-trophy me-2"></i>Top Performers</h5>
+                </div>
+                {% if top_performers %}
+                <div class="table-responsive">
+                    <table class="table mb-0">
+                        <thead><tr><th style="width: 55px;">Rank</th><th>Staff Member</th><th>Branch</th><th class="text-end">Punctuality</th></tr></thead>
+                        <tbody>
+                            {% for staff in top_performers %}
+                            <tr>
+                                <td>{% if loop.index == 1 %}<span class="rank-badge rank-gold"><i class="fas fa-trophy"></i></span>{% elif loop.index == 2 %}<span class="rank-badge rank-silver">2</span>{% elif loop.index == 3 %}<span class="rank-badge rank-bronze">3</span>{% else %}<span class="rank-badge rank-default">{{ loop.index }}</span>{% endif %}</td>
+                                <td class="fw-semibold">{{ staff.name }}</td>
+                                <td><span class="branch-badge">{{ staff.branch }}</span></td>
+                                <td class="text-end"><span class="score-badge success">{{ staff.punctuality }}%</span></td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+                {% else %}
+                <div class="empty-state text-center text-muted"><i class="fas fa-trophy d-block"></i><p class="mb-0">No performance data available</p></div>
+                {% endif %}
             </div>
-            <div class="card-body p-0">
-                <table class="table table-hover ranking-table mb-0">
-                    <thead>
-                        <tr>
-                            <th>#</th>
-                            <th>Name</th>
-                            <th>Branch</th>
-                            <th>Rate</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        {% for performer in top_performers %}
-                        <tr>
-                            <td><span class="badge-rank bg-success text-white">{{ loop.index }}</span></td>
-                            <td>{{ performer.name }}</td>
-                            <td>{{ performer.school }}</td>
-                            <td><span class="badge bg-success">{{ performer.rate }}%</span></td>
-                        </tr>
-                        {% else %}
-                        <tr><td colspan="4" class="text-center text-muted">No data available</td></tr>
-                        {% endfor %}
-                    </tbody>
-                </table>
+        </div>
+        <div class="col-lg-6">
+            <div class="card ranking-card h-100">
+                <div class="card-header text-white" style="background: linear-gradient(135deg, #dc3545 0%, #c82333 100%);">
+                    <h5><i class="fas fa-exclamation-circle me-2"></i>Needs Attention</h5>
+                </div>
+                {% if needs_attention %}
+                <div class="table-responsive">
+                    <table class="table mb-0">
+                        <thead><tr><th style="width: 55px;">#</th><th>Staff Member</th><th>Branch</th><th class="text-end">Late Count</th></tr></thead>
+                        <tbody>
+                            {% for staff in needs_attention %}
+                            <tr>
+                                <td><span class="rank-badge rank-default">{{ loop.index }}</span></td>
+                                <td class="fw-semibold">{{ staff.name }}</td>
+                                <td><span class="branch-badge">{{ staff.branch }}</span></td>
+                                <td class="text-end"><span class="score-badge danger">{{ staff.late_count }} late</span></td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+                {% else %}
+                <div class="empty-state text-center text-muted"><i class="fas fa-exclamation-circle d-block"></i><p class="mb-0">No attention needed</p></div>
+                {% endif %}
             </div>
         </div>
     </div>
-    <div class="col-md-6">
-        <div class="card">
-            <div class="card-header bg-warning text-dark">
-                <i class="fas fa-exclamation-triangle me-2"></i>Needs Attention
-            </div>
-            <div class="card-body p-0">
-                <table class="table table-hover ranking-table mb-0">
-                    <thead>
-                        <tr>
-                            <th>#</th>
-                            <th>Name</th>
-                            <th>Branch</th>
-                            <th>Rate</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        {% for person in needs_attention %}
-                        <tr>
-                            <td><span class="badge-rank bg-warning text-dark">{{ loop.index }}</span></td>
-                            <td>{{ person.name }}</td>
-                            <td>{{ person.school }}</td>
-                            <td><span class="badge bg-danger">{{ person.rate }}%</span></td>
-                        </tr>
-                        {% else %}
-                        <tr><td colspan="4" class="text-center text-muted">No data available</td></tr>
-                        {% endfor %}
-                    </tbody>
-                </table>
-            </div>
-        </div>
-    </div>
-</div>
 
-<div class="row mb-4">
-    <div class="col-md-6">
-        <div class="card">
-            <div class="card-header bg-info text-white">
-                <i class="fas fa-sun me-2"></i>Early Arrivals Champions
+    <!-- Rankings Row 2 -->
+    <div class="row mb-4 g-4">
+        <div class="col-lg-6">
+            <div class="card ranking-card h-100">
+                <div class="card-header text-white" style="background: linear-gradient(135deg, #17a2b8 0%, #138496 100%);">
+                    <h5><i class="fas fa-sun me-2"></i>Early Arrivals Champions</h5>
+                </div>
+                {% if early_arrivals %}
+                <div class="table-responsive">
+                    <table class="table mb-0">
+                        <thead><tr><th style="width: 55px;">Rank</th><th>Staff Member</th><th>Branch</th><th class="text-end">Avg Early</th></tr></thead>
+                        <tbody>
+                            {% for staff in early_arrivals %}
+                            <tr>
+                                <td>{% if loop.index == 1 %}<span class="rank-badge rank-gold"><i class="fas fa-sun"></i></span>{% elif loop.index == 2 %}<span class="rank-badge rank-silver">2</span>{% elif loop.index == 3 %}<span class="rank-badge rank-bronze">3</span>{% else %}<span class="rank-badge rank-default">{{ loop.index }}</span>{% endif %}</td>
+                                <td class="fw-semibold">{{ staff.name }}</td>
+                                <td><span class="branch-badge">{{ staff.branch }}</span></td>
+                                <td class="text-end"><span class="score-badge info">{{ staff.avg_early_mins }} min</span></td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+                {% else %}
+                <div class="empty-state text-center text-muted"><i class="fas fa-sun d-block"></i><p class="mb-0">No early arrival data</p></div>
+                {% endif %}
             </div>
-            <div class="card-body p-0">
-                <table class="table table-hover ranking-table mb-0">
-                    <thead>
-                        <tr>
-                            <th>#</th>
-                            <th>Name</th>
-                            <th>Early Days</th>
-                            <th>Avg Time</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        {% for person in early_arrivals %}
-                        <tr>
-                            <td><span class="badge-rank bg-info text-white">{{ loop.index }}</span></td>
-                            <td>{{ person.name }}</td>
-                            <td>{{ person.early_days }}</td>
-                            <td>{{ person.avg_time }}</td>
-                        </tr>
-                        {% else %}
-                        <tr><td colspan="4" class="text-center text-muted">No data available</td></tr>
-                        {% endfor %}
-                    </tbody>
-                </table>
+        </div>
+        <div class="col-lg-6">
+            <div class="card ranking-card h-100">
+                <div class="card-header text-white" style="background: linear-gradient(135deg, #6f42c1 0%, #59359a 100%);">
+                    <h5><i class="fas fa-award me-2"></i>Perfect Attendance</h5>
+                </div>
+                {% if perfect_attendance %}
+                <div class="table-responsive">
+                    <table class="table mb-0">
+                        <thead><tr><th style="width: 55px;">★</th><th>Staff Member</th><th>Branch</th><th class="text-end">Days</th></tr></thead>
+                        <tbody>
+                            {% for staff in perfect_attendance %}
+                            <tr>
+                                <td><span class="rank-badge rank-gold"><i class="fas fa-star"></i></span></td>
+                                <td class="fw-semibold">{{ staff.name }}</td>
+                                <td><span class="branch-badge">{{ staff.branch }}</span></td>
+                                <td class="text-end"><span class="score-badge purple">{{ staff.days }} days</span></td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+                {% else %}
+                <div class="empty-state text-center text-muted"><i class="fas fa-award d-block"></i><p class="mb-0">No perfect attendance records</p></div>
+                {% endif %}
             </div>
         </div>
     </div>
-    <div class="col-md-6">
-        <div class="card">
-            <div class="card-header bg-primary text-white">
-                <i class="fas fa-star me-2"></i>Perfect Attendance
+
+    <!-- Rankings Row 3 -->
+    <div class="row mb-4 g-4">
+        <div class="col-lg-6">
+            <div class="card ranking-card h-100">
+                <div class="card-header text-white" style="background: linear-gradient(135deg, #fd7e14 0%, #e06b0a 100%);">
+                    <h5><i class="fas fa-chart-line me-2"></i>Most Improved</h5>
+                </div>
+                {% if most_improved %}
+                <div class="table-responsive">
+                    <table class="table mb-0">
+                        <thead><tr><th style="width: 55px;">Rank</th><th>Staff Member</th><th>Branch</th><th class="text-end">Improvement</th></tr></thead>
+                        <tbody>
+                            {% for staff in most_improved %}
+                            <tr>
+                                <td>{% if loop.index == 1 %}<span class="rank-badge rank-gold"><i class="fas fa-arrow-up"></i></span>{% elif loop.index == 2 %}<span class="rank-badge rank-silver">2</span>{% elif loop.index == 3 %}<span class="rank-badge rank-bronze">3</span>{% else %}<span class="rank-badge rank-default">{{ loop.index }}</span>{% endif %}</td>
+                                <td class="fw-semibold">{{ staff.name }}</td>
+                                <td><span class="branch-badge">{{ staff.branch }}</span></td>
+                                <td class="text-end"><span class="score-badge success"><i class="fas fa-arrow-up me-1"></i>{{ staff.reduction }} fewer</span></td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+                {% else %}
+                <div class="empty-state text-center text-muted"><i class="fas fa-chart-line d-block"></i><p class="mb-0">No improvement data available</p></div>
+                {% endif %}
             </div>
-            <div class="card-body p-0">
-                <table class="table table-hover ranking-table mb-0">
-                    <thead>
-                        <tr>
-                            <th>#</th>
-                            <th>Name</th>
-                            <th>Branch</th>
-                            <th>Days</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        {% for person in perfect_attendance %}
-                        <tr>
-                            <td><span class="badge-rank bg-primary text-white">{{ loop.index }}</span></td>
-                            <td>{{ person.name }}</td>
-                            <td>{{ person.school }}</td>
-                            <td>{{ person.days }}</td>
-                        </tr>
-                        {% else %}
-                        <tr><td colspan="4" class="text-center text-muted">No data available</td></tr>
-                        {% endfor %}
-                    </tbody>
-                </table>
+        </div>
+        <div class="col-lg-6">
+            <div class="card ranking-card h-100">
+                <div class="card-header text-white" style="background: linear-gradient(135deg, #20c997 0%, #17a2b8 100%);">
+                    <h5><i class="fas fa-fire me-2"></i>On-Time Streaks</h5>
+                </div>
+                {% if attendance_streaks %}
+                <div class="table-responsive">
+                    <table class="table mb-0">
+                        <thead><tr><th style="width: 55px;">🔥</th><th>Staff Member</th><th>Branch</th><th class="text-end">Streak</th></tr></thead>
+                        <tbody>
+                            {% for staff in attendance_streaks %}
+                            <tr>
+                                <td>{% if loop.index == 1 %}<span class="rank-badge rank-gold"><i class="fas fa-fire"></i></span>{% elif loop.index == 2 %}<span class="rank-badge rank-silver">2</span>{% elif loop.index == 3 %}<span class="rank-badge rank-bronze">3</span>{% else %}<span class="rank-badge rank-default">{{ loop.index }}</span>{% endif %}</td>
+                                <td class="fw-semibold">{{ staff.name }}</td>
+                                <td><span class="branch-badge">{{ staff.branch }}</span></td>
+                                <td class="text-end"><span class="score-badge orange">{{ staff.streak }} days</span></td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+                {% else %}
+                <div class="empty-state text-center text-muted"><i class="fas fa-fire d-block"></i><p class="mb-0">No streak data available</p></div>
+                {% endif %}
             </div>
         </div>
     </div>
@@ -388,141 +601,138 @@
 
 <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 <script>
-// Trend Chart
-new Chart(document.getElementById('trendChart'), {
+document.getElementById('periodSelect').addEventListener('change', function() {
+    document.querySelectorAll('.custom-date').forEach(el => {
+        el.style.display = this.value === 'custom' ? 'block' : 'none';
+    });
+});
+
+// Attendance Trend Chart
+const trendCtx = document.getElementById('attendanceTrendChart').getContext('2d');
+new Chart(trendCtx, {
     type: 'line',
     data: {
-        labels: {{ trend_labels|default([])|tojson }},
+        labels: {{ trend_labels|tojson }},
         datasets: [{
-            label: 'Attendance',
-            data: {{ attendance_trend|default([])|tojson }},
-            borderColor: '#667eea',
-            tension: 0.3,
-            fill: false
+            label: 'Attendance %',
+            data: {{ trend_data|tojson }},
+            borderColor: '#dc3545',
+            backgroundColor: 'rgba(220, 53, 69, 0.1)',
+            fill: true,
+            tension: 0.4
         }, {
             label: 'Punctuality %',
-            data: {{ punctuality_trend|default([])|tojson }},
-            borderColor: '#11998e',
-            tension: 0.3,
-            fill: false,
-            yAxisID: 'y1'
+            data: {{ punctuality_data|tojson }},
+            borderColor: '#28a745',
+            backgroundColor: 'rgba(40, 167, 69, 0.1)',
+            fill: true,
+            tension: 0.4
         }]
     },
-    options: {
-        responsive: true,
-        maintainAspectRatio: false,
-        scales: {
-            y: { beginAtZero: true },
-            y1: { position: 'right', beginAtZero: true, max: 100 }
-        }
-    }
+    options: { responsive: true, plugins: { legend: { position: 'bottom' } }, scales: { y: { beginAtZero: true, max: 100 } } }
 });
 
 // Late by Day Chart
-new Chart(document.getElementById('lateByDayChart'), {
+const dayCtx = document.getElementById('lateByDayChart').getContext('2d');
+new Chart(dayCtx, {
     type: 'bar',
     data: {
-        labels: {{ day_names|default(['Mon','Tue','Wed','Thu','Fri','Sat','Sun'])|tojson }},
+        labels: ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'],
         datasets: [{
-            label: 'Late Arrivals',
-            data: {{ late_by_day|default([0,0,0,0,0,0,0])|tojson }},
-            backgroundColor: '#f5576c'
+            label: 'Late Count',
+            data: {{ late_by_day|tojson }},
+            backgroundColor: ['#ff6384', '#ff9f40', '#ffcd56', '#4bc0c0', '#36a2eb', '#9966ff', '#c9cbcf']
         }]
     },
-    options: {
-        responsive: true,
-        maintainAspectRatio: false,
-        scales: { y: { beginAtZero: true } }
-    }
+    options: { responsive: true, plugins: { legend: { display: false } } }
 });
 
 // Department Chart
-new Chart(document.getElementById('departmentChart'), {
-    type: 'bar',
-    data: {
-        labels: {{ department_labels|default(['No Data'])|tojson }},
-        datasets: [{
-            label: 'Attendance Rate %',
-            data: {{ department_data|default([0])|tojson }},
-            backgroundColor: '#667eea'
-        }]
-    },
-    options: {
-        responsive: true,
-        maintainAspectRatio: false,
-        indexAxis: 'y',
-        scales: { x: { beginAtZero: true, max: 100 } }
-    }
-});
-
-// Branch Chart
-new Chart(document.getElementById('branchChart'), {
-    type: 'bar',
-    data: {
-        labels: {{ branch_labels|default(['No Data'])|tojson }},
-        datasets: [{
-            label: 'Attendance Rate %',
-            data: {{ branch_data|default([0])|tojson }},
-            backgroundColor: '#38ef7d'
-        }]
-    },
-    options: {
-        responsive: true,
-        maintainAspectRatio: false,
-        scales: { y: { beginAtZero: true, max: 100 } }
-    }
-});
-
-// Arrival Distribution Chart
-new Chart(document.getElementById('arrivalChart'), {
-    type: 'bar',
-    data: {
-        labels: {{ arrival_labels|default(['6:00','7:00','8:00','9:00','10:00','11:00'])|tojson }},
-        datasets: [{
-            label: 'Arrivals',
-            data: {{ arrival_data|default([0,0,0,0,0,0])|tojson }},
-            backgroundColor: '#6dd5ed'
-        }]
-    },
-    options: {
-        responsive: true,
-        maintainAspectRatio: false,
-        scales: { y: { beginAtZero: true } }
-    }
-});
-
-// Present vs Absent Pie Chart
-new Chart(document.getElementById('presentAbsentChart'), {
+{% if department_labels %}
+const deptCtx = document.getElementById('departmentChart').getContext('2d');
+new Chart(deptCtx, {
     type: 'doughnut',
     data: {
-        labels: ['Present', 'Absent'],
+        labels: {{ department_labels|tojson }},
         datasets: [{
-            data: [{{ present_count|default(0) }}, {{ absent_count|default(0) }}],
-            backgroundColor: ['#38ef7d', '#f5576c']
+            data: {{ department_data|tojson }},
+            backgroundColor: ['#007bff', '#28a745', '#ffc107', '#dc3545', '#6f42c1', '#17a2b8', '#fd7e14', '#20c997']
         }]
     },
-    options: {
-        responsive: true,
-        maintainAspectRatio: false
-    }
+    options: { responsive: true, plugins: { legend: { position: 'bottom' } } }
 });
+{% endif %}
 
-// Weekly Comparison Chart
-new Chart(document.getElementById('weeklyChart'), {
+// Branch Chart
+{% if branch_labels %}
+const branchCtx = document.getElementById('branchChart').getContext('2d');
+new Chart(branchCtx, {
     type: 'bar',
     data: {
-        labels: {{ weekly_labels|default(['This Week', 'Last Week'])|tojson }},
+        labels: {{ branch_labels|tojson }},
         datasets: [{
-            label: 'Records',
-            data: {{ weekly_data|default([0,0])|tojson }},
-            backgroundColor: ['#667eea', '#764ba2']
+            label: 'Attendance %',
+            data: {{ branch_attendance|tojson }},
+            backgroundColor: 'rgba(40, 167, 69, 0.8)'
+        }, {
+            label: 'Punctuality %',
+            data: {{ branch_punctuality|tojson }},
+            backgroundColor: 'rgba(0, 123, 255, 0.8)'
         }]
     },
-    options: {
-        responsive: true,
-        maintainAspectRatio: false,
-        scales: { y: { beginAtZero: true } }
-    }
+    options: { responsive: true, plugins: { legend: { position: 'bottom' } }, scales: { y: { beginAtZero: true, max: 100 } } }
+});
+{% endif %}
+
+// Distribution Chart (Arrival Distribution)
+{% if total_records > 0 %}
+const distCtx = document.getElementById('distributionChart').getContext('2d');
+new Chart(distCtx, {
+    type: 'pie',
+    data: {
+        labels: {{ distribution_labels|tojson }},
+        datasets: [{
+            data: {{ distribution_data|tojson }},
+            backgroundColor: ['#28a745', '#17a2b8', '#ffc107']
+        }]
+    },
+    options: { responsive: true, plugins: { legend: { position: 'bottom' } } }
+});
+{% endif %}
+
+// Presence Chart (Present vs Absent)
+{% if total_records > 0 or presence_data[1] > 0 %}
+const presenceCtx = document.getElementById('presenceChart').getContext('2d');
+new Chart(presenceCtx, {
+    type: 'doughnut',
+    data: {
+        labels: {{ presence_labels|tojson }},
+        datasets: [{
+            data: {{ presence_data|tojson }},
+            backgroundColor: ['#28a745', '#dc3545']
+        }]
+    },
+    options: { responsive: true, plugins: { legend: { position: 'bottom' } } }
+});
+{% endif %}
+
+// Weekly Comparison Chart
+const weeklyCtx = document.getElementById('weeklyComparisonChart').getContext('2d');
+new Chart(weeklyCtx, {
+    type: 'bar',
+    data: {
+        labels: {{ weekly_comparison_labels|tojson }},
+        datasets: [{
+            label: 'This Week',
+            data: {{ weekly_this_week|tojson }},
+            backgroundColor: 'rgba(253, 126, 20, 0.8)'
+        }, {
+            label: 'Last Week',
+            data: {{ weekly_last_week|tojson }},
+            backgroundColor: 'rgba(108, 117, 125, 0.6)'
+        }]
+    },
+    options: { responsive: true, plugins: { legend: { position: 'bottom' } }, scales: { y: { beginAtZero: true, max: 100 } } }
 });
 </script>
 {% endblock %}
