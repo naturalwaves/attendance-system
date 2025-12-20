@@ -274,7 +274,7 @@
                     
                     {% if current_user.role in ['super_admin', 'school_admin', 'hr_viewer', 'ceo_viewer'] %}
                     <li class="nav-item">
-                        <a class="nav-link {% if request.endpoint == 'staff' %}active{% endif %}" href="{{ url_for('staff') }}">
+                        <a class="nav-link {% if request.endpoint == 'staff_list' %}active{% endif %}" href="{{ url_for('staff_list') }}">
                             <i class="fas fa-users me-1"></i> Staff
                         </a>
                     </li>
