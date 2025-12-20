@@ -22,7 +22,7 @@
         </a>
     </div>
     <div class="col-md">
-        <a href="{{ url_for('staff_list') }}" class="text-decoration-none">
+        <a href="{{ url_for('staff') }}" class="text-decoration-none">
             <div class="card stat-card stat-staff h-100">
                 <div class="card-body text-center text-white">
                     <i class="fas fa-users fa-2x mb-2"></i>
@@ -33,7 +33,7 @@
         </a>
     </div>
     <div class="col-md">
-        <a href="{{ url_for('attendance_report', today=1) }}" class="text-decoration-none">
+        <a href="{{ url_for('attendance_report') }}" class="text-decoration-none">
             <div class="card stat-card stat-present h-100">
                 <div class="card-body text-center text-white">
                     <i class="fas fa-user-check fa-2x mb-2"></i>
@@ -44,7 +44,7 @@
         </a>
     </div>
     <div class="col-md">
-        <a href="{{ url_for('late_report', today=1) }}" class="text-decoration-none">
+        <a href="{{ url_for('late_report') }}" class="text-decoration-none">
             <div class="card stat-card stat-late h-100">
                 <div class="card-body text-center text-white">
                     <i class="fas fa-clock fa-2x mb-2"></i>
@@ -55,7 +55,7 @@
         </a>
     </div>
     <div class="col-md">
-        <a href="{{ url_for('absent_report', today=1) }}" class="text-decoration-none">
+        <a href="{{ url_for('absent_report') }}" class="text-decoration-none">
             <div class="card stat-card stat-absent h-100">
                 <div class="card-body text-center text-white">
                     <i class="fas fa-user-times fa-2x mb-2"></i>
