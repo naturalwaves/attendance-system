@@ -5,7 +5,6 @@ from werkzeug.security import generate_password_hash, check_password_hash
 from datetime import datetime, timedelta, date
 from functools import wraps
 import os
-import calendar
 from io import BytesIO
 from xhtml2pdf import pisa
 
@@ -161,6 +160,125 @@ def get_date_range(period, start_date=None, end_date=None):
     return today, today
 
 
+# ============== MIGRATION ROUTE (PUBLIC - REMOVE AFTER USE) ==============
+
+@app.route('/migrate-db')
+def migrate_db():
+    try:
+        from sqlalchemy import text
+        
+        migrations = [
+            # Add columns to user table
+            "ALTER TABLE \"user\" ADD COLUMN IF NOT EXISTS organization_id INTEGER",
+            "ALTER TABLE \"user\" ADD COLUMN IF NOT EXISTS school_id INTEGER",
+            "ALTER TABLE \"user\" ADD COLUMN IF NOT EXISTS is_active BOOLEAN DEFAULT TRUE",
+            "ALTER TABLE \"user\" ADD COLUMN IF NOT EXISTS created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP",
+            
+            # Add columns to organization table
+            "ALTER TABLE organization ADD COLUMN IF NOT EXISTS org_type VARCHAR(50) DEFAULT 'school'",
+            "ALTER TABLE organization ADD COLUMN IF NOT EXISTS is_active BOOLEAN DEFAULT TRUE",
+            "ALTER TABLE organization ADD COLUMN IF NOT EXISTS created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP",
+            
+            # Add columns to school table
+            "ALTER TABLE school ADD COLUMN IF NOT EXISTS is_active BOOLEAN DEFAULT TRUE",
+            "ALTER TABLE school ADD COLUMN IF NOT EXISTS created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP",
+            
+            # Add columns to staff table
+            "ALTER TABLE staff ADD COLUMN IF NOT EXISTS is_active BOOLEAN DEFAULT TRUE",
+            "ALTER TABLE staff ADD COLUMN IF NOT EXISTS created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP",
+            
+            # Create department table
+            """CREATE TABLE IF NOT EXISTS department (
+                id SERIAL PRIMARY KEY,
+                name VARCHAR(100) NOT NULL,
+                organization_id INTEGER,
+                is_active BOOLEAN DEFAULT TRUE,
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+            )""",
+            
+            # Create system_settings table
+            """CREATE TABLE IF NOT EXISTS system_settings (
+                id SERIAL PRIMARY KEY,
+                key VARCHAR(100) UNIQUE NOT NULL,
+                value TEXT,
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+            )""",
+            
+            # Update existing users to be active
+            "UPDATE \"user\" SET is_active = TRUE WHERE is_active IS NULL",
+            
+            # Update existing organizations to be active
+            "UPDATE organization SET is_active = TRUE WHERE is_active IS NULL",
+            
+            # Update existing schools to be active
+            "UPDATE school SET is_active = TRUE WHERE is_active IS NULL",
+            
+            # Update existing staff to be active
+            "UPDATE staff SET is_active = TRUE WHERE is_active IS NULL",
+        ]
+        
+        results = []
+        for sql in migrations:
+            try:
+                db.session.execute(text(sql))
+                db.session.commit()
+                results.append(f"✓ Success: {sql[:50]}...")
+            except Exception as e:
+                db.session.rollback()
+                results.append(f"⚠ Skipped (may already exist): {sql[:50]}...")
+        
+        # Create default settings if missing
+        default_settings = {
+            'work_start_time': '08:00',
+            'work_end_time': '17:00',
+            'late_threshold': '15',
+            'early_threshold': '10',
+            'overtime_threshold': '30'
+        }
+        
+        for key, value in default_settings.items():
+            try:
+                existing = db.session.execute(text(f"SELECT id FROM system_settings WHERE key = :key"), {'key': key}).fetchone()
+                if not existing:
+                    db.session.execute(text("INSERT INTO system_settings (key, value) VALUES (:key, :value)"), {'key': key, 'value': value})
+                    db.session.commit()
+                    results.append(f"✓ Added setting: {key}")
+            except Exception as e:
+                db.session.rollback()
+                results.append(f"⚠ Setting {key}: {str(e)}")
+        
+        return f'''
+        <html>
+        <head><title>Migration Complete</title></head>
+        <body style="font-family: Arial, sans-serif; padding: 20px; max-width: 800px; margin: 0 auto;">
+            <h1 style="color: green;">✓ Database Migration Complete!</h1>
+            <h3>Your data has been preserved.</h3>
+            <h4>Migration Results:</h4>
+            <ul>
+                {"".join(f"<li>{r}</li>" for r in results)}
+            </ul>
+            <br>
+            <a href="/login" style="background: #667eea; color: white; padding: 10px 20px; text-decoration: none; border-radius: 5px;">Go to Login</a>
+            <br><br>
+            <p style="color: red;"><strong>Important:</strong> Remove the /migrate-db route from app.py after successful migration!</p>
+        </body>
+        </html>
+        '''
+        
+    except Exception as e:
+        return f'''
+        <html>
+        <head><title>Migration Error</title></head>
+        <body style="font-family: Arial, sans-serif; padding: 20px;">
+            <h1 style="color: red;">Migration Error</h1>
+            <p>{str(e)}</p>
+            <a href="/login">Try Login Anyway</a>
+        </body>
+        </html>
+        '''
+
+
 # ============== AUTH ROUTES ==============
 
 @app.route('/login', methods=['GET', 'POST'])
@@ -173,11 +291,16 @@ def login():
         password = request.form.get('password')
         user = User.query.filter_by(username=username).first()
         
-        if user and user.check_password(password) and user.is_active:
-            login_user(user)
-            next_page = request.args.get('next')
-            flash('Login successful!', 'success')
-            return redirect(next_page if next_page else url_for('dashboard'))
+        if user and user.check_password(password):
+            # Check is_active only if the column exists and has a value
+            is_active = getattr(user, 'is_active', True)
+            if is_active is None or is_active:
+                login_user(user)
+                next_page = request.args.get('next')
+                flash('Login successful!', 'success')
+                return redirect(next_page if next_page else url_for('dashboard'))
+            else:
+                flash('Account is deactivated', 'danger')
         else:
             flash('Invalid username or password', 'danger')
     
@@ -202,11 +325,13 @@ def dashboard():
     # Get staff based on user role
     if current_user.role == 'super_admin':
         staff_query = Staff.query.filter_by(is_active=True)
-    elif current_user.role == 'org_admin':
+    elif current_user.role == 'org_admin' and current_user.organization_id:
         school_ids = [s.id for s in School.query.filter_by(organization_id=current_user.organization_id).all()]
         staff_query = Staff.query.filter(Staff.school_id.in_(school_ids), Staff.is_active==True)
-    else:
+    elif current_user.school_id:
         staff_query = Staff.query.filter_by(school_id=current_user.school_id, is_active=True)
+    else:
+        staff_query = Staff.query.filter_by(is_active=True)
     
     total_staff = staff_query.count()
     
@@ -215,20 +340,20 @@ def dashboard():
     today_attendance = Attendance.query.filter(
         Attendance.staff_id.in_(staff_ids),
         Attendance.date == today
-    ).all()
+    ).all() if staff_ids else []
     
     present_count = len([a for a in today_attendance if a.status == 'present'])
-    late_count = len([a for a in today_attendance if a.late_minutes > 0])
+    late_count = len([a for a in today_attendance if a.late_minutes and a.late_minutes > 0])
     absent_count = total_staff - present_count
     
     # Calculate rates
     attendance_rate = round((present_count / total_staff * 100), 1) if total_staff > 0 else 0
-    punctuality_rate = round(((present_count - late_count) / present_count * 100), 1) if present_count > 0 else 0
+    punctuality_rate = round(((present_count - late_count) / present_count * 100), 1) if present_count > 0 else 100
     
     # Recent attendance records
     recent_attendance = Attendance.query.filter(
         Attendance.staff_id.in_(staff_ids)
-    ).order_by(Attendance.created_at.desc()).limit(10).all()
+    ).order_by(Attendance.created_at.desc()).limit(10).all() if staff_ids else []
     
     return render_template('dashboard.html',
                          total_staff=total_staff,
@@ -354,11 +479,13 @@ def delete_department(id):
 def seed_default_departments(org_id):
     org = Organization.query.get_or_404(org_id)
     
-    if org.org_type == 'school':
+    org_type = getattr(org, 'org_type', 'general') or 'general'
+    
+    if org_type == 'school':
         defaults = ['Academic', 'Non-Academic', 'Administration', 'Support Staff']
-    elif org.org_type == 'hospital':
+    elif org_type == 'hospital':
         defaults = ['Medical', 'Nursing', 'Administration', 'Support', 'Laboratory']
-    elif org.org_type == 'corporate':
+    elif org_type == 'corporate':
         defaults = ['Executive', 'Operations', 'Finance', 'HR', 'IT', 'Marketing', 'Sales']
     else:
         defaults = ['Administration', 'Operations', 'Finance', 'Human Resources', 'IT']
@@ -474,7 +601,7 @@ def add_user():
             username=request.form.get('username'),
             email=request.form.get('email'),
             role=request.form.get('role'),
-            organization_id=org_id,
+            organization_id=org_id if org_id else None,
             school_id=request.form.get('school_id') or None
         )
         user.set_password(request.form.get('password'))
@@ -501,7 +628,7 @@ def edit_user(id):
         user.is_active = 'is_active' in request.form
         
         if current_user.role == 'super_admin':
-            user.organization_id = request.form.get('organization_id')
+            user.organization_id = request.form.get('organization_id') or None
         user.school_id = request.form.get('school_id') or None
         
         new_password = request.form.get('password')
@@ -539,11 +666,13 @@ def delete_user(id):
 def manage_staff():
     if current_user.role == 'super_admin':
         staff = Staff.query.all()
-    elif current_user.role == 'org_admin':
+    elif current_user.role == 'org_admin' and current_user.organization_id:
         school_ids = [s.id for s in School.query.filter_by(organization_id=current_user.organization_id).all()]
         staff = Staff.query.filter(Staff.school_id.in_(school_ids)).all()
-    else:
+    elif current_user.school_id:
         staff = Staff.query.filter_by(school_id=current_user.school_id).all()
+    else:
+        staff = Staff.query.all()
     
     return render_template('manage_staff.html', staff=staff)
 
@@ -576,13 +705,16 @@ def add_staff():
     if current_user.role == 'super_admin':
         schools = School.query.filter_by(is_active=True).all()
         departments = Department.query.all()
-    elif current_user.role == 'org_admin':
+    elif current_user.role == 'org_admin' and current_user.organization_id:
         schools = School.query.filter_by(organization_id=current_user.organization_id, is_active=True).all()
         departments = Department.query.filter_by(organization_id=current_user.organization_id).all()
-    else:
+    elif current_user.school_id:
         schools = [School.query.get(current_user.school_id)]
         school = School.query.get(current_user.school_id)
         departments = Department.query.filter_by(organization_id=school.organization_id).all() if school else []
+    else:
+        schools = School.query.filter_by(is_active=True).all()
+        departments = Department.query.all()
     
     return render_template('add_staff.html', schools=schools, departments=departments)
 
@@ -613,13 +745,16 @@ def edit_staff(id):
     if current_user.role == 'super_admin':
         schools = School.query.filter_by(is_active=True).all()
         departments = Department.query.all()
-    elif current_user.role == 'org_admin':
+    elif current_user.role == 'org_admin' and current_user.organization_id:
         schools = School.query.filter_by(organization_id=current_user.organization_id, is_active=True).all()
         departments = Department.query.filter_by(organization_id=current_user.organization_id).all()
-    else:
+    elif current_user.school_id:
         schools = [School.query.get(current_user.school_id)]
         school = School.query.get(current_user.school_id)
         departments = Department.query.filter_by(organization_id=school.organization_id).all() if school else []
+    else:
+        schools = School.query.filter_by(is_active=True).all()
+        departments = Department.query.all()
     
     return render_template('edit_staff.html', staff=staff, schools=schools, departments=departments)
 
@@ -649,18 +784,20 @@ def view_attendance():
     
     # Build query based on role
     if current_user.role == 'super_admin':
-        query = Attendance.query
-    elif current_user.role == 'org_admin':
-        school_ids = [s.id for s in School.query.filter_by(organization_id=current_user.organization_id).all()]
-        staff_ids = [s.id for s in Staff.query.filter(Staff.school_id.in_(school_ids)).all()]
-        query = Attendance.query.filter(Attendance.staff_id.in_(staff_ids))
-    else:
+        staff_ids = [s.id for s in Staff.query.all()]
+    elif current_user.role == 'org_admin' and current_user.organization_id:
+        school_ids_list = [s.id for s in School.query.filter_by(organization_id=current_user.organization_id).all()]
+        staff_ids = [s.id for s in Staff.query.filter(Staff.school_id.in_(school_ids_list)).all()]
+    elif current_user.school_id:
         staff_ids = [s.id for s in Staff.query.filter_by(school_id=current_user.school_id).all()]
-        query = Attendance.query.filter(Attendance.staff_id.in_(staff_ids))
+    else:
+        staff_ids = [s.id for s in Staff.query.all()]
+    
+    query = Attendance.query.filter(Attendance.staff_id.in_(staff_ids)) if staff_ids else Attendance.query.filter(False)
     
     if school_id:
-        staff_ids = [s.id for s in Staff.query.filter_by(school_id=school_id).all()]
-        query = query.filter(Attendance.staff_id.in_(staff_ids))
+        school_staff_ids = [s.id for s in Staff.query.filter_by(school_id=school_id).all()]
+        query = query.filter(Attendance.staff_id.in_(school_staff_ids))
     
     attendance = query.filter(
         Attendance.date >= date_start,
@@ -722,11 +859,13 @@ def add_attendance():
     # Get staff based on role
     if current_user.role == 'super_admin':
         staff = Staff.query.filter_by(is_active=True).all()
-    elif current_user.role == 'org_admin':
+    elif current_user.role == 'org_admin' and current_user.organization_id:
         school_ids = [s.id for s in School.query.filter_by(organization_id=current_user.organization_id).all()]
         staff = Staff.query.filter(Staff.school_id.in_(school_ids), Staff.is_active==True).all()
-    else:
+    elif current_user.school_id:
         staff = Staff.query.filter_by(school_id=current_user.school_id, is_active=True).all()
+    else:
+        staff = Staff.query.filter_by(is_active=True).all()
     
     return render_template('add_attendance.html', staff=staff)
 
@@ -751,11 +890,13 @@ def attendance_report():
     # Get staff based on role
     if current_user.role == 'super_admin':
         staff_query = Staff.query.filter_by(is_active=True)
-    elif current_user.role == 'org_admin':
+    elif current_user.role == 'org_admin' and current_user.organization_id:
         school_ids = [s.id for s in School.query.filter_by(organization_id=current_user.organization_id).all()]
         staff_query = Staff.query.filter(Staff.school_id.in_(school_ids), Staff.is_active==True)
-    else:
+    elif current_user.school_id:
         staff_query = Staff.query.filter_by(school_id=current_user.school_id, is_active=True)
+    else:
+        staff_query = Staff.query.filter_by(is_active=True)
     
     staff_list = staff_query.all()
     staff_ids = [s.id for s in staff_list]
@@ -765,7 +906,7 @@ def attendance_report():
         Attendance.staff_id.in_(staff_ids),
         Attendance.date >= date_start,
         Attendance.date <= date_end
-    ).all()
+    ).all() if staff_ids else []
     
     # Calculate stats per staff
     report_data = []
@@ -773,7 +914,7 @@ def attendance_report():
         staff_attendance = [a for a in attendance_data if a.staff_id == staff.id]
         total_days = (date_end - date_start).days + 1
         present_days = len(staff_attendance)
-        late_days = len([a for a in staff_attendance if a.late_minutes > 0])
+        late_days = len([a for a in staff_attendance if a.late_minutes and a.late_minutes > 0])
         
         report_data.append({
             'staff': staff,
@@ -803,18 +944,20 @@ def late_report():
     # Get staff IDs based on role
     if current_user.role == 'super_admin':
         staff_ids = [s.id for s in Staff.query.filter_by(is_active=True).all()]
-    elif current_user.role == 'org_admin':
+    elif current_user.role == 'org_admin' and current_user.organization_id:
         school_ids = [s.id for s in School.query.filter_by(organization_id=current_user.organization_id).all()]
         staff_ids = [s.id for s in Staff.query.filter(Staff.school_id.in_(school_ids)).all()]
-    else:
+    elif current_user.school_id:
         staff_ids = [s.id for s in Staff.query.filter_by(school_id=current_user.school_id).all()]
+    else:
+        staff_ids = [s.id for s in Staff.query.filter_by(is_active=True).all()]
     
     late_records = Attendance.query.filter(
         Attendance.staff_id.in_(staff_ids),
         Attendance.date >= date_start,
         Attendance.date <= date_end,
         Attendance.late_minutes > 0
-    ).order_by(Attendance.date.desc()).all()
+    ).order_by(Attendance.date.desc()).all() if staff_ids else []
     
     return render_template('late_report.html',
                          late_records=late_records,
@@ -835,18 +978,20 @@ def overtime_report():
     # Get staff IDs based on role
     if current_user.role == 'super_admin':
         staff_ids = [s.id for s in Staff.query.filter_by(is_active=True).all()]
-    elif current_user.role == 'org_admin':
+    elif current_user.role == 'org_admin' and current_user.organization_id:
         school_ids = [s.id for s in School.query.filter_by(organization_id=current_user.organization_id).all()]
         staff_ids = [s.id for s in Staff.query.filter(Staff.school_id.in_(school_ids)).all()]
-    else:
+    elif current_user.school_id:
         staff_ids = [s.id for s in Staff.query.filter_by(school_id=current_user.school_id).all()]
+    else:
+        staff_ids = [s.id for s in Staff.query.filter_by(is_active=True).all()]
     
     overtime_records = Attendance.query.filter(
         Attendance.staff_id.in_(staff_ids),
         Attendance.date >= date_start,
         Attendance.date <= date_end,
         Attendance.overtime_minutes > 0
-    ).order_by(Attendance.date.desc()).all()
+    ).order_by(Attendance.date.desc()).all() if staff_ids else []
     
     return render_template('overtime_report.html',
                          overtime_records=overtime_records,
@@ -873,13 +1018,15 @@ def analytics():
     if current_user.role == 'super_admin':
         staff_query = Staff.query.filter_by(is_active=True)
         if organization_id:
-            school_ids = [s.id for s in School.query.filter_by(organization_id=organization_id).all()]
-            staff_query = staff_query.filter(Staff.school_id.in_(school_ids))
-    elif current_user.role == 'org_admin':
-        school_ids = [s.id for s in School.query.filter_by(organization_id=current_user.organization_id).all()]
-        staff_query = Staff.query.filter(Staff.school_id.in_(school_ids), Staff.is_active==True)
-    else:
+            school_ids_list = [s.id for s in School.query.filter_by(organization_id=organization_id).all()]
+            staff_query = staff_query.filter(Staff.school_id.in_(school_ids_list))
+    elif current_user.role == 'org_admin' and current_user.organization_id:
+        school_ids_list = [s.id for s in School.query.filter_by(organization_id=current_user.organization_id).all()]
+        staff_query = Staff.query.filter(Staff.school_id.in_(school_ids_list), Staff.is_active==True)
+    elif current_user.school_id:
         staff_query = Staff.query.filter_by(school_id=current_user.school_id, is_active=True)
+    else:
+        staff_query = Staff.query.filter_by(is_active=True)
     
     if school_id:
         staff_query = staff_query.filter_by(school_id=school_id)
@@ -895,22 +1042,22 @@ def analytics():
         Attendance.staff_id.in_(staff_ids),
         Attendance.date >= date_start,
         Attendance.date <= date_end
-    ).all()
+    ).all() if staff_ids else []
     
     # Calculate metrics
     total_days = (date_end - date_start).days + 1
-    working_days = total_days  # Simplified - could exclude weekends
-    total_possible = total_staff * working_days
+    working_days = total_days
+    total_possible = total_staff * working_days if total_staff > 0 else 1
     
     present_count = len(attendance_records)
-    late_count = len([a for a in attendance_records if a.late_minutes > 0])
+    late_count = len([a for a in attendance_records if a.late_minutes and a.late_minutes > 0])
     on_time_count = present_count - late_count
     
-    total_late_minutes = sum(a.late_minutes for a in attendance_records)
-    total_overtime_minutes = sum(a.overtime_minutes for a in attendance_records)
+    total_late_minutes = sum(a.late_minutes or 0 for a in attendance_records)
+    total_overtime_minutes = sum(a.overtime_minutes or 0 for a in attendance_records)
     
     attendance_rate = round(present_count / total_possible * 100, 1) if total_possible > 0 else 0
-    punctuality_rate = round(on_time_count / present_count * 100, 1) if present_count > 0 else 0
+    punctuality_rate = round(on_time_count / present_count * 100, 1) if present_count > 0 else 100
     avg_late_minutes = round(total_late_minutes / late_count, 1) if late_count > 0 else 0
     avg_overtime = round(total_overtime_minutes / present_count, 1) if present_count > 0 else 0
     
@@ -923,54 +1070,54 @@ def analytics():
         Attendance.staff_id.in_(staff_ids),
         Attendance.date >= prev_start,
         Attendance.date <= prev_end
-    ).all()
+    ).all() if staff_ids else []
     
-    prev_possible = total_staff * period_length
+    prev_possible = total_staff * period_length if total_staff > 0 else 1
     prev_present = len(prev_attendance)
-    prev_late = len([a for a in prev_attendance if a.late_minutes > 0])
+    prev_late = len([a for a in prev_attendance if a.late_minutes and a.late_minutes > 0])
     prev_on_time = prev_present - prev_late
     
     prev_attendance_rate = round(prev_present / prev_possible * 100, 1) if prev_possible > 0 else 0
-    prev_punctuality_rate = round(prev_on_time / prev_present * 100, 1) if prev_present > 0 else 0
+    prev_punctuality_rate = round(prev_on_time / prev_present * 100, 1) if prev_present > 0 else 100
     
     attendance_trend = round(attendance_rate - prev_attendance_rate, 1)
     punctuality_trend = round(punctuality_rate - prev_punctuality_rate, 1)
     
     # Chart data - Attendance trend by date
     trend_data = {'labels': [], 'attendance': [], 'punctuality': []}
-    current = date_start
-    while current <= date_end:
-        day_records = [a for a in attendance_records if a.date == current]
+    current_date = date_start
+    while current_date <= date_end:
+        day_records = [a for a in attendance_records if a.date == current_date]
         day_present = len(day_records)
-        day_late = len([a for a in day_records if a.late_minutes > 0])
+        day_late = len([a for a in day_records if a.late_minutes and a.late_minutes > 0])
         day_on_time = day_present - day_late
         
-        trend_data['labels'].append(current.strftime('%b %d'))
+        trend_data['labels'].append(current_date.strftime('%b %d'))
         trend_data['attendance'].append(round(day_present / total_staff * 100, 1) if total_staff > 0 else 0)
-        trend_data['punctuality'].append(round(day_on_time / day_present * 100, 1) if day_present > 0 else 0)
-        current += timedelta(days=1)
+        trend_data['punctuality'].append(round(day_on_time / day_present * 100, 1) if day_present > 0 else 100)
+        current_date += timedelta(days=1)
     
     # Late by day of week
     late_by_day = {'labels': ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'], 'data': [0]*7}
     for a in attendance_records:
-        if a.late_minutes > 0:
+        if a.late_minutes and a.late_minutes > 0:
             late_by_day['data'][a.date.weekday()] += 1
     
     # Department performance
     dept_data = {'labels': [], 'attendance': [], 'punctuality': []}
-    departments = list(set(s.department for s in staff_list if s.department))
-    for dept in departments:
+    departments_list = list(set(s.department for s in staff_list if s.department))
+    for dept in departments_list:
         dept_staff = [s for s in staff_list if s.department == dept]
         dept_staff_ids = [s.id for s in dept_staff]
         dept_records = [a for a in attendance_records if a.staff_id in dept_staff_ids]
         
-        dept_possible = len(dept_staff) * working_days
+        dept_possible = len(dept_staff) * working_days if dept_staff else 1
         dept_present = len(dept_records)
-        dept_late = len([a for a in dept_records if a.late_minutes > 0])
+        dept_late = len([a for a in dept_records if a.late_minutes and a.late_minutes > 0])
         
         dept_data['labels'].append(dept)
         dept_data['attendance'].append(round(dept_present / dept_possible * 100, 1) if dept_possible > 0 else 0)
-        dept_data['punctuality'].append(round((dept_present - dept_late) / dept_present * 100, 1) if dept_present > 0 else 0)
+        dept_data['punctuality'].append(round((dept_present - dept_late) / dept_present * 100, 1) if dept_present > 0 else 100)
     
     # Branch comparison
     branch_data = {'labels': [], 'data': []}
@@ -980,7 +1127,7 @@ def analytics():
             branch_staff = [s for s in staff_list if s.school_id == branch.id]
             branch_staff_ids = [s.id for s in branch_staff]
             branch_records = [a for a in attendance_records if a.staff_id in branch_staff_ids]
-            branch_possible = len(branch_staff) * working_days
+            branch_possible = len(branch_staff) * working_days if branch_staff else 1
             
             branch_data['labels'].append(branch.name[:15])
             branch_data['data'].append(round(len(branch_records) / branch_possible * 100, 1) if branch_possible > 0 else 0)
@@ -988,20 +1135,21 @@ def analytics():
     # Arrival distribution
     arrival_data = {'labels': ['Early', 'On Time', 'Late <15min', 'Late 15-30min', 'Late >30min'], 'data': [0]*5}
     for a in attendance_records:
-        if a.late_minutes == 0:
+        late_mins = a.late_minutes or 0
+        if late_mins == 0:
             if a.check_in and a.check_in.hour < 8:
                 arrival_data['data'][0] += 1
             else:
                 arrival_data['data'][1] += 1
-        elif a.late_minutes < 15:
+        elif late_mins < 15:
             arrival_data['data'][2] += 1
-        elif a.late_minutes <= 30:
+        elif late_mins <= 30:
             arrival_data['data'][3] += 1
         else:
             arrival_data['data'][4] += 1
     
     # Present vs Absent pie
-    present_absent = {'present': present_count, 'absent': total_possible - present_count}
+    present_absent = {'present': present_count, 'absent': max(0, total_possible - present_count)}
     
     # Weekly comparison
     weekly_data = {'labels': [], 'current': [], 'previous': []}
@@ -1011,7 +1159,7 @@ def analytics():
         
         week_records = [a for a in attendance_records if week_start <= a.date <= week_end]
         week_days = (week_end - week_start).days + 1
-        week_possible = total_staff * week_days
+        week_possible = total_staff * week_days if total_staff > 0 else 1
         
         weekly_data['labels'].append(f'Week {i+1}')
         weekly_data['current'].append(round(len(week_records) / week_possible * 100, 1) if week_possible > 0 else 0)
@@ -1020,32 +1168,32 @@ def analytics():
         prev_week_start = prev_start + timedelta(weeks=i)
         prev_week_end = min(prev_week_start + timedelta(days=6), prev_end)
         prev_week_records = [a for a in prev_attendance if prev_week_start <= a.date <= prev_week_end]
-        prev_week_days = (prev_week_end - prev_week_start).days + 1
-        prev_week_possible = total_staff * prev_week_days
+        prev_week_days = max(1, (prev_week_end - prev_week_start).days + 1)
+        prev_week_possible = total_staff * prev_week_days if total_staff > 0 else 1
         weekly_data['previous'].append(round(len(prev_week_records) / prev_week_possible * 100, 1) if prev_week_possible > 0 else 0)
     
     # Rankings
     staff_stats = []
-    for staff in staff_list:
-        staff_records = [a for a in attendance_records if a.staff_id == staff.id]
+    for staff_member in staff_list:
+        staff_records = [a for a in attendance_records if a.staff_id == staff_member.id]
         s_present = len(staff_records)
-        s_late = len([a for a in staff_records if a.late_minutes > 0])
-        s_total_late = sum(a.late_minutes for a in staff_records)
-        s_early = len([a for a in staff_records if a.check_in and a.late_minutes == 0 and a.check_in.hour < 8])
+        s_late = len([a for a in staff_records if a.late_minutes and a.late_minutes > 0])
+        s_total_late = sum(a.late_minutes or 0 for a in staff_records)
+        s_early = len([a for a in staff_records if a.check_in and (a.late_minutes is None or a.late_minutes == 0) and a.check_in.hour < 8])
         
         # Previous period stats for comparison
-        prev_staff_records = [a for a in prev_attendance if a.staff_id == staff.id]
+        prev_staff_records = [a for a in prev_attendance if a.staff_id == staff_member.id]
         prev_s_present = len(prev_staff_records)
         
         staff_stats.append({
-            'staff': staff,
+            'staff': staff_member,
             'present': s_present,
             'late': s_late,
             'on_time': s_present - s_late,
             'total_late_mins': s_total_late,
             'early_arrivals': s_early,
             'attendance_rate': round(s_present / working_days * 100, 1) if working_days > 0 else 0,
-            'punctuality_rate': round((s_present - s_late) / s_present * 100, 1) if s_present > 0 else 0,
+            'punctuality_rate': round((s_present - s_late) / s_present * 100, 1) if s_present > 0 else 100,
             'improvement': s_present - prev_s_present
         })
     
@@ -1058,12 +1206,12 @@ def analytics():
     # Calculate streaks
     for stat in staff_stats:
         streak = 0
-        current = date_end
-        while current >= date_start:
-            day_record = [a for a in attendance_records if a.staff_id == stat['staff'].id and a.date == current and a.late_minutes == 0]
+        check_date = date_end
+        while check_date >= date_start:
+            day_record = [a for a in attendance_records if a.staff_id == stat['staff'].id and a.date == check_date and (a.late_minutes is None or a.late_minutes == 0)]
             if day_record:
                 streak += 1
-                current -= timedelta(days=1)
+                check_date -= timedelta(days=1)
             else:
                 break
         stat['streak'] = streak
@@ -1076,17 +1224,19 @@ def analytics():
     
     # Get departments based on user's organization
     if current_user.role == 'super_admin':
-        all_departments = list(set(s.department for s in Staff.query.filter(Staff.department.isnot(None)).all()))
-    elif current_user.role == 'org_admin':
+        all_departments = list(set(s.department for s in Staff.query.filter(Staff.department.isnot(None)).all() if s.department))
+    elif current_user.role == 'org_admin' and current_user.organization_id:
         org_departments = Department.query.filter_by(organization_id=current_user.organization_id).all()
         all_departments = [d.name for d in org_departments]
-    else:
-        school = School.query.get(current_user.school_id)
-        if school:
-            org_departments = Department.query.filter_by(organization_id=school.organization_id).all()
+    elif current_user.school_id:
+        school_obj = School.query.get(current_user.school_id)
+        if school_obj:
+            org_departments = Department.query.filter_by(organization_id=school_obj.organization_id).all()
             all_departments = [d.name for d in org_departments]
         else:
             all_departments = []
+    else:
+        all_departments = []
     
     # Period label
     period_labels = {
@@ -1159,17 +1309,19 @@ def analytics_pdf():
     
     date_start, date_end = get_date_range(period, start_date, end_date)
     
-    # Build staff query (same as analytics route)
+    # Build staff query
     if current_user.role == 'super_admin':
         staff_query = Staff.query.filter_by(is_active=True)
         if organization_id:
-            school_ids = [s.id for s in School.query.filter_by(organization_id=organization_id).all()]
-            staff_query = staff_query.filter(Staff.school_id.in_(school_ids))
-    elif current_user.role == 'org_admin':
-        school_ids = [s.id for s in School.query.filter_by(organization_id=current_user.organization_id).all()]
-        staff_query = Staff.query.filter(Staff.school_id.in_(school_ids), Staff.is_active==True)
-    else:
+            school_ids_list = [s.id for s in School.query.filter_by(organization_id=organization_id).all()]
+            staff_query = staff_query.filter(Staff.school_id.in_(school_ids_list))
+    elif current_user.role == 'org_admin' and current_user.organization_id:
+        school_ids_list = [s.id for s in School.query.filter_by(organization_id=current_user.organization_id).all()]
+        staff_query = Staff.query.filter(Staff.school_id.in_(school_ids_list), Staff.is_active==True)
+    elif current_user.school_id:
         staff_query = Staff.query.filter_by(school_id=current_user.school_id, is_active=True)
+    else:
+        staff_query = Staff.query.filter_by(is_active=True)
     
     if school_id:
         staff_query = staff_query.filter_by(school_id=school_id)
@@ -1185,41 +1337,41 @@ def analytics_pdf():
         Attendance.staff_id.in_(staff_ids),
         Attendance.date >= date_start,
         Attendance.date <= date_end
-    ).all()
+    ).all() if staff_ids else []
     
     # Calculate metrics
     total_days = (date_end - date_start).days + 1
     working_days = total_days
-    total_possible = total_staff * working_days
+    total_possible = total_staff * working_days if total_staff > 0 else 1
     
     present_count = len(attendance_records)
-    late_count = len([a for a in attendance_records if a.late_minutes > 0])
+    late_count = len([a for a in attendance_records if a.late_minutes and a.late_minutes > 0])
     on_time_count = present_count - late_count
     
-    total_late_minutes = sum(a.late_minutes for a in attendance_records)
-    total_overtime_minutes = sum(a.overtime_minutes for a in attendance_records)
+    total_late_minutes = sum(a.late_minutes or 0 for a in attendance_records)
+    total_overtime_minutes = sum(a.overtime_minutes or 0 for a in attendance_records)
     
     attendance_rate = round(present_count / total_possible * 100, 1) if total_possible > 0 else 0
-    punctuality_rate = round(on_time_count / present_count * 100, 1) if present_count > 0 else 0
+    punctuality_rate = round(on_time_count / present_count * 100, 1) if present_count > 0 else 100
     avg_late_minutes = round(total_late_minutes / late_count, 1) if late_count > 0 else 0
     avg_overtime = round(total_overtime_minutes / present_count, 1) if present_count > 0 else 0
     
     # Rankings
     staff_stats = []
-    for staff in staff_list:
-        staff_records = [a for a in attendance_records if a.staff_id == staff.id]
+    for staff_member in staff_list:
+        staff_records = [a for a in attendance_records if a.staff_id == staff_member.id]
         s_present = len(staff_records)
-        s_late = len([a for a in staff_records if a.late_minutes > 0])
-        s_early = len([a for a in staff_records if a.check_in and a.late_minutes == 0 and a.check_in.hour < 8])
+        s_late = len([a for a in staff_records if a.late_minutes and a.late_minutes > 0])
+        s_early = len([a for a in staff_records if a.check_in and (a.late_minutes is None or a.late_minutes == 0) and a.check_in.hour < 8])
         
         staff_stats.append({
-            'staff': staff,
+            'staff': staff_member,
             'present': s_present,
             'late': s_late,
             'on_time': s_present - s_late,
             'early_arrivals': s_early,
             'attendance_rate': round(s_present / working_days * 100, 1) if working_days > 0 else 0,
-            'punctuality_rate': round((s_present - s_late) / s_present * 100, 1) if s_present > 0 else 0
+            'punctuality_rate': round((s_present - s_late) / s_present * 100, 1) if s_present > 0 else 100
         })
     
     top_performers = sorted(staff_stats, key=lambda x: (x['attendance_rate'], x['punctuality_rate']), reverse=True)[:5]
@@ -1266,9 +1418,12 @@ def analytics_pdf():
 @login_required
 def settings():
     settings_dict = {}
-    all_settings = SystemSettings.query.all()
-    for s in all_settings:
-        settings_dict[s.key] = s.value
+    try:
+        all_settings = SystemSettings.query.all()
+        for s in all_settings:
+            settings_dict[s.key] = s.value
+    except:
+        pass
     
     stats = {
         'organizations': Organization.query.count(),
@@ -1344,10 +1499,13 @@ def clear_attendance():
 @app.route('/api/attendance/sync', methods=['POST'])
 def api_sync_attendance():
     api_key = request.headers.get('X-API-Key')
-    stored_key = SystemSettings.query.filter_by(key='api_key').first()
     
-    if not stored_key or api_key != stored_key.value:
-        return jsonify({'error': 'Invalid API key'}), 401
+    try:
+        stored_key = SystemSettings.query.filter_by(key='api_key').first()
+        if not stored_key or api_key != stored_key.value:
+            return jsonify({'error': 'Invalid API key'}), 401
+    except:
+        return jsonify({'error': 'API not configured'}), 500
     
     data = request.get_json()
     if not data:
