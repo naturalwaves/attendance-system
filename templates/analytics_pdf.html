@@ -11,212 +11,108 @@
         
         body {
             font-family: Helvetica, Arial, sans-serif;
-            font-size: 9px;
+            font-size: 10px;
             color: #333;
-            line-height: 1.4;
-            margin: 0;
-            padding: 0;
+            line-height: 1.5;
         }
         
         /* Header */
         .header {
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            background-color: #667eea;
             color: white;
-            padding: 20px;
+            padding: 25px;
             text-align: center;
-            margin: -10px -10px 20px -10px;
+            margin-bottom: 20px;
         }
         
         .header h1 {
             margin: 0;
-            font-size: 24px;
-            font-weight: 700;
+            font-size: 26px;
+            font-weight: bold;
         }
         
         .header p {
-            margin: 5px 0 0 0;
-            opacity: 0.9;
-            font-size: 11px;
+            margin: 8px 0 0 0;
+            font-size: 12px;
         }
         
-        /* Filter Info */
-        .filter-info {
-            background: #f8f9fc;
+        /* Filter Bar */
+        .filter-bar {
+            background-color: #f8f9fc;
             border: 1px solid #e3e6f0;
-            border-radius: 8px;
             padding: 12px 15px;
             margin-bottom: 20px;
         }
         
-        .filter-info table {
-            width: 100%;
-        }
-        
-        .filter-info td {
-            padding: 3px 10px;
-            font-size: 9px;
-        }
-        
-        .filter-info .label {
-            font-weight: 600;
-            color: #666;
-            width: 80px;
-        }
-        
-        /* Metrics Grid */
-        .metrics-grid {
-            width: 100%;
-            border-collapse: separate;
-            border-spacing: 8px;
-            margin-bottom: 20px;
-        }
-        
-        .metric-box {
-            padding: 15px;
-            border-radius: 10px;
-            text-align: center;
-            width: 25%;
-        }
-        
-        .metric-box.red { background: linear-gradient(145deg, #fff5f5 0%, #ffe8e8 100%); border: 1px solid rgba(220, 53, 69, 0.2); }
-        .metric-box.green { background: linear-gradient(145deg, #f0fff4 0%, #dcffe4 100%); border: 1px solid rgba(40, 167, 69, 0.2); }
-        .metric-box.blue { background: linear-gradient(145deg, #f0f7ff 0%, #e0efff 100%); border: 1px solid rgba(0, 123, 255, 0.2); }
-        .metric-box.purple { background: linear-gradient(145deg, #f8f5ff 0%, #efe8ff 100%); border: 1px solid rgba(111, 66, 193, 0.2); }
-        .metric-box.teal { background: linear-gradient(145deg, #f0fdff 0%, #d9f7fa 100%); border: 1px solid rgba(23, 162, 184, 0.2); }
-        .metric-box.orange { background: linear-gradient(145deg, #fff9f0 0%, #fff0db 100%); border: 1px solid rgba(253, 126, 20, 0.2); }
-        .metric-box.pink { background: linear-gradient(145deg, #fff5f9 0%, #ffe8f1 100%); border: 1px solid rgba(232, 62, 140, 0.2); }
-        .metric-box.dark { background: linear-gradient(145deg, #f8f9fa 0%, #eef0f2 100%); border: 1px solid rgba(52, 58, 64, 0.2); }
-        
-        .metric-value {
-            font-size: 22px;
-            font-weight: 700;
-            margin-bottom: 3px;
-        }
-        
-        .metric-box.red .metric-value { color: #dc3545; }
-        .metric-box.green .metric-value { color: #28a745; }
-        .metric-box.blue .metric-value { color: #007bff; }
-        .metric-box.purple .metric-value { color: #6f42c1; }
-        .metric-box.teal .metric-value { color: #17a2b8; }
-        .metric-box.orange .metric-value { color: #fd7e14; }
-        .metric-box.pink .metric-value { color: #e83e8c; }
-        .metric-box.dark .metric-value { color: #343a40; }
-        
-        .metric-label {
-            font-size: 8px;
-            text-transform: uppercase;
-            letter-spacing: 0.5px;
-            color: #666;
-            font-weight: 600;
-        }
-        
-        .metric-trend {
-            font-size: 8px;
-            margin-top: 5px;
-            padding: 2px 8px;
-            border-radius: 10px;
-            display: inline-block;
-        }
-        
-        .metric-trend.up { background: rgba(40, 167, 69, 0.15); color: #1e7e34; }
-        .metric-trend.down { background: rgba(220, 53, 69, 0.15); color: #c82333; }
-        
-        /* Section Title */
-        .section-title {
-            color: white;
-            padding: 10px 15px;
-            font-size: 11px;
-            font-weight: 600;
-            margin: 20px 0 10px 0;
-            border-radius: 6px;
-        }
-        
-        .section-title.green { background: linear-gradient(135deg, #28a745 0%, #20c997 100%); }
-        .section-title.red { background: linear-gradient(135deg, #dc3545 0%, #c82333 100%); }
-        .section-title.teal { background: linear-gradient(135deg, #17a2b8 0%, #138496 100%); }
-        .section-title.purple { background: linear-gradient(135deg, #6f42c1 0%, #59359a 100%); }
-        .section-title.orange { background: linear-gradient(135deg, #fd7e14 0%, #e06b0a 100%); }
-        .section-title.cyan { background: linear-gradient(135deg, #20c997 0%, #17a2b8 100%); }
-        
-        /* Tables */
-        .data-table {
-            width: 100%;
-            border-collapse: collapse;
-            margin-bottom: 15px;
-            font-size: 9px;
-        }
-        
-        .data-table th {
-            background: #f8f9fc;
-            padding: 10px 12px;
-            text-align: left;
-            font-weight: 600;
-            font-size: 8px;
-            text-transform: uppercase;
-            letter-spacing: 0.5px;
-            color: #666;
-            border-bottom: 2px solid #e3e6f0;
-        }
-        
-        .data-table td {
-            padding: 10px 12px;
-            border-bottom: 1px solid #f0f0f0;
-        }
-        
-        .data-table tr:nth-child(even) {
-            background: #fafbfc;
-        }
-        
-        /* Badges */
-        .badge {
-            display: inline-block;
-            padding: 3px 10px;
-            border-radius: 12px;
-            font-size: 8px;
-            font-weight: 600;
-        }
-        
-        .badge-success { background: linear-gradient(135deg, #d4edda 0%, #c3e6cb 100%); color: #155724; }
-        .badge-danger { background: linear-gradient(135deg, #f8d7da 0%, #f5c6cb 100%); color: #721c24; }
-        .badge-info { background: linear-gradient(135deg, #d1ecf1 0%, #bee5eb 100%); color: #0c5460; }
-        .badge-purple { background: linear-gradient(135deg, #e2d9f3 0%, #d4c4ed 100%); color: #4a2c82; }
-        .badge-orange { background: linear-gradient(135deg, #ffecd2 0%, #fcb69f 100%); color: #8a4500; }
-        .badge-secondary { background: #e9ecef; color: #495057; }
-        
-        /* Rank Badges */
-        .rank {
-            display: inline-block;
-            width: 24px;
-            height: 24px;
-            border-radius: 50%;
-            text-align: center;
-            line-height: 24px;
-            font-weight: 700;
+        .filter-bar span {
+            margin-right: 25px;
             font-size: 10px;
         }
         
-        .rank-gold { background: linear-gradient(135deg, #ffd700 0%, #ffb800 100%); color: #664d00; }
-        .rank-silver { background: linear-gradient(135deg, #e8e8e8 0%, #c0c0c0 100%); color: #555; }
-        .rank-bronze { background: linear-gradient(135deg, #cd7f32 0%, #b8722c 100%); color: #fff; }
-        .rank-default { background: #f1f3f4; color: #5f6368; }
+        .filter-bar strong {
+            color: #333;
+        }
         
-        /* Two Column Layout */
-        .two-col {
+        /* Metrics Table */
+        .metrics-table {
             width: 100%;
+            border-collapse: collapse;
+            margin-bottom: 20px;
         }
         
-        .two-col td {
-            width: 50%;
-            vertical-align: top;
-            padding: 0 5px;
+        .metrics-table td {
+            width: 25%;
+            padding: 15px;
+            text-align: center;
+            border: 1px solid #e0e0e0;
         }
+        
+        .metric-red { background-color: #fff5f5; }
+        .metric-green { background-color: #f0fff4; }
+        .metric-blue { background-color: #f0f7ff; }
+        .metric-purple { background-color: #f8f5ff; }
+        .metric-teal { background-color: #f0fdff; }
+        .metric-orange { background-color: #fff9f0; }
+        .metric-pink { background-color: #fff5f9; }
+        .metric-gray { background-color: #f8f9fa; }
+        
+        .metric-value {
+            font-size: 28px;
+            font-weight: bold;
+            margin-bottom: 5px;
+        }
+        
+        .metric-red .metric-value { color: #dc3545; }
+        .metric-green .metric-value { color: #28a745; }
+        .metric-blue .metric-value { color: #007bff; }
+        .metric-purple .metric-value { color: #6f42c1; }
+        .metric-teal .metric-value { color: #17a2b8; }
+        .metric-orange .metric-value { color: #fd7e14; }
+        .metric-pink .metric-value { color: #e83e8c; }
+        .metric-gray .metric-value { color: #495057; }
+        
+        .metric-label {
+            font-size: 9px;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            color: #666;
+            font-weight: bold;
+        }
+        
+        .metric-trend {
+            font-size: 9px;
+            margin-top: 5px;
+            padding: 3px 8px;
+            display: inline-block;
+        }
+        
+        .trend-up { background-color: #d4edda; color: #155724; }
+        .trend-down { background-color: #f8d7da; color: #721c24; }
         
         /* Summary Box */
         .summary-box {
-            background: linear-gradient(135deg, #f8f9fc 0%, #fff 100%);
-            border: 1px solid #e3e6f0;
+            background-color: #f8f9fc;
             border-left: 4px solid #667eea;
-            border-radius: 8px;
             padding: 15px;
             margin-bottom: 20px;
         }
@@ -224,100 +120,173 @@
         .summary-box h3 {
             margin: 0 0 10px 0;
             color: #667eea;
-            font-size: 12px;
+            font-size: 14px;
         }
         
         .summary-box p {
             margin: 0;
+            font-size: 10px;
             line-height: 1.6;
+        }
+        
+        /* Section Headers */
+        .section-header {
+            color: white;
+            padding: 10px 15px;
+            font-size: 12px;
+            font-weight: bold;
+            margin: 20px 0 0 0;
+        }
+        
+        .section-green { background-color: #28a745; }
+        .section-red { background-color: #dc3545; }
+        .section-teal { background-color: #17a2b8; }
+        .section-purple { background-color: #6f42c1; }
+        .section-orange { background-color: #fd7e14; }
+        .section-cyan { background-color: #20c997; }
+        
+        /* Data Tables */
+        .data-table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-bottom: 15px;
+        }
+        
+        .data-table th {
+            background-color: #f8f9fc;
+            padding: 10px;
+            text-align: left;
+            font-size: 9px;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            color: #666;
+            border-bottom: 2px solid #e3e6f0;
+        }
+        
+        .data-table td {
+            padding: 10px;
+            border-bottom: 1px solid #f0f0f0;
+            font-size: 10px;
+        }
+        
+        .data-table tr:nth-child(even) {
+            background-color: #fafbfc;
+        }
+        
+        /* Badges */
+        .badge {
+            padding: 4px 10px;
+            font-size: 9px;
+            font-weight: bold;
+            display: inline-block;
+        }
+        
+        .badge-success { background-color: #d4edda; color: #155724; }
+        .badge-danger { background-color: #f8d7da; color: #721c24; }
+        .badge-info { background-color: #d1ecf1; color: #0c5460; }
+        .badge-purple { background-color: #e2d9f3; color: #4a2c82; }
+        .badge-orange { background-color: #ffecd2; color: #8a4500; }
+        .badge-secondary { background-color: #e9ecef; color: #495057; }
+        
+        /* Rank Numbers */
+        .rank {
+            display: inline-block;
+            width: 24px;
+            height: 24px;
+            text-align: center;
+            line-height: 24px;
+            font-weight: bold;
+            font-size: 11px;
+        }
+        
+        .rank-gold { background-color: #ffd700; color: #664d00; }
+        .rank-silver { background-color: #c0c0c0; color: #333; }
+        .rank-bronze { background-color: #cd7f32; color: #fff; }
+        .rank-default { background-color: #e9ecef; color: #495057; }
+        
+        /* Two Column Layout */
+        .two-col-table {
+            width: 100%;
+            border-collapse: collapse;
+        }
+        
+        .two-col-table > tbody > tr > td {
+            width: 50%;
+            vertical-align: top;
+            padding: 0 8px;
         }
         
         /* Footer */
         .footer {
             text-align: center;
-            font-size: 8px;
+            font-size: 9px;
             color: #999;
             margin-top: 30px;
             padding-top: 15px;
             border-top: 1px solid #e3e6f0;
-        }
-        
-        .page-break {
-            page-break-before: always;
         }
     </style>
 </head>
 <body>
     <!-- Header -->
     <div class="header">
-        <h1>📊 Attendance Analytics Report</h1>
+        <h1>Attendance Analytics Report</h1>
         <p>Generated on {{ generated_date }}</p>
     </div>
     
-    <!-- Filter Information -->
-    <div class="filter-info">
-        <table>
-            <tr>
-                <td class="label">Date Range:</td>
-                <td><strong>{{ start_date }}</strong> to <strong>{{ end_date }}</strong></td>
-                {% if selected_branch %}
-                <td class="label">Branch:</td>
-                <td><strong>{{ selected_branch }}</strong></td>
-                {% endif %}
-                {% if selected_department %}
-                <td class="label">Department:</td>
-                <td><strong>{{ selected_department }}</strong></td>
-                {% endif %}
-            </tr>
-        </table>
+    <!-- Filter Bar -->
+    <div class="filter-bar">
+        <span><strong>Period:</strong> {{ start_date }} to {{ end_date }}</span>
+        {% if selected_branch %}<span><strong>Branch:</strong> {{ selected_branch }}</span>{% endif %}
+        {% if selected_department %}<span><strong>Department:</strong> {{ selected_department }}</span>{% endif %}
     </div>
     
-    <!-- Key Metrics Row 1 -->
-    <table class="metrics-grid">
+    <!-- Metrics Row 1 -->
+    <table class="metrics-table">
         <tr>
-            <td class="metric-box red">
+            <td class="metric-red">
                 <div class="metric-value">{{ attendance_rate }}%</div>
                 <div class="metric-label">Attendance Rate</div>
-                <div class="metric-trend {% if attendance_trend >= 0 %}up{% else %}down{% endif %}">
-                    {% if attendance_trend >= 0 %}▲{% else %}▼{% endif %} {{ attendance_trend|abs }}%
+                <div class="metric-trend {% if attendance_trend >= 0 %}trend-up{% else %}trend-down{% endif %}">
+                    {% if attendance_trend >= 0 %}▲{% else %}▼{% endif %} {{ attendance_trend|abs }}% vs prev
                 </div>
             </td>
-            <td class="metric-box green">
+            <td class="metric-green">
                 <div class="metric-value">{{ punctuality_rate }}%</div>
                 <div class="metric-label">Punctuality Rate</div>
-                <div class="metric-trend {% if punctuality_trend >= 0 %}up{% else %}down{% endif %}">
-                    {% if punctuality_trend >= 0 %}▲{% else %}▼{% endif %} {{ punctuality_trend|abs }}%
+                <div class="metric-trend {% if punctuality_trend >= 0 %}trend-up{% else %}trend-down{% endif %}">
+                    {% if punctuality_trend >= 0 %}▲{% else %}▼{% endif %} {{ punctuality_trend|abs }}% vs prev
                 </div>
             </td>
-            <td class="metric-box blue">
+            <td class="metric-blue">
                 <div class="metric-value">{{ total_staff }}</div>
                 <div class="metric-label">Active Staff</div>
-                <div class="metric-trend up">{{ branch_count }} branches</div>
+                <div class="metric-trend trend-up">{{ branch_count }} branches</div>
             </td>
-            <td class="metric-box purple">
+            <td class="metric-purple">
                 <div class="metric-value">{{ total_records }}</div>
                 <div class="metric-label">Total Records</div>
-                <div class="metric-trend up">In period</div>
+                <div class="metric-trend trend-up">In period</div>
             </td>
         </tr>
     </table>
     
-    <!-- Key Metrics Row 2 -->
-    <table class="metrics-grid">
+    <!-- Metrics Row 2 -->
+    <table class="metrics-table">
         <tr>
-            <td class="metric-box teal">
+            <td class="metric-teal">
                 <div class="metric-value">{{ on_time_count }}</div>
                 <div class="metric-label">On-Time Arrivals</div>
             </td>
-            <td class="metric-box orange">
+            <td class="metric-orange">
                 <div class="metric-value">{{ late_count }}</div>
                 <div class="metric-label">Late Arrivals</div>
             </td>
-            <td class="metric-box pink">
+            <td class="metric-pink">
                 <div class="metric-value">{{ avg_late_minutes }} min</div>
                 <div class="metric-label">Avg Late Time</div>
             </td>
-            <td class="metric-box dark">
+            <td class="metric-gray">
                 <div class="metric-value">{{ overtime_hours }}h {{ overtime_mins }}m</div>
                 <div class="metric-label">Total Overtime</div>
             </td>
@@ -326,7 +295,7 @@
     
     <!-- Executive Summary -->
     <div class="summary-box">
-        <h3>📋 Executive Summary</h3>
+        <h3>Executive Summary</h3>
         <p>
             During the selected period, <strong>{{ total_staff }} staff members</strong> recorded 
             <strong>{{ total_records }} attendance entries</strong>. 
@@ -346,10 +315,10 @@
     </div>
     
     <!-- Rankings Row 1 -->
-    <table class="two-col">
+    <table class="two-col-table">
         <tr>
             <td>
-                <div class="section-title green">🏆 Top Performers</div>
+                <div class="section-header section-green">Top Performers</div>
                 <table class="data-table">
                     <thead>
                         <tr>
@@ -379,7 +348,7 @@
                 </table>
             </td>
             <td>
-                <div class="section-title red">⚠️ Needs Attention</div>
+                <div class="section-header section-red">Needs Attention</div>
                 <table class="data-table">
                     <thead>
                         <tr>
@@ -395,7 +364,7 @@
                             <td><span class="rank rank-default">{{ loop.index }}</span></td>
                             <td><strong>{{ staff.name }}</strong></td>
                             <td><span class="badge badge-secondary">{{ staff.branch }}</span></td>
-                            <td style="text-align: right;"><span class="badge badge-danger">{{ staff.late_count }} times</span></td>
+                            <td style="text-align: right;"><span class="badge badge-danger">{{ staff.late_count }}x</span></td>
                         </tr>
                         {% else %}
                         <tr><td colspan="4" style="text-align: center; color: #999;">No data available</td></tr>
@@ -407,10 +376,10 @@
     </table>
     
     <!-- Rankings Row 2 -->
-    <table class="two-col">
+    <table class="two-col-table">
         <tr>
             <td>
-                <div class="section-title teal">🌅 Early Arrivals Champions</div>
+                <div class="section-header section-teal">Early Arrivals Champions</div>
                 <table class="data-table">
                     <thead>
                         <tr>
@@ -440,7 +409,7 @@
                 </table>
             </td>
             <td>
-                <div class="section-title purple">⭐ Perfect Attendance</div>
+                <div class="section-header section-purple">Perfect Attendance</div>
                 <table class="data-table">
                     <thead>
                         <tr>
@@ -468,17 +437,17 @@
     </table>
     
     <!-- Rankings Row 3 -->
-    <table class="two-col">
+    <table class="two-col-table">
         <tr>
             <td>
-                <div class="section-title orange">📈 Most Improved</div>
+                <div class="section-header section-orange">Most Improved</div>
                 <table class="data-table">
                     <thead>
                         <tr>
                             <th style="width: 40px;">Rank</th>
                             <th>Staff Member</th>
                             <th>Branch</th>
-                            <th style="text-align: right;">Improvement</th>
+                            <th style="text-align: right;">Improved</th>
                         </tr>
                     </thead>
                     <tbody>
@@ -501,11 +470,11 @@
                 </table>
             </td>
             <td>
-                <div class="section-title cyan">🔥 On-Time Streaks</div>
+                <div class="section-header section-cyan">On-Time Streaks</div>
                 <table class="data-table">
                     <thead>
                         <tr>
-                            <th style="width: 40px;">🔥</th>
+                            <th style="width: 40px;">Rank</th>
                             <th>Staff Member</th>
                             <th>Branch</th>
                             <th style="text-align: right;">Streak</th>
