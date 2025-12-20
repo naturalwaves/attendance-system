@@ -1,61 +1,117 @@
-{% extends 'base.html' %}
+{% extends "base.html" %}
 
-{% block title %}Add Organization - Attendance System{% endblock %}
+{% block title %}Add Organization{% endblock %}
 
 {% block content %}
-<div class="d-flex justify-content-between align-items-center mb-4">
-    <h2><i class="fas fa-plus me-2"></i>Add Organization</h2>
-    <a href="{{ url_for('settings') }}" class="btn btn-outline-secondary">
-        <i class="fas fa-arrow-left me-2"></i>Back to Settings
-    </a>
-</div>
-
-<div class="row">
-    <div class="col-md-6">
-        <div class="card">
-            <div class="card-header">
-                <i class="fas fa-sitemap me-2"></i>Organization Details
-            </div>
-            <div class="card-body">
-                <form method="POST">
-                    <div class="mb-3">
-                        <label class="form-label">Organization Name</label>
-                        <input type="text" name="name" class="form-control" placeholder="e.g., Corona Schools, GTBank" required>
-                        <small class="text-muted">This is the parent company or group name</small>
-                    </div>
-                    
-                    <div class="mb-3">
-                        <label class="form-label">Logo URL</label>
-                        <input type="url" name="logo_url" class="form-control" placeholder="https://example.com/logo.png">
-                        <small class="text-muted">Paste a direct link to the organization's logo (recommended size: 100x100px)</small>
-                    </div>
-                    
-                    <button type="submit" class="btn btn-primary">
-                        <i class="fas fa-save me-2"></i>Save Organization
-                    </button>
-                </form>
-            </div>
+<div class="container-fluid py-4">
+    <div class="row mb-4">
+        <div class="col-12">
+            <h2><i class="fas fa-building"></i> Add Organization</h2>
         </div>
     </div>
     
-    <div class="col-md-6">
-        <div class="card">
-            <div class="card-header">
-                <i class="fas fa-info-circle me-2"></i>What is an Organization?
+    <div class="row">
+        <div class="col-md-6">
+            <div class="card">
+                <div class="card-body">
+                    <form method="POST">
+                        <div class="mb-3">
+                            <label class="form-label">Organization Name *</label>
+                            <input type="text" name="name" class="form-control" required placeholder="e.g., ABC Corporation">
+                        </div>
+                        
+                        <div class="mb-3">
+                            <label class="form-label">Logo URL</label>
+                            <input type="url" name="logo_url" class="form-control" placeholder="https://example.com/logo.png">
+                            <small class="text-muted">Optional - Enter a URL to your organization's logo</small>
+                        </div>
+                        
+                        <div class="mb-4">
+                            <div class="form-check form-switch">
+                                <input class="form-check-input" type="checkbox" name="is_school" id="is_school" checked>
+                                <label class="form-check-label" for="is_school">
+                                    <strong>Is this a school/educational institution?</strong>
+                                </label>
+                            </div>
+                            <small class="text-muted">
+                                This determines default department options:<br>
+                                • <strong>School:</strong> Academic, Non-Academic, Administration, Management, Support Staff<br>
+                                • <strong>Non-School:</strong> Operations, Finance, HR, IT, Marketing, Administration, Management
+                            </small>
+                        </div>
+                        
+                        <div class="d-flex gap-2">
+                            <button type="submit" class="btn btn-primary">
+                                <i class="fas fa-save"></i> Save Organization
+                            </button>
+                            <a href="{{ url_for('settings') }}" class="btn btn-secondary">
+                                <i class="fas fa-times"></i> Cancel
+                            </a>
+                        </div>
+                    </form>
+                </div>
             </div>
-            <div class="card-body">
-                <p>An <strong>Organization</strong> is a parent company or group that has multiple branches.</p>
-                
-                <h6 class="mt-3">Examples:</h6>
-                <ul>
-                    <li><strong>Corona Schools</strong> → Corona Lekki, Corona Gbagada, Corona VI</li>
-                    <li><strong>GTBank</strong> → GTBank Lagos, GTBank Abuja, GTBank Port Harcourt</li>
-                    <li><strong>Greensprings</strong> → Greensprings Lekki, Greensprings Ikoyi</li>
-                </ul>
-                
-                <div class="alert alert-info mt-4 mb-0">
-                    <i class="fas fa-lightbulb me-2"></i>
-                    <strong>Tip:</strong> After creating an organization, you can assign branches to it when adding or editing branches.
+        </div>
+    </div>
+</div>
+{% endblock %}
+3. Update templates/edit_organization.html
+Copy{% extends "base.html" %}
+
+{% block title %}Edit Organization{% endblock %}
+
+{% block content %}
+<div class="container-fluid py-4">
+    <div class="row mb-4">
+        <div class="col-12">
+            <h2><i class="fas fa-building"></i> Edit Organization</h2>
+        </div>
+    </div>
+    
+    <div class="row">
+        <div class="col-md-6">
+            <div class="card">
+                <div class="card-body">
+                    <form method="POST">
+                        <div class="mb-3">
+                            <label class="form-label">Organization Name *</label>
+                            <input type="text" name="name" class="form-control" required value="{{ organization.name }}">
+                        </div>
+                        
+                        <div class="mb-3">
+                            <label class="form-label">Logo URL</label>
+                            <input type="url" name="logo_url" class="form-control" value="{{ organization.logo_url or '' }}" placeholder="https://example.com/logo.png">
+                            <small class="text-muted">Optional - Enter a URL to your organization's logo</small>
+                        </div>
+                        
+                        <div class="mb-4">
+                            <div class="form-check form-switch">
+                                <input class="form-check-input" type="checkbox" name="is_school" id="is_school" {% if organization.is_school is not false %}checked{% endif %}>
+                                <label class="form-check-label" for="is_school">
+                                    <strong>Is this a school/educational institution?</strong>
+                                </label>
+                            </div>
+                            <small class="text-muted">This affects default department suggestions</small>
+                        </div>
+                        
+                        <hr>
+                        
+                        <div class="mb-4">
+                            <a href="{{ url_for('manage_departments', org_id=organization.id) }}" class="btn btn-info">
+                                <i class="fas fa-sitemap"></i> Manage Departments
+                            </a>
+                            <small class="text-muted d-block mt-2">Add, remove, or customize departments for this organization</small>
+                        </div>
+                        
+                        <div class="d-flex gap-2">
+                            <button type="submit" class="btn btn-primary">
+                                <i class="fas fa-save"></i> Update Organization
+                            </button>
+                            <a href="{{ url_for('settings') }}" class="btn btn-secondary">
+                                <i class="fas fa-times"></i> Cancel
+                            </a>
+                        </div>
+                    </form>
                 </div>
             </div>
         </div>
