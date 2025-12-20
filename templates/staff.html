@@ -24,11 +24,11 @@
             <div class="col-md-6">
                 <div class="input-group">
                     <span class="input-group-text bg-white"><i class="fas fa-search text-muted"></i></span>
-                    <input type="text" id="staffSearch" class="form-control border-start-0" placeholder="Search by name, ID, department, or branch...">
+                    <input type="text" id="staffSearch" class="form-control border-start-0" placeholder="Search by name, ID, department, or school...">
                 </div>
             </div>
             <div class="col-md-6 text-md-end mt-2 mt-md-0">
-                <span class="text-muted" id="searchResults">Showing {{ staff|length }} staff members</span>
+                <span class="text-muted" id="searchResults">Showing {{ staff_with_status|length }} staff members</span>
             </div>
         </div>
     </div>
@@ -42,30 +42,38 @@
                     <tr>
                         <th>Staff ID</th>
                         <th>Name</th>
-                        <th>Branch</th>
+                        <th>School</th>
                         <th>Department</th>
-                        <th>Position</th>
+                        <th>Status</th>
+                        <th>Active</th>
                         {% if current_user.role in ['super_admin', 'school_admin'] %}
                         <th>Actions</th>
                         {% endif %}
                     </tr>
                 </thead>
                 <tbody>
-                    {% for member in staff %}
+                    {% for item in staff_with_status %}
                     <tr class="staff-row">
-                        <td class="staff-id">{{ member.staff_id }}</td>
-                        <td class="staff-name">{{ member.name }}</td>
-                        <td class="staff-school">{{ member.school.name if member.school else '-' }}</td>
-                        <td class="staff-dept">{{ member.department or '-' }}</td>
-                        <td>{{ member.position or '-' }}</td>
+                        <td class="staff-id">{{ item.staff.staff_id }}</td>
+                        <td class="staff-name">{{ item.staff.name }}</td>
+                        <td class="staff-school">{{ item.staff.school.short_name or item.staff.school.name }}</td>
+                        <td class="staff-dept">{{ item.staff.department }}</td>
+                        <td><span class="badge bg-{{ item.status_color }}">{{ item.status }}</span></td>
+                        <td>
+                            <span class="badge bg-{{ 'success' if item.staff.is_active else 'secondary' }}">
+                                {{ 'Yes' if item.staff.is_active else 'No' }}
+                            </span>
+                        </td>
                         {% if current_user.role in ['super_admin', 'school_admin'] %}
                         <td>
-                            <a href="{{ url_for('edit_staff', id=member.id) }}" class="btn btn-sm btn-warning" title="Edit">
-                                <i class="fas fa-edit"></i>
+                            <a href="{{ url_for('toggle_staff', id=item.staff.id) }}" class="btn btn-sm btn-outline-{{ 'warning' if item.staff.is_active else 'success' }}" title="{{ 'Deactivate' if item.staff.is_active else 'Activate' }}">
+                                <i class="fas fa-{{ 'pause' if item.staff.is_active else 'play' }}"></i>
                             </a>
-                            <a href="{{ url_for('delete_staff', id=member.id) }}" class="btn btn-sm btn-danger" onclick="return confirm('Delete this staff member?')" title="Delete">
+                            {% if current_user.role == 'super_admin' %}
+                            <a href="{{ url_for('delete_staff', id=item.staff.id) }}" class="btn btn-sm btn-outline-danger" onclick="return confirm('Delete this staff member?')" title="Delete">
                                 <i class="fas fa-trash"></i>
                             </a>
+                            {% endif %}
                         </td>
                         {% endif %}
                     </tr>
@@ -73,14 +81,6 @@
                 </tbody>
             </table>
         </div>
-        
-        {% if not staff %}
-        <div class="text-center py-4">
-            <i class="fas fa-users fa-3x text-muted mb-3"></i>
-            <p class="text-muted">No staff members found.</p>
-            <a href="{{ url_for('add_staff') }}" class="btn btn-primary">Add First Staff</a>
-        </div>
-        {% endif %}
         
         <div class="text-center py-4 d-none" id="noResults">
             <i class="fas fa-search fa-3x text-muted mb-3"></i>
@@ -94,7 +94,6 @@ document.getElementById('staffSearch').addEventListener('input', function() {
     const searchTerm = this.value.toLowerCase();
     const rows = document.querySelectorAll('.staff-row');
     let visibleCount = 0;
-    const totalCount = {{ staff|length }};
     
     rows.forEach(row => {
         const id = row.querySelector('.staff-id').textContent.toLowerCase();
@@ -112,9 +111,9 @@ document.getElementById('staffSearch').addEventListener('input', function() {
     });
     
     document.getElementById('searchResults').textContent = 
-        visibleCount === totalCount 
-            ? 'Showing ' + totalCount + ' staff members'
-            : 'Showing ' + visibleCount + ' of ' + totalCount + ' staff members';
+        visibleCount === {{ staff_with_status|length }} 
+            ? 'Showing {{ staff_with_status|length }} staff members'
+            : 'Showing ' + visibleCount + ' of {{ staff_with_status|length }} staff members';
     
     document.getElementById('noResults').classList.toggle('d-none', visibleCount > 0);
     document.getElementById('staffTable').classList.toggle('d-none', visibleCount === 0);
