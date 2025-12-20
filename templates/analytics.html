@@ -88,8 +88,8 @@
     .filter-card .form-select:focus, .filter-card .form-control:focus { box-shadow: 0 0 0 3px rgba(255,255,255,0.3); }
     .filter-card .btn-filter { background: #fff; color: #667eea; border: none; font-weight: 600; padding: 0.5rem 1rem; transition: all 0.2s ease; }
     .filter-card .btn-filter:hover { background: #f8f9fa; transform: translateY(-1px); box-shadow: 0 4px 12px rgba(0,0,0,0.15); }
-    .filter-card .btn-pdf { background: #dc3545; color: #fff; border: none; font-weight: 600; padding: 0.5rem 1rem; transition: all 0.2s ease; }
-    .filter-card .btn-pdf:hover { background: #c82333; transform: translateY(-1px); box-shadow: 0 4px 12px rgba(0,0,0,0.15); }
+    .filter-card .btn-pdf { background: #dc3545; color: #fff; border: none; font-weight: 600; padding: 0.5rem 1rem; transition: all 0.2s ease; text-decoration: none; display: inline-flex; align-items: center; justify-content: center; }
+    .filter-card .btn-pdf:hover { background: #c82333; color: #fff; transform: translateY(-1px); box-shadow: 0 4px 12px rgba(0,0,0,0.15); }
     .branch-badge { background: linear-gradient(135deg, #f1f3f4 0%, #e8eaed 100%); color: #5f6368; font-weight: 500; padding: 4px 10px; border-radius: 6px; font-size: 0.75rem; }
     .score-badge { padding: 5px 12px; border-radius: 20px; font-weight: 600; font-size: 0.8rem; }
     .score-badge.success { background: linear-gradient(135deg, #d4edda 0%, #c3e6cb 100%); color: #155724; }
@@ -165,14 +165,14 @@
                         {% endfor %}
                     </select>
                 </div>
-                <div class="col-xl-1 col-lg-2 col-md-3">
-                    <button type="submit" class="btn btn-filter w-100">
-                        <i class="fas fa-filter me-1"></i> Filter
+                <div class="col-auto">
+                    <button type="submit" class="btn btn-filter">
+                        <i class="fas fa-filter me-1"></i> Apply Filters
                     </button>
                 </div>
-                <div class="col-xl-1 col-lg-2 col-md-3">
-                    <a href="{{ url_for('analytics_pdf', period=request.args.get('period', 'today'), school_id=request.args.get('school_id', ''), organization_id=request.args.get('organization_id', ''), department=request.args.get('department', ''), start_date=request.args.get('start_date', ''), end_date=request.args.get('end_date', '')) }}" class="btn btn-pdf w-100">
-                        <i class="fas fa-file-pdf me-1"></i> PDF
+                <div class="col-auto">
+                    <a href="{{ url_for('analytics_pdf', period=request.args.get('period', 'today'), school_id=request.args.get('school_id', ''), organization_id=request.args.get('organization_id', ''), department=request.args.get('department', ''), start_date=request.args.get('start_date', ''), end_date=request.args.get('end_date', '')) }}" class="btn btn-pdf">
+                        <i class="fas fa-file-pdf me-1"></i> Download PDF
                     </a>
                 </div>
             </form>
