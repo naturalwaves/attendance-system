@@ -64,7 +64,15 @@
                             <small class="text-muted">Organizations</small>
                         </div>
                         <div class="col-4">
-                            <h3 class="text-success">{{ organizations|sum(attribute='branches'|length) if organizations else 0 }}</h3>
+                            {% set branch_count = [] %}
+                            {% for org in organizations %}
+                                {% if org.branches %}
+                                    {% for _ in org.branches %}
+                                        {% if branch_count.append(1) %}{% endif %}
+                                    {% endfor %}
+                                {% endif %}
+                            {% endfor %}
+                            <h3 class="text-success">{{ branch_count|length }}</h3>
                             <small class="text-muted">Branches</small>
                         </div>
                         <div class="col-4">
