@@ -126,7 +126,6 @@ def role_required(*roles):
         return decorated_function
     return decorator
 
-# Routes
 @app.route('/')
 def index():
     if current_user.is_authenticated:
@@ -169,9 +168,9 @@ def dashboard():
     elif current_user.role == 'school_admin' and current_user.organization_id:
         org_schools = School.query.filter_by(organization_id=current_user.organization_id, is_active=True).all()
         school_ids = [s.id for s in org_schools]
-        total_staff = Staff.query.filter(Staff.school_id.in_(school_ids), Staff.is_active==True).count()
+        total_staff = Staff.query.filter(Staff.school_id.in_(school_ids), Staff.is_active==True).count() if school_ids else 0
         total_schools = len(org_schools)
-        today_attendance = Attendance.query.filter(Attendance.school_id.in_(school_ids), Attendance.date==today).count()
+        today_attendance = Attendance.query.filter(Attendance.school_id.in_(school_ids), Attendance.date==today).count() if school_ids else 0
         organizations = Organization.query.filter_by(id=current_user.organization_id).all()
     else:
         total_staff = 0
@@ -189,23 +188,22 @@ def dashboard():
 @login_required
 @role_required('super_admin')
 def settings():
-    settings = SystemSettings.query.first()
-    if not settings:
-        settings = SystemSettings(company_name='Attendance System')
-        db.session.add(settings)
+    settings_obj = SystemSettings.query.first()
+    if not settings_obj:
+        settings_obj = SystemSettings(company_name='Attendance System')
+        db.session.add(settings_obj)
         db.session.commit()
     
     if request.method == 'POST':
-        settings.company_name = request.form.get('company_name', 'Attendance System')
-        settings.company_logo_url = request.form.get('company_logo_url', '')
+        settings_obj.company_name = request.form.get('company_name', 'Attendance System')
+        settings_obj.company_logo_url = request.form.get('company_logo_url', '')
         db.session.commit()
         flash('Settings updated successfully!', 'success')
         return redirect(url_for('settings'))
     
     organizations = Organization.query.filter_by(is_active=True).all()
-    return render_template('settings.html', settings=settings, organizations=organizations)
+    return render_template('settings.html', settings=settings_obj, organizations=organizations)
 
-# Organization Management
 @app.route('/organizations')
 @login_required
 @role_required('super_admin')
@@ -265,7 +263,6 @@ def delete_organization(id):
     flash('Organization deleted successfully!', 'success')
     return redirect(url_for('organizations'))
 
-# Department Management
 @app.route('/organizations/<int:org_id>/departments')
 @login_required
 def manage_departments(org_id):
@@ -356,7 +353,6 @@ def seed_default_departments(org_id):
     flash(f'Added {added} default departments!', 'success')
     return redirect(url_for('manage_departments', org_id=org_id))
 
-# School (Branch) Management
 @app.route('/schools')
 @login_required
 def schools():
@@ -432,7 +428,6 @@ def delete_school(id):
     flash('Branch deleted successfully!', 'success')
     return redirect(url_for('schools'))
 
-# Staff Management
 @app.route('/staff')
 @login_required
 def staff():
@@ -441,7 +436,7 @@ def staff():
     elif current_user.role in ['school_admin', 'hr_viewer'] and current_user.organization_id:
         org_schools = School.query.filter_by(organization_id=current_user.organization_id, is_active=True).all()
         school_ids = [s.id for s in org_schools]
-        staff_list = Staff.query.filter(Staff.school_id.in_(school_ids), Staff.is_active==True).all()
+        staff_list = Staff.query.filter(Staff.school_id.in_(school_ids), Staff.is_active==True).all() if school_ids else []
     elif current_user.school_id:
         staff_list = Staff.query.filter_by(school_id=current_user.school_id, is_active=True).all()
     else:
@@ -583,10 +578,10 @@ def bulk_upload_staff():
                     added += 1
                 
                 db.session.commit()
-                flash(f'Uploaded {added} staff members. Skipped {skipped}.', 'success')
+                flash(f'Uploaded {added} staff. Skipped {skipped}.', 'success')
                 return redirect(url_for('staff'))
             except Exception as e:
-                flash(f'Error processing file: {str(e)}', 'danger')
+                flash(f'Error: {str(e)}', 'danger')
                 return redirect(url_for('bulk_upload_staff'))
         else:
             flash('Please upload a CSV file', 'danger')
@@ -599,7 +594,6 @@ def bulk_upload_staff():
     
     return render_template('bulk_upload.html', schools=schools_list)
 
-# User Management
 @app.route('/users')
 @login_required
 @role_required('super_admin')
@@ -673,7 +667,6 @@ def delete_user(id):
     flash('User deleted successfully!', 'success')
     return redirect(url_for('users'))
 
-# Reports
 @app.route('/reports/attendance')
 @login_required
 def attendance_report():
@@ -681,17 +674,14 @@ def attendance_report():
     end_date = request.args.get('end_date', date.today().isoformat())
     school_id = request.args.get('school_id', '')
     
-    query = Attendance.query.filter(
-        Attendance.date >= start_date,
-        Attendance.date <= end_date
-    )
+    query = Attendance.query.filter(Attendance.date >= start_date, Attendance.date <= end_date)
     
     if current_user.role == 'super_admin':
         schools_list = School.query.filter_by(is_active=True).all()
     elif current_user.role in ['school_admin', 'hr_viewer'] and current_user.organization_id:
         org_schools = School.query.filter_by(organization_id=current_user.organization_id, is_active=True).all()
         school_ids = [s.id for s in org_schools]
-        query = query.filter(Attendance.school_id.in_(school_ids))
+        query = query.filter(Attendance.school_id.in_(school_ids)) if school_ids else query.filter(False)
         schools_list = org_schools
     elif current_user.school_id:
         query = query.filter(Attendance.school_id == current_user.school_id)
@@ -731,18 +721,14 @@ def late_report():
     start_date = request.args.get('start_date', date.today().replace(day=1).isoformat())
     end_date = request.args.get('end_date', date.today().isoformat())
     
-    query = Attendance.query.filter(
-        Attendance.date >= start_date,
-        Attendance.date <= end_date,
-        Attendance.status == 'late'
-    )
+    query = Attendance.query.filter(Attendance.date >= start_date, Attendance.date <= end_date, Attendance.status == 'late')
     
     if current_user.role == 'super_admin':
         schools_list = School.query.filter_by(is_active=True).all()
     elif current_user.role in ['school_admin', 'hr_viewer'] and current_user.organization_id:
         org_schools = School.query.filter_by(organization_id=current_user.organization_id, is_active=True).all()
         school_ids = [s.id for s in org_schools]
-        query = query.filter(Attendance.school_id.in_(school_ids))
+        query = query.filter(Attendance.school_id.in_(school_ids)) if school_ids else query.filter(False)
         schools_list = org_schools
     else:
         schools_list = []
@@ -752,15 +738,14 @@ def late_report():
     if request.args.get('download') == 'csv':
         output = io.StringIO()
         writer = csv.writer(output)
-        writer.writerow(['Date', 'Staff ID', 'Name', 'Branch', 'Check In', 'Status'])
+        writer.writerow(['Date', 'Staff ID', 'Name', 'Branch', 'Check In'])
         for record in records:
             writer.writerow([
                 record.date.isoformat(),
                 record.staff.staff_id,
                 record.staff.name,
                 record.school.name,
-                record.check_in.strftime('%H:%M') if record.check_in else '-',
-                record.status
+                record.check_in.strftime('%H:%M') if record.check_in else '-'
             ])
         output.seek(0)
         return Response(output, mimetype='text/csv',
@@ -775,18 +760,14 @@ def absent_report():
     start_date = request.args.get('start_date', date.today().replace(day=1).isoformat())
     end_date = request.args.get('end_date', date.today().isoformat())
     
-    query = Attendance.query.filter(
-        Attendance.date >= start_date,
-        Attendance.date <= end_date,
-        Attendance.status == 'absent'
-    )
+    query = Attendance.query.filter(Attendance.date >= start_date, Attendance.date <= end_date, Attendance.status == 'absent')
     
     if current_user.role == 'super_admin':
         schools_list = School.query.filter_by(is_active=True).all()
     elif current_user.role in ['school_admin', 'hr_viewer'] and current_user.organization_id:
         org_schools = School.query.filter_by(organization_id=current_user.organization_id, is_active=True).all()
         school_ids = [s.id for s in org_schools]
-        query = query.filter(Attendance.school_id.in_(school_ids))
+        query = query.filter(Attendance.school_id.in_(school_ids)) if school_ids else query.filter(False)
         schools_list = org_schools
     else:
         schools_list = []
@@ -796,14 +777,13 @@ def absent_report():
     if request.args.get('download') == 'csv':
         output = io.StringIO()
         writer = csv.writer(output)
-        writer.writerow(['Date', 'Staff ID', 'Name', 'Branch', 'Status'])
+        writer.writerow(['Date', 'Staff ID', 'Name', 'Branch'])
         for record in records:
             writer.writerow([
                 record.date.isoformat(),
                 record.staff.staff_id,
                 record.staff.name,
-                record.school.name,
-                record.status
+                record.school.name
             ])
         output.seek(0)
         return Response(output, mimetype='text/csv',
@@ -818,18 +798,14 @@ def overtime_report():
     start_date = request.args.get('start_date', date.today().replace(day=1).isoformat())
     end_date = request.args.get('end_date', date.today().isoformat())
     
-    query = Attendance.query.filter(
-        Attendance.date >= start_date,
-        Attendance.date <= end_date,
-        Attendance.check_out != None
-    )
+    query = Attendance.query.filter(Attendance.date >= start_date, Attendance.date <= end_date, Attendance.check_out != None)
     
     if current_user.role == 'super_admin':
         schools_list = School.query.filter_by(is_active=True).all()
     elif current_user.role in ['school_admin', 'hr_viewer'] and current_user.organization_id:
         org_schools = School.query.filter_by(organization_id=current_user.organization_id, is_active=True).all()
         school_ids = [s.id for s in org_schools]
-        query = query.filter(Attendance.school_id.in_(school_ids))
+        query = query.filter(Attendance.school_id.in_(school_ids)) if school_ids else query.filter(False)
         schools_list = org_schools
     else:
         schools_list = []
@@ -845,17 +821,14 @@ def overtime_report():
         writer = csv.writer(output)
         writer.writerow(['Date', 'Staff ID', 'Name', 'Branch', 'Check Out', 'Overtime Hours'])
         for record in records:
-            if record.check_out:
-                overtime_mins = (record.check_out.hour * 60 + record.check_out.minute) - (17 * 60)
-                overtime_hrs = round(overtime_mins / 60, 2)
-            else:
-                overtime_hrs = 0
+            overtime_mins = (record.check_out.hour * 60 + record.check_out.minute) - (17 * 60)
+            overtime_hrs = round(overtime_mins / 60, 2)
             writer.writerow([
                 record.date.isoformat(),
                 record.staff.staff_id,
                 record.staff.name,
                 record.school.name,
-                record.check_out.strftime('%H:%M') if record.check_out else '-',
+                record.check_out.strftime('%H:%M'),
                 overtime_hrs
             ])
         output.seek(0)
@@ -902,24 +875,13 @@ def analytics():
         school_present = len([r for r in school_records if r.status in ['present', 'late']])
         school_total = len(school_records)
         rate = round(school_present / school_total * 100, 1) if school_total > 0 else 0
-        branch_stats.append({
-            'name': school.name,
-            'total': school_total,
-            'present': school_present,
-            'rate': rate
-        })
+        branch_stats.append({'name': school.name, 'total': school_total, 'present': school_present, 'rate': rate})
     
     branch_stats.sort(key=lambda x: x['rate'], reverse=True)
     
-    return render_template('analytics.html',
-                         total_staff=total_staff,
-                         attendance_rate=attendance_rate,
-                         present_count=present_count,
-                         late_count=late_count,
-                         absent_count=absent_count,
-                         branch_stats=branch_stats,
-                         start_date=start_date,
-                         end_date=end_date)
+    return render_template('analytics.html', total_staff=total_staff, attendance_rate=attendance_rate,
+                         present_count=present_count, late_count=late_count, absent_count=absent_count,
+                         branch_stats=branch_stats, start_date=start_date, end_date=end_date)
 
 @app.route('/reports/analytics/pdf')
 @login_required
@@ -958,15 +920,10 @@ def analytics_pdf():
         school_present = len([r for r in school_records if r.status in ['present', 'late']])
         school_total = len(school_records)
         rate = round(school_present / school_total * 100, 1) if school_total > 0 else 0
-        branch_stats.append({
-            'name': school.name,
-            'total': school_total,
-            'present': school_present,
-            'rate': rate
-        })
+        branch_stats.append({'name': school.name, 'total': school_total, 'present': school_present, 'rate': rate})
     
-    settings = SystemSettings.query.first()
-    company_name = settings.company_name if settings else 'Attendance System'
+    settings_obj = SystemSettings.query.first()
+    company_name = settings_obj.company_name if settings_obj else 'Attendance System'
     
     html = f'''
     <!DOCTYPE html>
@@ -975,66 +932,50 @@ def analytics_pdf():
         <style>
             body {{ font-family: Arial, sans-serif; margin: 40px; }}
             h1 {{ color: #333; border-bottom: 2px solid #007bff; padding-bottom: 10px; }}
-            .header {{ text-align: center; margin-bottom: 30px; }}
             table {{ width: 100%; border-collapse: collapse; margin-top: 20px; }}
             th, td {{ border: 1px solid #ddd; padding: 12px; text-align: left; }}
             th {{ background-color: #007bff; color: white; }}
             tr:nth-child(even) {{ background-color: #f8f9fa; }}
-            .footer {{ margin-top: 30px; text-align: center; color: #666; font-size: 12px; }}
         </style>
     </head>
     <body>
-        <div class="header">
-            <h1>{company_name} - Analytics Report</h1>
-            <p>Period: {start_date} to {end_date}</p>
-        </div>
-        
-        <h2>Summary Statistics</h2>
+        <h1>{company_name} - Analytics Report</h1>
+        <p>Period: {start_date} to {end_date}</p>
+        <h2>Summary</h2>
         <table>
             <tr><th>Metric</th><th>Value</th></tr>
             <tr><td>Total Staff</td><td>{total_staff}</td></tr>
             <tr><td>Attendance Rate</td><td>{attendance_rate}%</td></tr>
-            <tr><td>Present Days</td><td>{present_count}</td></tr>
-            <tr><td>Late Days</td><td>{late_count}</td></tr>
-            <tr><td>Absent Days</td><td>{absent_count}</td></tr>
+            <tr><td>Present</td><td>{present_count}</td></tr>
+            <tr><td>Late</td><td>{late_count}</td></tr>
+            <tr><td>Absent</td><td>{absent_count}</td></tr>
         </table>
-        
         <h2>Branch Performance</h2>
         <table>
-            <tr><th>Branch</th><th>Total Records</th><th>Present</th><th>Attendance Rate</th></tr>
+            <tr><th>Branch</th><th>Total</th><th>Present</th><th>Rate</th></tr>
     '''
-    
-    for branch in branch_stats:
-        html += f"<tr><td>{branch['name']}</td><td>{branch['total']}</td><td>{branch['present']}</td><td>{branch['rate']}%</td></tr>"
-    
-    html += f'''
-        </table>
-        <div class="footer">
-            <p>Generated on {datetime.now().strftime('%Y-%m-%d %H:%M')}</p>
-        </div>
-    </body>
-    </html>
-    '''
+    for b in branch_stats:
+        html += f"<tr><td>{b['name']}</td><td>{b['total']}</td><td>{b['present']}</td><td>{b['rate']}%</td></tr>"
+    html += f'</table><p>Generated: {datetime.now().strftime("%Y-%m-%d %H:%M")}</p></body></html>'
     
     pdf_buffer = io.BytesIO()
     pisa.CreatePDF(io.StringIO(html), dest=pdf_buffer)
     pdf_buffer.seek(0)
     
     return Response(pdf_buffer, mimetype='application/pdf',
-                   headers={'Content-Disposition': f'attachment;filename=analytics_report_{start_date}_{end_date}.pdf'})
+                   headers={'Content-Disposition': f'attachment;filename=analytics_{start_date}_{end_date}.pdf'})
 
-# API Endpoint
 @app.route('/api/sync', methods=['POST'])
 def api_sync():
     api_key = request.headers.get('X-API-Key')
-    settings = SystemSettings.query.first()
+    settings_obj = SystemSettings.query.first()
     
-    if not settings or not settings.api_key or api_key != settings.api_key:
+    if not settings_obj or not settings_obj.api_key or api_key != settings_obj.api_key:
         return jsonify({'error': 'Invalid API key'}), 401
     
     data = request.get_json()
     if not data:
-        return jsonify({'error': 'No data provided'}), 400
+        return jsonify({'error': 'No data'}), 400
     
     records = data.get('records', [])
     synced = 0
@@ -1042,55 +983,37 @@ def api_sync():
     
     for record in records:
         try:
-            staff = Staff.query.filter_by(staff_id=record.get('staff_id')).first()
-            if not staff:
+            staff_member = Staff.query.filter_by(staff_id=record.get('staff_id')).first()
+            if not staff_member:
                 errors.append(f"Staff {record.get('staff_id')} not found")
                 continue
             
             record_date = datetime.strptime(record.get('date'), '%Y-%m-%d').date()
             
-            existing = Attendance.query.filter_by(
-                staff_id=staff.id,
-                date=record_date
-            ).first()
+            existing = Attendance.query.filter_by(staff_id=staff_member.id, date=record_date).first()
             
             check_in = datetime.strptime(record.get('check_in'), '%H:%M').time() if record.get('check_in') else None
             check_out = datetime.strptime(record.get('check_out'), '%H:%M').time() if record.get('check_out') else None
             
             from datetime import time
             late_time = time(8, 15)
-            status = 'present'
-            if check_in and check_in > late_time:
-                status = 'late'
+            status = 'late' if check_in and check_in > late_time else 'present'
             
             if existing:
                 existing.check_in = check_in or existing.check_in
                 existing.check_out = check_out or existing.check_out
                 existing.status = status
             else:
-                attendance = Attendance(
-                    staff_id=staff.id,
-                    school_id=staff.school_id,
-                    date=record_date,
-                    check_in=check_in,
-                    check_out=check_out,
-                    status=status
-                )
+                attendance = Attendance(staff_id=staff_member.id, school_id=staff_member.school_id,
+                                       date=record_date, check_in=check_in, check_out=check_out, status=status)
                 db.session.add(attendance)
-            
             synced += 1
         except Exception as e:
             errors.append(str(e))
     
     db.session.commit()
-    
-    return jsonify({
-        'success': True,
-        'synced': synced,
-        'errors': errors
-    })
+    return jsonify({'success': True, 'synced': synced, 'errors': errors})
 
-# Database initialization
 @app.route('/init-db')
 def init_db():
     db.create_all()
@@ -1101,105 +1024,51 @@ def init_db():
         admin.set_password('admin123')
         db.session.add(admin)
     
-    settings = SystemSettings.query.first()
-    if not settings:
-        settings = SystemSettings(
-            company_name='Attendance System',
-            api_key=secrets.token_hex(32)
-        )
-        db.session.add(settings)
+    settings_obj = SystemSettings.query.first()
+    if not settings_obj:
+        settings_obj = SystemSettings(company_name='Attendance System', api_key=secrets.token_hex(32))
+        db.session.add(settings_obj)
     
     db.session.commit()
     return 'Database initialized! <a href="/login">Go to Login</a>'
 
-# TEMPORARY - Remove after migration works
 @app.route('/migrate-departments')
 def migrate_departments():
     try:
         from sqlalchemy import text
-        
         results = []
         
-        # Check and add user columns one by one
-        try:
-            db.session.execute(text("SELECT organization_id FROM \"user\" LIMIT 1"))
-            results.append("user.organization_id already exists")
-        except:
-            db.session.rollback()
-            db.session.execute(text("ALTER TABLE \"user\" ADD COLUMN organization_id INTEGER"))
-            db.session.commit()
-            results.append("Added user.organization_id")
+        columns_to_add = [
+            ("\"user\"", "organization_id", "INTEGER"),
+            ("\"user\"", "school_id", "INTEGER"),
+            ("\"user\"", "is_active", "BOOLEAN DEFAULT TRUE"),
+            ("\"user\"", "created_at", "TIMESTAMP DEFAULT CURRENT_TIMESTAMP"),
+            ("organization", "is_school", "BOOLEAN DEFAULT TRUE"),
+            ("organization", "is_active", "BOOLEAN DEFAULT TRUE"),
+            ("organization", "created_at", "TIMESTAMP DEFAULT CURRENT_TIMESTAMP"),
+            ("school", "is_active", "BOOLEAN DEFAULT TRUE"),
+            ("school", "created_at", "TIMESTAMP DEFAULT CURRENT_TIMESTAMP"),
+            ("staff", "is_active", "BOOLEAN DEFAULT TRUE"),
+            ("staff", "created_at", "TIMESTAMP DEFAULT CURRENT_TIMESTAMP"),
+        ]
         
-        try:
-            db.session.execute(text("SELECT school_id FROM \"user\" LIMIT 1"))
-            results.append("user.school_id already exists")
-        except:
-            db.session.rollback()
-            db.session.execute(text("ALTER TABLE \"user\" ADD COLUMN school_id INTEGER"))
-            db.session.commit()
-            results.append("Added user.school_id")
+        for table, column, col_type in columns_to_add:
+            try:
+                db.session.execute(text(f"SELECT {column} FROM {table} LIMIT 1"))
+                results.append(f"{table}.{column} exists")
+            except:
+                db.session.rollback()
+                try:
+                    db.session.execute(text(f"ALTER TABLE {table} ADD COLUMN {column} {col_type}"))
+                    db.session.commit()
+                    results.append(f"Added {table}.{column}")
+                except Exception as e:
+                    db.session.rollback()
+                    results.append(f"Error adding {table}.{column}: {str(e)}")
         
-        try:
-            db.session.execute(text("SELECT is_active FROM \"user\" LIMIT 1"))
-            results.append("user.is_active already exists")
-        except:
-            db.session.rollback()
-            db.session.execute(text("ALTER TABLE \"user\" ADD COLUMN is_active BOOLEAN DEFAULT TRUE"))
-            db.session.commit()
-            results.append("Added user.is_active")
-        
-        try:
-            db.session.execute(text("SELECT created_at FROM \"user\" LIMIT 1"))
-            results.append("user.created_at already exists")
-        except:
-            db.session.rollback()
-            db.session.execute(text("ALTER TABLE \"user\" ADD COLUMN created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP"))
-            db.session.commit()
-            results.append("Added user.created_at")
-        
-        # Organization columns
-        try:
-            db.session.execute(text("SELECT is_school FROM organization LIMIT 1"))
-            results.append("organization.is_school already exists")
-        except:
-            db.session.rollback()
-            db.session.execute(text("ALTER TABLE organization ADD COLUMN is_school BOOLEAN DEFAULT TRUE"))
-            db.session.commit()
-            results.append("Added organization.is_school")
-        
-        try:
-            db.session.execute(text("SELECT is_active FROM organization LIMIT 1"))
-            results.append("organization.is_active already exists")
-        except:
-            db.session.rollback()
-            db.session.execute(text("ALTER TABLE organization ADD COLUMN is_active BOOLEAN DEFAULT TRUE"))
-            db.session.commit()
-            results.append("Added organization.is_active")
-        
-        # School columns
-        try:
-            db.session.execute(text("SELECT is_active FROM school LIMIT 1"))
-            results.append("school.is_active already exists")
-        except:
-            db.session.rollback()
-            db.session.execute(text("ALTER TABLE school ADD COLUMN is_active BOOLEAN DEFAULT TRUE"))
-            db.session.commit()
-            results.append("Added school.is_active")
-        
-        # Staff columns
-        try:
-            db.session.execute(text("SELECT is_active FROM staff LIMIT 1"))
-            results.append("staff.is_active already exists")
-        except:
-            db.session.rollback()
-            db.session.execute(text("ALTER TABLE staff ADD COLUMN is_active BOOLEAN DEFAULT TRUE"))
-            db.session.commit()
-            results.append("Added staff.is_active")
-        
-        # Create departments table
         try:
             db.session.execute(text("SELECT id FROM department LIMIT 1"))
-            results.append("department table already exists")
+            results.append("department table exists")
         except:
             db.session.rollback()
             db.session.execute(text("""
@@ -1214,7 +1083,6 @@ def migrate_departments():
             db.session.commit()
             results.append("Created department table")
         
-        # Set defaults
         try:
             db.session.execute(text("UPDATE \"user\" SET is_active = TRUE WHERE is_active IS NULL"))
             db.session.execute(text("UPDATE organization SET is_active = TRUE WHERE is_active IS NULL"))
@@ -1225,28 +1093,22 @@ def migrate_departments():
             results.append("Set default values")
         except Exception as e:
             db.session.rollback()
-            results.append(f"Default values error: {str(e)}")
+            results.append(f"Defaults error: {str(e)}")
         
-        # Add default departments
         try:
             orgs = Organization.query.all()
             for org in orgs:
-                existing = Department.query.filter_by(organization_id=org.id).count()
-                if existing == 0:
-                    if org.is_school:
-                        depts = ['Academic', 'Non-Academic', 'Administration', 'Support Staff']
-                    else:
-                        depts = ['Operations', 'Finance', 'HR', 'IT', 'Marketing', 'Admin']
+                if Department.query.filter_by(organization_id=org.id).count() == 0:
+                    depts = ['Academic', 'Non-Academic', 'Administration', 'Support Staff'] if org.is_school else ['Operations', 'Finance', 'HR', 'IT', 'Marketing', 'Admin']
                     for d in depts:
                         db.session.add(Department(name=d, organization_id=org.id))
             db.session.commit()
-            results.append("Added default departments")
+            results.append("Default departments added")
         except Exception as e:
             db.session.rollback()
             results.append(f"Departments error: {str(e)}")
         
         return '<h2>Migration Results:</h2><ul>' + ''.join([f'<li>{r}</li>' for r in results]) + '</ul><br><a href="/login">Go to Login</a>'
-    
     except Exception as e:
         db.session.rollback()
         return f'Migration error: {str(e)}'
