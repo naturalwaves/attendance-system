@@ -107,28 +107,28 @@ def role_required(*roles):
     return decorator
 
 def get_system_settings():
-    settings = SystemSettings.query.first()
-    if not settings:
-        settings = SystemSettings(company_name='Attendance System')
-        db.session.add(settings)
-        db.session.commit()
-    return settings
+    try:
+        settings = SystemSettings.query.first()
+        if not settings:
+            settings = SystemSettings(company_name='Attendance System')
+            db.session.add(settings)
+            db.session.commit()
+        return settings
+    except:
+        return None
 
 @app.context_processor
 def inject_settings():
-    try:
-        settings = get_system_settings()
-    except:
-        settings = None
+    settings = get_system_settings()
     user_organization = None
-    if current_user.is_authenticated and current_user.organization_id:
+    if current_user.is_authenticated:
         try:
-            user_organization = Organization.query.get(current_user.organization_id)
+            if current_user.organization_id:
+                user_organization = Organization.query.get(current_user.organization_id)
         except:
             pass
     return dict(system_settings=settings, user_organization=user_organization)
 
-# Authentication Routes
 @app.route('/login', methods=['GET', 'POST'])
 def login():
     if current_user.is_authenticated:
@@ -157,7 +157,6 @@ def logout():
     flash('Logged out successfully.', 'success')
     return redirect(url_for('login'))
 
-# Dashboard
 @app.route('/')
 @app.route('/dashboard')
 @login_required
@@ -175,11 +174,11 @@ def dashboard():
     elif current_user.role == 'school_admin' and current_user.organization_id:
         org_schools = School.query.filter_by(organization_id=current_user.organization_id, is_active=True).all()
         school_ids = [s.id for s in org_schools]
-        total_staff = Staff.query.filter(Staff.school_id.in_(school_ids), Staff.is_active==True).count()
+        total_staff = Staff.query.filter(Staff.school_id.in_(school_ids), Staff.is_active==True).count() if school_ids else 0
         total_schools = len(org_schools)
-        today_attendance = Attendance.query.filter(Attendance.date==today, Attendance.school_id.in_(school_ids)).count()
-        late_today = Attendance.query.filter(Attendance.date==today, Attendance.status=='late', Attendance.school_id.in_(school_ids)).count()
-        absent_today = Attendance.query.filter(Attendance.date==today, Attendance.status=='absent', Attendance.school_id.in_(school_ids)).count()
+        today_attendance = Attendance.query.filter(Attendance.date==today, Attendance.school_id.in_(school_ids)).count() if school_ids else 0
+        late_today = Attendance.query.filter(Attendance.date==today, Attendance.status=='late', Attendance.school_id.in_(school_ids)).count() if school_ids else 0
+        absent_today = Attendance.query.filter(Attendance.date==today, Attendance.status=='absent', Attendance.school_id.in_(school_ids)).count() if school_ids else 0
         organizations = [Organization.query.get(current_user.organization_id)]
         schools = org_schools
     else:
@@ -213,7 +212,6 @@ def dashboard():
         school_stats=school_stats
     )
 
-# Settings
 @app.route('/settings', methods=['GET', 'POST'])
 @login_required
 @role_required('super_admin', 'school_admin')
@@ -228,19 +226,18 @@ def settings():
         organizations = []
     
     if request.method == 'POST':
-        if current_user.role == 'super_admin':
+        if current_user.role == 'super_admin' and settings:
             settings.company_name = request.form.get('company_name', settings.company_name)
             settings.company_logo_url = request.form.get('company_logo_url', settings.company_logo_url)
             settings.late_threshold_minutes = int(request.form.get('late_threshold', 15))
             settings.work_start_time = request.form.get('work_start_time', '08:00')
             settings.work_end_time = request.form.get('work_end_time', '17:00')
-        db.session.commit()
+            db.session.commit()
         flash('Settings updated successfully!', 'success')
         return redirect(url_for('settings'))
     
     return render_template('settings.html', settings=settings, organizations=organizations)
 
-# Organization Management
 @app.route('/organizations')
 @login_required
 @role_required('super_admin')
@@ -302,7 +299,6 @@ def delete_organization(id):
     flash('Organization deleted successfully!', 'success')
     return redirect(url_for('organizations'))
 
-# Department Management
 @app.route('/organizations/<int:org_id>/departments')
 @login_required
 @role_required('super_admin', 'school_admin')
@@ -353,7 +349,6 @@ def get_organization_departments(org_id):
     departments = Department.query.filter_by(organization_id=org_id, is_active=True).all()
     return jsonify([{'id': d.id, 'name': d.name} for d in departments])
 
-# School/Branch Management
 @app.route('/schools')
 @login_required
 @role_required('super_admin', 'school_admin')
@@ -434,7 +429,6 @@ def delete_school(id):
     flash('Branch deleted successfully!', 'success')
     return redirect(url_for('schools'))
 
-# Staff Management
 @app.route('/staff')
 @login_required
 @role_required('super_admin', 'school_admin', 'hr_viewer')
@@ -443,7 +437,7 @@ def staff():
         staff_list = Staff.query.filter_by(is_active=True).all()
     elif current_user.role == 'school_admin' and current_user.organization_id:
         school_ids = [s.id for s in School.query.filter_by(organization_id=current_user.organization_id).all()]
-        staff_list = Staff.query.filter(Staff.school_id.in_(school_ids), Staff.is_active==True).all()
+        staff_list = Staff.query.filter(Staff.school_id.in_(school_ids), Staff.is_active==True).all() if school_ids else []
     else:
         staff_list = []
     
@@ -567,7 +561,6 @@ def bulk_upload_staff():
     
     return render_template('bulk_upload.html', schools=schools)
 
-# User Management
 @app.route('/users')
 @login_required
 @role_required('super_admin')
@@ -646,7 +639,6 @@ def delete_user(id):
     flash('User deleted successfully!', 'success')
     return redirect(url_for('users'))
 
-# Attendance Reports
 @app.route('/reports/attendance')
 @login_required
 def attendance_report():
@@ -654,14 +646,11 @@ def attendance_report():
     end_date = request.args.get('end_date', datetime.now().date().isoformat())
     school_id = request.args.get('school_id')
     
-    query = Attendance.query.filter(
-        Attendance.date >= start_date,
-        Attendance.date <= end_date
-    )
+    query = Attendance.query.filter(Attendance.date >= start_date, Attendance.date <= end_date)
     
     if current_user.role == 'school_admin' and current_user.organization_id:
         school_ids = [s.id for s in School.query.filter_by(organization_id=current_user.organization_id).all()]
-        query = query.filter(Attendance.school_id.in_(school_ids))
+        query = query.filter(Attendance.school_id.in_(school_ids)) if school_ids else query.filter(False)
     elif school_id:
         query = query.filter(Attendance.school_id == school_id)
     
@@ -678,7 +667,6 @@ def attendance_report():
         output = io.StringIO()
         writer = csv.writer(output)
         writer.writerow(['Date', 'Staff ID', 'Name', 'Branch', 'Check In', 'Check Out', 'Status'])
-        
         for record in records:
             writer.writerow([
                 record.date.isoformat(),
@@ -689,21 +677,12 @@ def attendance_report():
                 str(record.check_out) if record.check_out else '',
                 record.status
             ])
-        
         output.seek(0)
-        return Response(
-            output.getvalue(),
-            mimetype='text/csv',
-            headers={'Content-Disposition': 'attachment; filename=attendance_report.csv'}
-        )
+        return Response(output.getvalue(), mimetype='text/csv',
+            headers={'Content-Disposition': 'attachment; filename=attendance_report.csv'})
     
-    return render_template('attendance_report.html', 
-        records=records, 
-        schools=schools,
-        start_date=start_date,
-        end_date=end_date,
-        selected_school=school_id
-    )
+    return render_template('attendance_report.html', records=records, schools=schools,
+        start_date=start_date, end_date=end_date, selected_school=school_id)
 
 @app.route('/reports/late')
 @login_required
@@ -712,15 +691,11 @@ def late_report():
     end_date = request.args.get('end_date', datetime.now().date().isoformat())
     school_id = request.args.get('school_id')
     
-    query = Attendance.query.filter(
-        Attendance.date >= start_date,
-        Attendance.date <= end_date,
-        Attendance.status == 'late'
-    )
+    query = Attendance.query.filter(Attendance.date >= start_date, Attendance.date <= end_date, Attendance.status == 'late')
     
     if current_user.role == 'school_admin' and current_user.organization_id:
         school_ids = [s.id for s in School.query.filter_by(organization_id=current_user.organization_id).all()]
-        query = query.filter(Attendance.school_id.in_(school_ids))
+        query = query.filter(Attendance.school_id.in_(school_ids)) if school_ids else query.filter(False)
     elif school_id:
         query = query.filter(Attendance.school_id == school_id)
     
@@ -737,7 +712,6 @@ def late_report():
         output = io.StringIO()
         writer = csv.writer(output)
         writer.writerow(['Date', 'Staff ID', 'Name', 'Branch', 'Check In', 'Late By'])
-        
         for record in records:
             late_by = ''
             if record.check_in:
@@ -748,7 +722,6 @@ def late_report():
                     late_by = f"{int(diff.total_seconds() // 60)} minutes"
                 except:
                     pass
-            
             writer.writerow([
                 record.date.isoformat(),
                 record.staff.staff_id if record.staff else '',
@@ -757,21 +730,12 @@ def late_report():
                 str(record.check_in) if record.check_in else '',
                 late_by
             ])
-        
         output.seek(0)
-        return Response(
-            output.getvalue(),
-            mimetype='text/csv',
-            headers={'Content-Disposition': 'attachment; filename=late_report.csv'}
-        )
+        return Response(output.getvalue(), mimetype='text/csv',
+            headers={'Content-Disposition': 'attachment; filename=late_report.csv'})
     
-    return render_template('late_report.html',
-        records=records,
-        schools=schools,
-        start_date=start_date,
-        end_date=end_date,
-        selected_school=school_id
-    )
+    return render_template('late_report.html', records=records, schools=schools,
+        start_date=start_date, end_date=end_date, selected_school=school_id)
 
 @app.route('/reports/absent')
 @login_required
@@ -780,15 +744,11 @@ def absent_report():
     end_date = request.args.get('end_date', datetime.now().date().isoformat())
     school_id = request.args.get('school_id')
     
-    query = Attendance.query.filter(
-        Attendance.date >= start_date,
-        Attendance.date <= end_date,
-        Attendance.status == 'absent'
-    )
+    query = Attendance.query.filter(Attendance.date >= start_date, Attendance.date <= end_date, Attendance.status == 'absent')
     
     if current_user.role == 'school_admin' and current_user.organization_id:
         school_ids = [s.id for s in School.query.filter_by(organization_id=current_user.organization_id).all()]
-        query = query.filter(Attendance.school_id.in_(school_ids))
+        query = query.filter(Attendance.school_id.in_(school_ids)) if school_ids else query.filter(False)
     elif school_id:
         query = query.filter(Attendance.school_id == school_id)
     
@@ -805,7 +765,6 @@ def absent_report():
         output = io.StringIO()
         writer = csv.writer(output)
         writer.writerow(['Date', 'Staff ID', 'Name', 'Branch', 'Department'])
-        
         for record in records:
             writer.writerow([
                 record.date.isoformat(),
@@ -814,21 +773,12 @@ def absent_report():
                 record.staff.school.name if record.staff and record.staff.school else '',
                 record.staff.department if record.staff else ''
             ])
-        
         output.seek(0)
-        return Response(
-            output.getvalue(),
-            mimetype='text/csv',
-            headers={'Content-Disposition': 'attachment; filename=absent_report.csv'}
-        )
+        return Response(output.getvalue(), mimetype='text/csv',
+            headers={'Content-Disposition': 'attachment; filename=absent_report.csv'})
     
-    return render_template('absent_report.html',
-        records=records,
-        schools=schools,
-        start_date=start_date,
-        end_date=end_date,
-        selected_school=school_id
-    )
+    return render_template('absent_report.html', records=records, schools=schools,
+        start_date=start_date, end_date=end_date, selected_school=school_id)
 
 @app.route('/reports/overtime')
 @login_required
@@ -839,24 +789,16 @@ def overtime_report():
     
     work_end = datetime.strptime('17:00', '%H:%M').time()
     
-    query = Attendance.query.filter(
-        Attendance.date >= start_date,
-        Attendance.date <= end_date,
-        Attendance.check_out.isnot(None)
-    )
+    query = Attendance.query.filter(Attendance.date >= start_date, Attendance.date <= end_date, Attendance.check_out.isnot(None))
     
     if current_user.role == 'school_admin' and current_user.organization_id:
         school_ids = [s.id for s in School.query.filter_by(organization_id=current_user.organization_id).all()]
-        query = query.filter(Attendance.school_id.in_(school_ids))
+        query = query.filter(Attendance.school_id.in_(school_ids)) if school_ids else query.filter(False)
     elif school_id:
         query = query.filter(Attendance.school_id == school_id)
     
     all_records = query.order_by(Attendance.date.desc()).all()
-    
-    records = []
-    for record in all_records:
-        if record.check_out and record.check_out > work_end:
-            records.append(record)
+    records = [r for r in all_records if r.check_out and r.check_out > work_end]
     
     if current_user.role == 'super_admin':
         schools = School.query.filter_by(is_active=True).all()
@@ -869,7 +811,6 @@ def overtime_report():
         output = io.StringIO()
         writer = csv.writer(output)
         writer.writerow(['Date', 'Staff ID', 'Name', 'Branch', 'Check Out', 'Overtime'])
-        
         for record in records:
             overtime = ''
             if record.check_out:
@@ -879,7 +820,6 @@ def overtime_report():
                 hours = int(diff.total_seconds() // 3600)
                 minutes = int((diff.total_seconds() % 3600) // 60)
                 overtime = f"{hours}h {minutes}m"
-            
             writer.writerow([
                 record.date.isoformat(),
                 record.staff.staff_id if record.staff else '',
@@ -888,24 +828,13 @@ def overtime_report():
                 str(record.check_out) if record.check_out else '',
                 overtime
             ])
-        
         output.seek(0)
-        return Response(
-            output.getvalue(),
-            mimetype='text/csv',
-            headers={'Content-Disposition': 'attachment; filename=overtime_report.csv'}
-        )
+        return Response(output.getvalue(), mimetype='text/csv',
+            headers={'Content-Disposition': 'attachment; filename=overtime_report.csv'})
     
-    return render_template('overtime_report.html',
-        records=records,
-        schools=schools,
-        start_date=start_date,
-        end_date=end_date,
-        selected_school=school_id,
-        work_end_time='17:00'
-    )
+    return render_template('overtime_report.html', records=records, schools=schools,
+        start_date=start_date, end_date=end_date, selected_school=school_id, work_end_time='17:00')
 
-# Analytics
 @app.route('/reports/analytics')
 @login_required
 def analytics():
@@ -926,25 +855,23 @@ def analytics():
     end_date = datetime.now().date()
     start_date = end_date - timedelta(days=days)
     
-    attendance_query = Attendance.query.filter(
-        Attendance.date >= start_date,
-        Attendance.date <= end_date
-    )
-    
+    attendance_query = Attendance.query.filter(Attendance.date >= start_date, Attendance.date <= end_date)
     staff_query = Staff.query.filter_by(is_active=True)
     
     if current_user.role == 'school_admin' and current_user.organization_id:
         org_id = current_user.organization_id
         schools_list = School.query.filter_by(organization_id=org_id, is_active=True).all()
         school_ids = [s.id for s in schools_list]
-        attendance_query = attendance_query.filter(Attendance.school_id.in_(school_ids))
-        staff_query = staff_query.filter(Staff.school_id.in_(school_ids))
+        if school_ids:
+            attendance_query = attendance_query.filter(Attendance.school_id.in_(school_ids))
+            staff_query = staff_query.filter(Staff.school_id.in_(school_ids))
     elif org_id:
         org_id = int(org_id)
         schools_list = School.query.filter_by(organization_id=org_id, is_active=True).all()
         school_ids = [s.id for s in schools_list]
-        attendance_query = attendance_query.filter(Attendance.school_id.in_(school_ids))
-        staff_query = staff_query.filter(Staff.school_id.in_(school_ids))
+        if school_ids:
+            attendance_query = attendance_query.filter(Attendance.school_id.in_(school_ids))
+            staff_query = staff_query.filter(Staff.school_id.in_(school_ids))
     
     if school_id:
         school_id = int(school_id)
@@ -970,30 +897,26 @@ def analytics():
     late_records = [a for a in attendance_records if a.status == 'late' and a.check_in]
     total_late_minutes = 0
     for a in late_records:
-        if a.check_in:
-            try:
-                check_in_time = a.check_in if not isinstance(a.check_in, str) else datetime.strptime(a.check_in, '%H:%M:%S').time()
-                expected_time = datetime.strptime('08:00:00', '%H:%M:%S').time()
-                late_minutes = (datetime.combine(a.date, check_in_time) - datetime.combine(a.date, expected_time)).total_seconds() / 60
-                if late_minutes > 0:
-                    total_late_minutes += late_minutes
-            except:
-                pass
-    
+        try:
+            check_in_time = a.check_in
+            expected_time = datetime.strptime('08:00:00', '%H:%M:%S').time()
+            late_minutes = (datetime.combine(a.date, check_in_time) - datetime.combine(a.date, expected_time)).total_seconds() / 60
+            if late_minutes > 0:
+                total_late_minutes += late_minutes
+        except:
+            pass
     avg_late_time = round(total_late_minutes / len(late_records)) if late_records else 0
     
     total_overtime = 0
     for a in attendance_records:
         if a.check_out:
             try:
-                check_out_time = a.check_out if not isinstance(a.check_out, str) else datetime.strptime(a.check_out, '%H:%M:%S').time()
                 expected_end = datetime.strptime('17:00:00', '%H:%M:%S').time()
-                overtime_minutes = (datetime.combine(a.date, check_out_time) - datetime.combine(a.date, expected_end)).total_seconds() / 60
+                overtime_minutes = (datetime.combine(a.date, a.check_out) - datetime.combine(a.date, expected_end)).total_seconds() / 60
                 if overtime_minutes > 0:
                     total_overtime += overtime_minutes
             except:
                 pass
-    
     overtime_hours = round(total_overtime / 60, 1)
     
     trend_data = defaultdict(lambda: {'present': 0, 'late': 0, 'absent': 0, 'total': 0})
@@ -1045,7 +968,7 @@ def analytics():
     for a in attendance_records:
         if a.check_in:
             try:
-                hour = int(str(a.check_in).split(':')[0])
+                hour = a.check_in.hour
                 if 6 <= hour < 12:
                     arrival_data[hour - 6] += 1
             except:
@@ -1054,34 +977,26 @@ def analytics():
     weekly_labels = ['This Week', 'Last Week']
     this_week_start = end_date - timedelta(days=end_date.weekday())
     last_week_start = this_week_start - timedelta(days=7)
-    
     this_week_records = [a for a in attendance_records if a.date >= this_week_start]
     last_week_records = [a for a in attendance_records if last_week_start <= a.date < this_week_start]
-    
     weekly_data = [len(this_week_records), len(last_week_records)]
     
     staff_attendance = defaultdict(lambda: {'present': 0, 'total': 0, 'name': '', 'school': ''})
     for a in attendance_records:
         staff_member = Staff.query.get(a.staff_id)
         if staff_member:
-            key = a.staff_id
-            staff_attendance[key]['total'] += 1
+            staff_attendance[a.staff_id]['total'] += 1
             if a.status == 'present':
-                staff_attendance[key]['present'] += 1
-            staff_attendance[key]['name'] = staff_member.name
+                staff_attendance[a.staff_id]['present'] += 1
+            staff_attendance[a.staff_id]['name'] = staff_member.name
             school = School.query.get(staff_member.school_id)
-            staff_attendance[key]['school'] = school.name if school else 'N/A'
+            staff_attendance[a.staff_id]['school'] = school.name if school else 'N/A'
     
     top_performers = []
     needs_attention = []
     for staff_id, data in staff_attendance.items():
         rate = round((data['present'] / data['total'] * 100), 1) if data['total'] > 0 else 0
-        entry = {
-            'name': data['name'],
-            'school': data['school'],
-            'rate': rate,
-            'days': data['total']
-        }
+        entry = {'name': data['name'], 'school': data['school'], 'rate': rate, 'days': data['total']}
         if rate >= 95:
             top_performers.append(entry)
         if rate < 70:
@@ -1092,22 +1007,9 @@ def analytics():
     
     early_arrivals = []
     for staff_id, data in staff_attendance.items():
-        early_count = 0
-        for a in attendance_records:
-            if a.staff_id == staff_id and a.check_in:
-                try:
-                    hour = int(str(a.check_in).split(':')[0])
-                    if hour < 8:
-                        early_count += 1
-                except:
-                    pass
+        early_count = sum(1 for a in attendance_records if a.staff_id == staff_id and a.check_in and a.check_in.hour < 8)
         if early_count > 0:
-            early_arrivals.append({
-                'name': data['name'],
-                'school': data['school'],
-                'early_days': early_count,
-                'avg_time': '07:45'
-            })
+            early_arrivals.append({'name': data['name'], 'school': data['school'], 'early_days': early_count, 'avg_time': '07:45'})
     early_arrivals = sorted(early_arrivals, key=lambda x: x['early_days'], reverse=True)[:10]
     
     perfect_attendance = [p for p in top_performers if p['rate'] == 100][:10]
@@ -1116,56 +1018,29 @@ def analytics():
     
     if current_user.role == 'super_admin':
         organizations = Organization.query.filter_by(is_active=True).all()
-    else:
-        organizations = []
-    
-    if current_user.role == 'super_admin':
         schools = School.query.filter_by(is_active=True).all()
     elif current_user.role == 'school_admin' and current_user.organization_id:
+        organizations = []
         schools = School.query.filter_by(organization_id=current_user.organization_id, is_active=True).all()
     else:
+        organizations = []
         schools = []
     
-    departments = db.session.query(Staff.department).distinct().filter(Staff.department.isnot(None)).all()
-    departments = [d[0] for d in departments]
+    departments = [d[0] for d in db.session.query(Staff.department).distinct().filter(Staff.department.isnot(None)).all()]
     
     return render_template('analytics.html',
-        attendance_rate=attendance_rate,
-        punctuality_rate=punctuality_rate,
-        total_staff=total_staff,
-        total_records=total_records,
-        on_time_count=on_time_count,
-        late_count=late_count,
-        avg_late_time=avg_late_time,
-        overtime_hours=overtime_hours,
-        trend_labels=trend_labels,
-        attendance_trend=attendance_trend,
-        punctuality_trend=punctuality_trend,
-        day_names=day_names,
-        late_by_day=late_by_day,
-        department_labels=department_labels,
-        department_data=department_data,
-        branch_labels=branch_labels,
-        branch_data=branch_data,
-        arrival_labels=arrival_labels,
-        arrival_data=arrival_data,
-        weekly_labels=weekly_labels,
-        weekly_data=weekly_data,
-        present_count=on_time_count + late_count,
-        absent_count=absent_count,
-        top_performers=top_performers,
-        needs_attention=needs_attention,
-        early_arrivals=early_arrivals,
-        perfect_attendance=perfect_attendance,
-        most_improved=most_improved,
-        on_time_streaks=on_time_streaks,
-        organizations=organizations,
-        schools=schools,
-        departments=departments,
-        selected_period=period,
-        selected_org=org_id,
-        selected_school=school_id,
-        selected_department=department
+        attendance_rate=attendance_rate, punctuality_rate=punctuality_rate, total_staff=total_staff,
+        total_records=total_records, on_time_count=on_time_count, late_count=late_count,
+        avg_late_time=avg_late_time, overtime_hours=overtime_hours, trend_labels=trend_labels,
+        attendance_trend=attendance_trend, punctuality_trend=punctuality_trend, day_names=day_names,
+        late_by_day=late_by_day, department_labels=department_labels, department_data=department_data,
+        branch_labels=branch_labels, branch_data=branch_data, arrival_labels=arrival_labels,
+        arrival_data=arrival_data, weekly_labels=weekly_labels, weekly_data=weekly_data,
+        present_count=on_time_count + late_count, absent_count=absent_count,
+        top_performers=top_performers, needs_attention=needs_attention, early_arrivals=early_arrivals,
+        perfect_attendance=perfect_attendance, most_improved=most_improved, on_time_streaks=on_time_streaks,
+        organizations=organizations, schools=schools, departments=departments,
+        selected_period=period, selected_org=org_id, selected_school=school_id, selected_department=department
     )
 
 @app.route('/reports/analytics/pdf')
@@ -1177,31 +1052,17 @@ def download_analytics_pdf():
     
     try:
         from xhtml2pdf import pisa
-        
         today = datetime.now()
-        period = request.args.get('period', '30')
-        
-        try:
-            days = int(period)
-        except:
-            days = 30
-        
+        days = 30
         end_date = today.date()
         start_date = end_date - timedelta(days=days)
         
         if current_user.role == 'school_admin' and current_user.organization_id:
             school_ids = [s.id for s in School.query.filter_by(organization_id=current_user.organization_id).all()]
-            attendance_records = Attendance.query.filter(
-                Attendance.date >= start_date,
-                Attendance.date <= end_date,
-                Attendance.school_id.in_(school_ids)
-            ).all()
-            total_staff = Staff.query.filter(Staff.school_id.in_(school_ids), Staff.is_active==True).count()
+            attendance_records = Attendance.query.filter(Attendance.date >= start_date, Attendance.date <= end_date, Attendance.school_id.in_(school_ids)).all() if school_ids else []
+            total_staff = Staff.query.filter(Staff.school_id.in_(school_ids), Staff.is_active==True).count() if school_ids else 0
         else:
-            attendance_records = Attendance.query.filter(
-                Attendance.date >= start_date,
-                Attendance.date <= end_date
-            ).all()
+            attendance_records = Attendance.query.filter(Attendance.date >= start_date, Attendance.date <= end_date).all()
             total_staff = Staff.query.filter_by(is_active=True).count()
         
         total_records = len(attendance_records)
@@ -1213,115 +1074,49 @@ def download_analytics_pdf():
         attendance_rate = round((total_records / expected * 100), 1) if expected > 0 else 0
         punctuality_rate = round((on_time / total_records * 100), 1) if total_records > 0 else 0
         
-        html = f'''
-        <!DOCTYPE html>
-        <html>
-        <head>
-            <style>
-                body {{ font-family: Arial, sans-serif; margin: 40px; }}
-                h1 {{ color: #333; border-bottom: 2px solid #667eea; padding-bottom: 10px; }}
-                h2 {{ color: #667eea; margin-top: 30px; }}
-                .header {{ text-align: center; margin-bottom: 30px; }}
-                .metric {{ display: inline-block; width: 23%; text-align: center; margin: 10px 0; padding: 15px; background: #f5f5f5; border-radius: 8px; }}
-                .metric h3 {{ margin: 0; color: #667eea; font-size: 24px; }}
-                .metric p {{ margin: 5px 0 0 0; color: #666; }}
-                table {{ width: 100%; border-collapse: collapse; margin-top: 20px; }}
-                th, td {{ border: 1px solid #ddd; padding: 10px; text-align: left; }}
-                th {{ background: #667eea; color: white; }}
-                tr:nth-child(even) {{ background: #f9f9f9; }}
-                .footer {{ margin-top: 40px; text-align: center; color: #999; font-size: 12px; }}
-            </style>
-        </head>
-        <body>
-            <div class="header">
-                <h1>Attendance Management System</h1>
-                <p>Analytics Report</p>
-                <p>{start_date.strftime('%B %d, %Y')} - {end_date.strftime('%B %d, %Y')}</p>
-            </div>
-            
-            <h2>Summary Metrics</h2>
-            <div>
-                <div class="metric">
-                    <h3>{attendance_rate}%</h3>
-                    <p>Attendance Rate</p>
-                </div>
-                <div class="metric">
-                    <h3>{punctuality_rate}%</h3>
-                    <p>Punctuality Rate</p>
-                </div>
-                <div class="metric">
-                    <h3>{total_staff}</h3>
-                    <p>Active Staff</p>
-                </div>
-                <div class="metric">
-                    <h3>{total_records}</h3>
-                    <p>Total Records</p>
-                </div>
-            </div>
-            
-            <h2>Attendance Breakdown</h2>
-            <table>
-                <tr>
-                    <th>Status</th>
-                    <th>Count</th>
-                    <th>Percentage</th>
-                </tr>
-                <tr>
-                    <td>On Time</td>
-                    <td>{on_time}</td>
-                    <td>{round((on_time/total_records*100), 1) if total_records > 0 else 0}%</td>
-                </tr>
-                <tr>
-                    <td>Late</td>
-                    <td>{late}</td>
-                    <td>{round((late/total_records*100), 1) if total_records > 0 else 0}%</td>
-                </tr>
-                <tr>
-                    <td>Absent</td>
-                    <td>{absent}</td>
-                    <td>{round((absent/total_records*100), 1) if total_records > 0 else 0}%</td>
-                </tr>
-            </table>
-            
-            <div class="footer">
-                <p>Generated on {today.strftime('%B %d, %Y at %H:%M')}</p>
-            </div>
-        </body>
-        </html>
-        '''
+        html = f'''<!DOCTYPE html><html><head><style>
+            body {{ font-family: Arial; margin: 40px; }}
+            h1 {{ color: #333; border-bottom: 2px solid #667eea; }}
+            .metric {{ display: inline-block; width: 23%; text-align: center; padding: 15px; background: #f5f5f5; }}
+            table {{ width: 100%; border-collapse: collapse; margin-top: 20px; }}
+            th, td {{ border: 1px solid #ddd; padding: 10px; }}
+            th {{ background: #667eea; color: white; }}
+        </style></head><body>
+            <h1>Analytics Report</h1>
+            <p>{start_date} - {end_date}</p>
+            <div class="metric"><h3>{attendance_rate}%</h3><p>Attendance</p></div>
+            <div class="metric"><h3>{punctuality_rate}%</h3><p>Punctuality</p></div>
+            <div class="metric"><h3>{total_staff}</h3><p>Staff</p></div>
+            <div class="metric"><h3>{total_records}</h3><p>Records</p></div>
+            <table><tr><th>Status</th><th>Count</th><th>%</th></tr>
+            <tr><td>On Time</td><td>{on_time}</td><td>{round((on_time/total_records*100),1) if total_records else 0}%</td></tr>
+            <tr><td>Late</td><td>{late}</td><td>{round((late/total_records*100),1) if total_records else 0}%</td></tr>
+            <tr><td>Absent</td><td>{absent}</td><td>{round((absent/total_records*100),1) if total_records else 0}%</td></tr>
+            </table></body></html>'''
         
         output = io.BytesIO()
         pisa.CreatePDF(io.BytesIO(html.encode('utf-8')), dest=output)
         output.seek(0)
-        
-        return Response(
-            output.getvalue(),
-            mimetype='application/pdf',
-            headers={'Content-Disposition': f'attachment; filename=analytics_report_{today.strftime("%Y%m%d")}.pdf'}
-        )
-    
+        return Response(output.getvalue(), mimetype='application/pdf',
+            headers={'Content-Disposition': f'attachment; filename=analytics_{today.strftime("%Y%m%d")}.pdf'})
     except ImportError:
-        flash('PDF generation requires xhtml2pdf. Please install it.', 'warning')
+        flash('PDF generation requires xhtml2pdf.', 'warning')
         return redirect(url_for('analytics'))
     except Exception as e:
-        flash(f'Error generating PDF: {str(e)}', 'danger')
+        flash(f'Error: {str(e)}', 'danger')
         return redirect(url_for('analytics'))
 
-# API Sync Endpoint
 @app.route('/api/sync', methods=['POST'])
 def api_sync():
     api_key = request.headers.get('X-API-Key')
+    settings = get_system_settings()
     
-    try:
-        settings = get_system_settings()
-        if not api_key or api_key != settings.api_key:
-            return jsonify({'error': 'Invalid API key'}), 401
-    except:
-        return jsonify({'error': 'System not configured'}), 500
+    if not settings or not api_key or api_key != settings.api_key:
+        return jsonify({'error': 'Invalid API key'}), 401
     
     data = request.get_json()
     if not data:
-        return jsonify({'error': 'No data provided'}), 400
+        return jsonify({'error': 'No data'}), 400
     
     try:
         records = data.get('records', [])
@@ -1335,23 +1130,15 @@ def api_sync():
                 continue
             
             date = datetime.strptime(record.get('date'), '%Y-%m-%d').date()
-            
             existing = Attendance.query.filter_by(staff_id=staff.id, date=date).first()
             
-            check_in = None
-            check_out = None
-            
-            if record.get('check_in'):
-                check_in = datetime.strptime(record.get('check_in'), '%H:%M:%S').time()
-            if record.get('check_out'):
-                check_out = datetime.strptime(record.get('check_out'), '%H:%M:%S').time()
+            check_in = datetime.strptime(record.get('check_in'), '%H:%M:%S').time() if record.get('check_in') else None
+            check_out = datetime.strptime(record.get('check_out'), '%H:%M:%S').time() if record.get('check_out') else None
             
             status = 'present'
             if check_in:
                 work_start = datetime.strptime('08:00', '%H:%M').time()
-                check_in_dt = datetime.combine(date, check_in)
-                work_start_dt = datetime.combine(date, work_start) + timedelta(minutes=15)
-                if check_in_dt > work_start_dt:
+                if datetime.combine(date, check_in) > datetime.combine(date, work_start) + timedelta(minutes=15):
                     status = 'late'
             else:
                 status = 'absent'
@@ -1361,207 +1148,98 @@ def api_sync():
                 existing.check_out = check_out or existing.check_out
                 existing.status = status
             else:
-                attendance = Attendance(
-                    staff_id=staff.id,
-                    school_id=staff.school_id,
-                    date=date,
-                    check_in=check_in,
-                    check_out=check_out,
-                    status=status
-                )
-                db.session.add(attendance)
-            
+                db.session.add(Attendance(staff_id=staff.id, school_id=staff.school_id, date=date,
+                    check_in=check_in, check_out=check_out, status=status))
             synced += 1
         
         db.session.commit()
-        
-        return jsonify({
-            'success': True,
-            'synced': synced,
-            'errors': errors
-        })
-    
+        return jsonify({'success': True, 'synced': synced, 'errors': errors})
     except Exception as e:
         db.session.rollback()
         return jsonify({'error': str(e)}), 500
 
-# Database Initialization
 @app.route('/init-db')
 def init_db():
     try:
         db.create_all()
         
-        admin = User.query.filter_by(username='admin').first()
-        if not admin:
-            admin = User(
-                username='admin',
-                password_hash=generate_password_hash('admin123'),
-                role='super_admin',
-                is_active=True
-            )
-            db.session.add(admin)
+        if not User.query.filter_by(username='admin').first():
+            db.session.add(User(username='admin', password_hash=generate_password_hash('admin123'),
+                role='super_admin', is_active=True))
         
-        settings = SystemSettings.query.first()
-        if not settings:
-            settings = SystemSettings(
-                company_name='Attendance Management System',
-                late_threshold_minutes=15,
-                work_start_time='08:00',
-                work_end_time='17:00'
-            )
-            db.session.add(settings)
+        if not SystemSettings.query.first():
+            db.session.add(SystemSettings(company_name='Attendance Management System',
+                late_threshold_minutes=15, work_start_time='08:00', work_end_time='17:00'))
         
         db.session.commit()
-        
-        return '''
-        <h2>Database Initialized Successfully!</h2>
-        <p>Default admin credentials:</p>
-        <ul>
-            <li>Username: admin</li>
-            <li>Password: admin123</li>
-        </ul>
-        <a href="/login">Go to Login</a>
-        '''
+        return '<h2>Database Initialized!</h2><p>Login: admin / admin123</p><a href="/login">Go to Login</a>'
     except Exception as e:
         db.session.rollback()
         return f'Error: {str(e)}'
 
-# Migration Route - COMPREHENSIVE
 @app.route('/migrate-departments')
 def migrate_departments():
     try:
         from sqlalchemy import text
-        
         migrations = []
         
-        # User table migrations
-        user_columns = [
-            ("organization_id", "INTEGER"),
-            ("school_id", "INTEGER"),
-            ("is_active", "BOOLEAN DEFAULT TRUE"),
-            ("created_at", "TIMESTAMP DEFAULT CURRENT_TIMESTAMP")
-        ]
+        # All table migrations with their columns
+        table_columns = {
+            '"user"': [
+                ("organization_id", "INTEGER"),
+                ("school_id", "INTEGER"),
+                ("is_active", "BOOLEAN DEFAULT TRUE"),
+                ("created_at", "TIMESTAMP DEFAULT CURRENT_TIMESTAMP")
+            ],
+            'organization': [
+                ("logo_url", "VARCHAR(500)"),
+                ("is_school", "BOOLEAN DEFAULT TRUE"),
+                ("is_active", "BOOLEAN DEFAULT TRUE"),
+                ("created_at", "TIMESTAMP DEFAULT CURRENT_TIMESTAMP")
+            ],
+            'school': [
+                ("short_name", "VARCHAR(50)"),
+                ("address", "VARCHAR(500)"),
+                ("is_active", "BOOLEAN DEFAULT TRUE"),
+                ("created_at", "TIMESTAMP DEFAULT CURRENT_TIMESTAMP")
+            ],
+            'staff': [
+                ("department", "VARCHAR(100)"),
+                ("position", "VARCHAR(100)"),
+                ("is_active", "BOOLEAN DEFAULT TRUE"),
+                ("created_at", "TIMESTAMP DEFAULT CURRENT_TIMESTAMP")
+            ],
+            'attendance': [
+                ("school_id", "INTEGER"),
+                ("check_in", "TIME"),
+                ("check_out", "TIME"),
+                ("status", "VARCHAR(20) DEFAULT 'present'"),
+                ("created_at", "TIMESTAMP DEFAULT CURRENT_TIMESTAMP")
+            ],
+            'system_settings': [
+                ("company_name", "VARCHAR(200) DEFAULT 'Attendance System'"),
+                ("company_logo_url", "VARCHAR(500)"),
+                ("late_threshold_minutes", "INTEGER DEFAULT 15"),
+                ("work_start_time", "VARCHAR(10) DEFAULT '08:00'"),
+                ("work_end_time", "VARCHAR(10) DEFAULT '17:00'"),
+                ("api_key", "VARCHAR(100)"),
+                ("created_at", "TIMESTAMP DEFAULT CURRENT_TIMESTAMP")
+            ]
+        }
         
-        for col_name, col_type in user_columns:
-            try:
-                db.session.execute(text(f'SELECT "{col_name}" FROM "user" LIMIT 1'))
-                migrations.append(f"user.{col_name} exists")
-            except:
-                db.session.rollback()
+        for table, columns in table_columns.items():
+            for col_name, col_type in columns:
                 try:
-                    db.session.execute(text(f'ALTER TABLE "user" ADD COLUMN "{col_name}" {col_type}'))
-                    db.session.commit()
-                    migrations.append(f"Added user.{col_name}")
+                    db.session.execute(text(f'SELECT "{col_name}" FROM {table} LIMIT 1'))
+                    migrations.append(f"{table}.{col_name} exists")
                 except:
                     db.session.rollback()
-        
-        # Organization table migrations
-        org_columns = [
-            ("logo_url", "VARCHAR(500)"),
-            ("is_school", "BOOLEAN DEFAULT TRUE"),
-            ("is_active", "BOOLEAN DEFAULT TRUE"),
-            ("created_at", "TIMESTAMP DEFAULT CURRENT_TIMESTAMP")
-        ]
-        
-        for col_name, col_type in org_columns:
-            try:
-                db.session.execute(text(f'SELECT "{col_name}" FROM organization LIMIT 1'))
-                migrations.append(f"organization.{col_name} exists")
-            except:
-                db.session.rollback()
-                try:
-                    db.session.execute(text(f'ALTER TABLE organization ADD COLUMN "{col_name}" {col_type}'))
-                    db.session.commit()
-                    migrations.append(f"Added organization.{col_name}")
-                except:
-                    db.session.rollback()
-        
-        # School table migrations
-        school_columns = [
-            ("address", "VARCHAR(500)"),
-            ("is_active", "BOOLEAN DEFAULT TRUE"),
-            ("created_at", "TIMESTAMP DEFAULT CURRENT_TIMESTAMP")
-        ]
-        
-        for col_name, col_type in school_columns:
-            try:
-                db.session.execute(text(f'SELECT "{col_name}" FROM school LIMIT 1'))
-                migrations.append(f"school.{col_name} exists")
-            except:
-                db.session.rollback()
-                try:
-                    db.session.execute(text(f'ALTER TABLE school ADD COLUMN "{col_name}" {col_type}'))
-                    db.session.commit()
-                    migrations.append(f"Added school.{col_name}")
-                except:
-                    db.session.rollback()
-        
-        # Staff table migrations
-        staff_columns = [
-            ("department", "VARCHAR(100)"),
-            ("position", "VARCHAR(100)"),
-            ("is_active", "BOOLEAN DEFAULT TRUE"),
-            ("created_at", "TIMESTAMP DEFAULT CURRENT_TIMESTAMP")
-        ]
-        
-        for col_name, col_type in staff_columns:
-            try:
-                db.session.execute(text(f'SELECT "{col_name}" FROM staff LIMIT 1'))
-                migrations.append(f"staff.{col_name} exists")
-            except:
-                db.session.rollback()
-                try:
-                    db.session.execute(text(f'ALTER TABLE staff ADD COLUMN "{col_name}" {col_type}'))
-                    db.session.commit()
-                    migrations.append(f"Added staff.{col_name}")
-                except:
-                    db.session.rollback()
-        
-        # Attendance table migrations
-        attendance_columns = [
-            ("school_id", "INTEGER"),
-            ("check_in", "TIME"),
-            ("check_out", "TIME"),
-            ("status", "VARCHAR(20) DEFAULT 'present'"),
-            ("created_at", "TIMESTAMP DEFAULT CURRENT_TIMESTAMP")
-        ]
-        
-        for col_name, col_type in attendance_columns:
-            try:
-                db.session.execute(text(f'SELECT "{col_name}" FROM attendance LIMIT 1'))
-                migrations.append(f"attendance.{col_name} exists")
-            except:
-                db.session.rollback()
-                try:
-                    db.session.execute(text(f'ALTER TABLE attendance ADD COLUMN "{col_name}" {col_type}'))
-                    db.session.commit()
-                    migrations.append(f"Added attendance.{col_name}")
-                except:
-                    db.session.rollback()
-        
-        # SystemSettings table migrations - THIS IS THE MISSING PART
-        settings_columns = [
-            ("company_name", "VARCHAR(200) DEFAULT 'Attendance System'"),
-            ("company_logo_url", "VARCHAR(500)"),
-            ("late_threshold_minutes", "INTEGER DEFAULT 15"),
-            ("work_start_time", "VARCHAR(10) DEFAULT '08:00'"),
-            ("work_end_time", "VARCHAR(10) DEFAULT '17:00'"),
-            ("api_key", "VARCHAR(100)"),
-            ("created_at", "TIMESTAMP DEFAULT CURRENT_TIMESTAMP")
-        ]
-        
-        for col_name, col_type in settings_columns:
-            try:
-                db.session.execute(text(f'SELECT "{col_name}" FROM system_settings LIMIT 1'))
-                migrations.append(f"system_settings.{col_name} exists")
-            except:
-                db.session.rollback()
-                try:
-                    db.session.execute(text(f'ALTER TABLE system_settings ADD COLUMN "{col_name}" {col_type}'))
-                    db.session.commit()
-                    migrations.append(f"Added system_settings.{col_name}")
-                except:
-                    db.session.rollback()
+                    try:
+                        db.session.execute(text(f'ALTER TABLE {table} ADD COLUMN "{col_name}" {col_type}'))
+                        db.session.commit()
+                        migrations.append(f"Added {table}.{col_name}")
+                    except:
+                        db.session.rollback()
         
         # Create department table
         try:
@@ -1570,21 +1248,16 @@ def migrate_departments():
         except:
             db.session.rollback()
             try:
-                db.session.execute(text('''
-                    CREATE TABLE department (
-                        id SERIAL PRIMARY KEY,
-                        name VARCHAR(100) NOT NULL,
-                        organization_id INTEGER,
-                        is_active BOOLEAN DEFAULT TRUE,
-                        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-                    )
-                '''))
+                db.session.execute(text('''CREATE TABLE department (
+                    id SERIAL PRIMARY KEY, name VARCHAR(100) NOT NULL,
+                    organization_id INTEGER, is_active BOOLEAN DEFAULT TRUE,
+                    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP)'''))
                 db.session.commit()
                 migrations.append("Created department table")
             except:
                 db.session.rollback()
         
-        # Set default values
+        # Set defaults
         try:
             db.session.execute(text('UPDATE "user" SET is_active = TRUE WHERE is_active IS NULL'))
             db.session.execute(text('UPDATE organization SET is_active = TRUE WHERE is_active IS NULL'))
@@ -1595,78 +1268,41 @@ def migrate_departments():
         except:
             db.session.rollback()
         
-        # Update attendance school_id from staff
+        # Update attendance school_id
         try:
-            db.session.execute(text('''
-                UPDATE attendance 
-                SET school_id = staff.school_id 
-                FROM staff 
-                WHERE attendance.staff_id = staff.id 
-                AND attendance.school_id IS NULL
-            '''))
+            db.session.execute(text('''UPDATE attendance SET school_id = staff.school_id 
+                FROM staff WHERE attendance.staff_id = staff.id AND attendance.school_id IS NULL'''))
             db.session.commit()
-            migrations.append("Updated attendance.school_id from staff")
+            migrations.append("Updated attendance.school_id")
         except:
             db.session.rollback()
         
-        # Ensure default system settings exist
+        # Ensure system settings
         try:
             settings = SystemSettings.query.first()
             if not settings:
-                settings = SystemSettings(
-                    company_name='Attendance Management System',
-                    late_threshold_minutes=15,
-                    work_start_time='08:00',
-                    work_end_time='17:00'
-                )
-                db.session.add(settings)
+                db.session.add(SystemSettings(company_name='Attendance Management System',
+                    late_threshold_minutes=15, work_start_time='08:00', work_end_time='17:00'))
                 db.session.commit()
                 migrations.append("Created default system settings")
-            else:
-                # Update NULL values
-                if settings.late_threshold_minutes is None:
-                    settings.late_threshold_minutes = 15
-                if settings.work_start_time is None:
-                    settings.work_start_time = '08:00'
-                if settings.work_end_time is None:
-                    settings.work_end_time = '17:00'
-                db.session.commit()
-                migrations.append("Updated system settings defaults")
-        except Exception as e:
+        except:
             db.session.rollback()
-            migrations.append(f"Settings error: {str(e)}")
         
         # Add default departments
         dept_count = 0
         try:
-            orgs = Organization.query.all()
-            for org in orgs:
-                existing = Department.query.filter_by(organization_id=org.id).count()
-                if existing == 0:
-                    if org.is_school or org.is_school is None:
-                        defaults = ['Academic', 'Non-Academic', 'Administration', 'Support Staff']
-                    else:
-                        defaults = ['Operations', 'Finance', 'Human Resources', 'IT', 'Marketing', 'Administration']
-                    
-                    for dept_name in defaults:
-                        dept = Department(name=dept_name, organization_id=org.id)
-                        db.session.add(dept)
+            for org in Organization.query.all():
+                if Department.query.filter_by(organization_id=org.id).count() == 0:
+                    defaults = ['Academic', 'Non-Academic', 'Administration', 'Support Staff'] if org.is_school else ['Operations', 'Finance', 'HR', 'IT', 'Marketing', 'Administration']
+                    for name in defaults:
+                        db.session.add(Department(name=name, organization_id=org.id))
                         dept_count += 1
-            
             db.session.commit()
-            migrations.append(f"Added {dept_count} default departments")
+            migrations.append(f"Added {dept_count} departments")
         except:
             db.session.rollback()
         
-        return f'''
-        <h2>Migration Complete!</h2>
-        <ul>
-            {"".join(f"<li>{m}</li>" for m in migrations)}
-        </ul>
-        <br>
-        <a href="/login">Go to Login</a>
-        '''
-    
+        return f'<h2>Migration Complete!</h2><ul>{"".join(f"<li>{m}</li>" for m in migrations)}</ul><a href="/login">Go to Login</a>'
     except Exception as e:
         db.session.rollback()
         return f'Migration error: {str(e)}'
