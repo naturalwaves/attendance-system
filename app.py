@@ -553,27 +553,22 @@ def bulk_upload_staff():
                 skipped = 0
                 
                 for row in csv_reader:
-                    staff_id = row.get('staff_id', '').strip()
+                    sid = row.get('staff_id', '').strip()
                     name = row.get('name', '').strip()
                     department = row.get('department', '').strip()
                     position = row.get('position', '').strip()
                     
-                    if not staff_id or not name:
+                    if not sid or not name:
                         skipped += 1
                         continue
                     
-                    existing = Staff.query.filter_by(staff_id=staff_id).first()
+                    existing = Staff.query.filter_by(staff_id=sid).first()
                     if existing:
                         skipped += 1
                         continue
                     
-                    staff_member = Staff(
-                        staff_id=staff_id,
-                        name=name,
-                        department=department,
-                        position=position,
-                        school_id=school_id
-                    )
+                    staff_member = Staff(staff_id=sid, name=name, department=department,
+                                        position=position, school_id=school_id)
                     db.session.add(staff_member)
                     added += 1
                 
@@ -989,7 +984,6 @@ def api_sync():
                 continue
             
             record_date = datetime.strptime(record.get('date'), '%Y-%m-%d').date()
-            
             existing = Attendance.query.filter_by(staff_id=staff_member.id, date=record_date).first()
             
             check_in = datetime.strptime(record.get('check_in'), '%H:%M').time() if record.get('check_in') else None
@@ -1032,83 +1026,134 @@ def init_db():
     db.session.commit()
     return 'Database initialized! <a href="/login">Go to Login</a>'
 
+# COMPREHENSIVE MIGRATION - Fixes ALL missing columns
 @app.route('/migrate-departments')
 def migrate_departments():
     try:
         from sqlalchemy import text
         results = []
         
+        # ALL columns that need to exist
         columns_to_add = [
+            # User table
             ("\"user\"", "organization_id", "INTEGER"),
             ("\"user\"", "school_id", "INTEGER"),
             ("\"user\"", "is_active", "BOOLEAN DEFAULT TRUE"),
             ("\"user\"", "created_at", "TIMESTAMP DEFAULT CURRENT_TIMESTAMP"),
+            # Organization table
+            ("organization", "logo_url", "VARCHAR(500)"),
             ("organization", "is_school", "BOOLEAN DEFAULT TRUE"),
             ("organization", "is_active", "BOOLEAN DEFAULT TRUE"),
             ("organization", "created_at", "TIMESTAMP DEFAULT CURRENT_TIMESTAMP"),
+            # School table
+            ("school", "address", "VARCHAR(200)"),
             ("school", "is_active", "BOOLEAN DEFAULT TRUE"),
             ("school", "created_at", "TIMESTAMP DEFAULT CURRENT_TIMESTAMP"),
+            # Staff table
+            ("staff", "department", "VARCHAR(100)"),
+            ("staff", "position", "VARCHAR(100)"),
             ("staff", "is_active", "BOOLEAN DEFAULT TRUE"),
             ("staff", "created_at", "TIMESTAMP DEFAULT CURRENT_TIMESTAMP"),
+            # Attendance table
+            ("attendance", "school_id", "INTEGER"),
+            ("attendance", "check_in", "TIME"),
+            ("attendance", "check_out", "TIME"),
+            ("attendance", "status", "VARCHAR(20) DEFAULT 'present'"),
+            ("attendance", "created_at", "TIMESTAMP DEFAULT CURRENT_TIMESTAMP"),
+            # SystemSettings table
+            ("system_settings", "company_logo_url", "VARCHAR(500)"),
+            ("system_settings", "api_key", "VARCHAR(100)"),
+            ("system_settings", "created_at", "TIMESTAMP DEFAULT CURRENT_TIMESTAMP"),
         ]
         
         for table, column, col_type in columns_to_add:
             try:
                 db.session.execute(text(f"SELECT {column} FROM {table} LIMIT 1"))
-                results.append(f"{table}.{column} exists")
+                results.append(f"✓ {table}.{column} exists")
             except:
                 db.session.rollback()
                 try:
                     db.session.execute(text(f"ALTER TABLE {table} ADD COLUMN {column} {col_type}"))
                     db.session.commit()
-                    results.append(f"Added {table}.{column}")
+                    results.append(f"✚ Added {table}.{column}")
                 except Exception as e:
                     db.session.rollback()
-                    results.append(f"Error adding {table}.{column}: {str(e)}")
+                    results.append(f"✗ Error {table}.{column}: {str(e)[:50]}")
         
+        # Create department table if not exists
         try:
             db.session.execute(text("SELECT id FROM department LIMIT 1"))
-            results.append("department table exists")
+            results.append("✓ department table exists")
         except:
             db.session.rollback()
-            db.session.execute(text("""
-                CREATE TABLE department (
-                    id SERIAL PRIMARY KEY,
-                    name VARCHAR(100) NOT NULL,
-                    organization_id INTEGER,
-                    is_active BOOLEAN DEFAULT TRUE,
-                    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-                )
-            """))
-            db.session.commit()
-            results.append("Created department table")
+            try:
+                db.session.execute(text("""
+                    CREATE TABLE department (
+                        id SERIAL PRIMARY KEY,
+                        name VARCHAR(100) NOT NULL,
+                        organization_id INTEGER,
+                        is_active BOOLEAN DEFAULT TRUE,
+                        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+                    )
+                """))
+                db.session.commit()
+                results.append("✚ Created department table")
+            except Exception as e:
+                db.session.rollback()
+                results.append(f"✗ Department table error: {str(e)[:50]}")
         
+        # Set default values for NULL fields
         try:
             db.session.execute(text("UPDATE \"user\" SET is_active = TRUE WHERE is_active IS NULL"))
             db.session.execute(text("UPDATE organization SET is_active = TRUE WHERE is_active IS NULL"))
             db.session.execute(text("UPDATE organization SET is_school = TRUE WHERE is_school IS NULL"))
             db.session.execute(text("UPDATE school SET is_active = TRUE WHERE is_active IS NULL"))
             db.session.execute(text("UPDATE staff SET is_active = TRUE WHERE is_active IS NULL"))
+            db.session.execute(text("UPDATE attendance SET status = 'present' WHERE status IS NULL"))
             db.session.commit()
-            results.append("Set default values")
+            results.append("✓ Set default values")
         except Exception as e:
             db.session.rollback()
-            results.append(f"Defaults error: {str(e)}")
+            results.append(f"✗ Defaults error: {str(e)[:50]}")
         
+        # Update attendance.school_id from staff if NULL
+        try:
+            db.session.execute(text("""
+                UPDATE attendance 
+                SET school_id = staff.school_id 
+                FROM staff 
+                WHERE attendance.staff_id = staff.id 
+                AND attendance.school_id IS NULL
+            """))
+            db.session.commit()
+            results.append("✓ Updated attendance school_id from staff")
+        except Exception as e:
+            db.session.rollback()
+            results.append(f"Note: attendance school_id update: {str(e)[:50]}")
+        
+        # Add default departments to organizations
         try:
             orgs = Organization.query.all()
+            added_depts = 0
             for org in orgs:
                 if Department.query.filter_by(organization_id=org.id).count() == 0:
                     depts = ['Academic', 'Non-Academic', 'Administration', 'Support Staff'] if org.is_school else ['Operations', 'Finance', 'HR', 'IT', 'Marketing', 'Admin']
                     for d in depts:
                         db.session.add(Department(name=d, organization_id=org.id))
+                        added_depts += 1
             db.session.commit()
-            results.append("Default departments added")
+            results.append(f"✓ Added {added_depts} default departments")
         except Exception as e:
             db.session.rollback()
-            results.append(f"Departments error: {str(e)}")
+            results.append(f"✗ Departments error: {str(e)[:50]}")
         
-        return '<h2>Migration Results:</h2><ul>' + ''.join([f'<li>{r}</li>' for r in results]) + '</ul><br><a href="/login">Go to Login</a>'
+        html = '<h2>Migration Results:</h2><ul style="font-family: monospace;">'
+        for r in results:
+            color = 'green' if r.startswith('✓') or r.startswith('✚') else 'red' if r.startswith('✗') else 'orange'
+            html += f'<li style="color: {color};">{r}</li>'
+        html += '</ul><br><a href="/login" style="font-size: 18px;">Go to Login</a>'
+        return html
+    
     except Exception as e:
         db.session.rollback()
         return f'Migration error: {str(e)}'
