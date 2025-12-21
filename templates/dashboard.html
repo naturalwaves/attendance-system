@@ -43,7 +43,7 @@
         z-index: 1;
         padding: 1.5rem 1rem;
     }
-    .stat-card i {
+    .stat-card i.fa-2x {
         opacity: 0.9;
         margin-bottom: 0.75rem !important;
     }
@@ -60,6 +60,11 @@
         opacity: 0.9;
         font-weight: 500;
     }
+    .stat-card .sparkline-container {
+        margin-top: 10px;
+        height: 30px;
+        opacity: 0.7;
+    }
 
     /* Dashboard Header */
     .dashboard-header {
@@ -70,18 +75,134 @@
         color: #333;
         margin-bottom: 0.25rem;
     }
-    .dashboard-header .date-display {
-        font-size: 0.9rem;
-        color: #6c757d;
-        display: inline-flex;
+
+    /* Clock Styles */
+    .clock-container {
+        display: flex;
         align-items: center;
-        background: #f8f9fa;
-        padding: 0.4rem 1rem;
+        gap: 20px;
+        background: linear-gradient(145deg, #ffffff 0%, #f8f9fa 100%);
+        padding: 15px 25px;
         border-radius: 20px;
+        box-shadow: 0 4px 20px rgba(0,0,0,0.08);
     }
-    .dashboard-header .date-display i {
-        margin-right: 0.5rem;
+    
+    /* Analog Clock */
+    .analog-clock {
+        width: 90px;
+        height: 90px;
+        border-radius: 50%;
+        background: linear-gradient(145deg, #ffffff 0%, #f0f0f0 100%);
+        box-shadow: 
+            0 0 0 4px #fff,
+            0 4px 15px rgba(0,0,0,0.1),
+            inset 0 2px 10px rgba(0,0,0,0.05);
+        position: relative;
+    }
+    .analog-clock::before {
+        content: '';
+        position: absolute;
+        top: 50%;
+        left: 50%;
+        width: 10px;
+        height: 10px;
+        background: linear-gradient(135deg, #dc3545 0%, #c82333 100%);
+        border-radius: 50%;
+        transform: translate(-50%, -50%);
+        z-index: 10;
+        box-shadow: 0 2px 5px rgba(220,53,69,0.4);
+    }
+    .clock-face {
+        width: 100%;
+        height: 100%;
+        position: relative;
+    }
+    .clock-face::after {
+        content: '';
+        position: absolute;
+        top: 8px;
+        left: 50%;
+        width: 2px;
+        height: 6px;
+        background: #dc3545;
+        transform: translateX(-50%);
+        border-radius: 2px;
+    }
+    .clock-marks {
+        position: absolute;
+        width: 100%;
+        height: 100%;
+    }
+    .clock-mark {
+        position: absolute;
+        width: 2px;
+        height: 6px;
+        background: #ccc;
+        left: 50%;
+        transform-origin: 50% 45px;
+        border-radius: 2px;
+    }
+    .clock-mark.major {
+        height: 8px;
+        width: 2px;
+        background: #666;
+    }
+    .hand {
+        position: absolute;
+        bottom: 50%;
+        left: 50%;
+        transform-origin: 50% 100%;
+        border-radius: 4px;
+    }
+    .hour-hand {
+        width: 4px;
+        height: 22px;
+        background: linear-gradient(to top, #333 0%, #555 100%);
+        margin-left: -2px;
+        z-index: 3;
+    }
+    .minute-hand {
+        width: 3px;
+        height: 30px;
+        background: linear-gradient(to top, #555 0%, #777 100%);
+        margin-left: -1.5px;
+        z-index: 2;
+    }
+    .second-hand {
+        width: 1.5px;
+        height: 35px;
+        background: linear-gradient(to top, #dc3545 0%, #ff6b7a 100%);
+        margin-left: -0.75px;
+        z-index: 4;
+    }
+    
+    /* Digital Clock */
+    .digital-clock {
+        text-align: left;
+    }
+    .digital-time {
+        font-size: 1.75rem;
+        font-weight: 700;
+        color: #333;
+        font-family: 'Segoe UI', system-ui, sans-serif;
+        letter-spacing: 1px;
+        line-height: 1.2;
+    }
+    .digital-time .seconds {
+        font-size: 1rem;
         color: #dc3545;
+        font-weight: 600;
+    }
+    .digital-time .ampm {
+        font-size: 0.85rem;
+        color: #6c757d;
+        margin-left: 5px;
+        font-weight: 600;
+    }
+    .digital-date {
+        font-size: 0.8rem;
+        color: #6c757d;
+        margin-top: 2px;
     }
 
     /* Branch Statistics Card */
@@ -176,6 +297,102 @@
         transition: width 0.6s ease;
     }
 
+    /* Recent Activity Feed */
+    .activity-card {
+        border: none;
+        border-radius: 16px;
+        box-shadow: 0 4px 20px rgba(0,0,0,0.08);
+        overflow: hidden;
+    }
+    .activity-card .card-header {
+        background: linear-gradient(135deg, #f8f9fa 0%, #fff 100%);
+        border-bottom: 1px solid #eee;
+        padding: 1.15rem 1.5rem;
+        font-weight: 600;
+        color: #333;
+    }
+    .activity-card .card-header i {
+        color: #17a2b8;
+    }
+    .activity-feed {
+        max-height: 300px;
+        overflow-y: auto;
+    }
+    .activity-item {
+        padding: 1rem 1.5rem;
+        border-bottom: 1px solid #f3f3f3;
+        display: flex;
+        align-items: flex-start;
+        gap: 12px;
+        transition: background 0.2s ease;
+    }
+    .activity-item:last-child {
+        border-bottom: none;
+    }
+    .activity-item:hover {
+        background: #f8f9fa;
+    }
+    .activity-icon {
+        width: 36px;
+        height: 36px;
+        border-radius: 50%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 0.85rem;
+        flex-shrink: 0;
+    }
+    .activity-icon.check-in {
+        background: linear-gradient(135deg, #d4edda 0%, #c3e6cb 100%);
+        color: #155724;
+    }
+    .activity-icon.late {
+        background: linear-gradient(135deg, #fff3cd 0%, #ffeeba 100%);
+        color: #856404;
+    }
+    .activity-icon.check-out {
+        background: linear-gradient(135deg, #cce5ff 0%, #b8daff 100%);
+        color: #004085;
+    }
+    .activity-icon.absent {
+        background: linear-gradient(135deg, #f8d7da 0%, #f5c6cb 100%);
+        color: #721c24;
+    }
+    .activity-content {
+        flex: 1;
+        min-width: 0;
+    }
+    .activity-name {
+        font-weight: 600;
+        color: #333;
+        font-size: 0.9rem;
+    }
+    .activity-details {
+        font-size: 0.8rem;
+        color: #6c757d;
+        margin-top: 2px;
+    }
+    .activity-time {
+        font-size: 0.75rem;
+        color: #adb5bd;
+        white-space: nowrap;
+    }
+    .activity-badge {
+        font-size: 0.7rem;
+        padding: 2px 8px;
+        border-radius: 10px;
+        font-weight: 600;
+        margin-left: 8px;
+    }
+    .activity-badge.late {
+        background: #fff3cd;
+        color: #856404;
+    }
+    .activity-badge.early {
+        background: #d4edda;
+        color: #155724;
+    }
+
     /* Empty State */
     .empty-state {
         text-align: center;
@@ -187,17 +404,69 @@
         opacity: 0.2;
         margin-bottom: 1rem;
     }
+
+    /* Live Indicator */
+    .live-indicator {
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+        font-size: 0.7rem;
+        color: #28a745;
+        font-weight: 600;
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+    }
+    .live-dot {
+        width: 8px;
+        height: 8px;
+        background: #28a745;
+        border-radius: 50%;
+        animation: pulse 2s infinite;
+    }
+    @keyframes pulse {
+        0%, 100% { opacity: 1; transform: scale(1); }
+        50% { opacity: 0.5; transform: scale(1.2); }
+    }
+
+    /* Welcome Message */
+    .welcome-section {
+        margin-bottom: 0.5rem;
+    }
+    .welcome-text {
+        font-size: 1rem;
+        color: #6c757d;
+    }
+    .welcome-text strong {
+        color: #333;
+    }
 </style>
 
-<div class="dashboard-header d-flex justify-content-between align-items-center">
+<div class="dashboard-header d-flex justify-content-between align-items-start flex-wrap gap-3">
     <div>
+        <div class="welcome-section">
+            <span class="welcome-text" id="welcomeMessage">Good morning, <strong>{{ current_user.username }}</strong></span>
+        </div>
         <h2><i class="fas fa-tachometer-alt me-2 text-danger"></i>Dashboard</h2>
         <p class="text-muted mb-0">Overview of today's attendance metrics</p>
     </div>
-    <span class="date-display">
-        <i class="fas fa-calendar-alt"></i>
-        {{ now().strftime('%A, %d %B %Y') if now is defined else '' }}
-    </span>
+    <div class="clock-container">
+        <div class="analog-clock">
+            <div class="clock-face">
+                <div class="clock-marks">
+                    <!-- Hour marks will be added by JS -->
+                </div>
+                <div class="hand hour-hand" id="hourHand"></div>
+                <div class="hand minute-hand" id="minuteHand"></div>
+                <div class="hand second-hand" id="secondHand"></div>
+            </div>
+        </div>
+        <div class="digital-clock">
+            <div class="digital-time">
+                <span id="digitalHours">00</span>:<span id="digitalMinutes">00</span><span class="seconds" id="digitalSeconds">:00</span><span class="ampm" id="ampm">AM</span>
+            </div>
+            <div class="digital-date" id="digitalDate"></div>
+        </div>
+    </div>
 </div>
 
 <!-- Stats Cards -->
@@ -207,8 +476,11 @@
             <div class="card stat-card stat-schools h-100 shadow">
                 <div class="card-body text-center text-white">
                     <i class="fas fa-building fa-2x"></i>
-                    <h3>{{ total_schools }}</h3>
+                    <h3 class="counter" data-target="{{ total_schools }}">0</h3>
                     <small>Branches</small>
+                    <div class="sparkline-container">
+                        <canvas id="sparklineSchools" height="30"></canvas>
+                    </div>
                 </div>
             </div>
         </a>
@@ -218,8 +490,11 @@
             <div class="card stat-card stat-staff h-100 shadow">
                 <div class="card-body text-center text-white">
                     <i class="fas fa-users fa-2x"></i>
-                    <h3>{{ total_staff }}</h3>
+                    <h3 class="counter" data-target="{{ total_staff }}">0</h3>
                     <small>Total Staff</small>
+                    <div class="sparkline-container">
+                        <canvas id="sparklineStaff" height="30"></canvas>
+                    </div>
                 </div>
             </div>
         </a>
@@ -229,8 +504,11 @@
             <div class="card stat-card stat-present h-100 shadow">
                 <div class="card-body text-center text-white">
                     <i class="fas fa-user-check fa-2x"></i>
-                    <h3>{{ today_attendance }}</h3>
+                    <h3 class="counter" data-target="{{ today_attendance }}">0</h3>
                     <small>Present Today</small>
+                    <div class="sparkline-container">
+                        <canvas id="sparklinePresent" height="30"></canvas>
+                    </div>
                 </div>
             </div>
         </a>
@@ -240,8 +518,11 @@
             <div class="card stat-card stat-late h-100 shadow">
                 <div class="card-body text-center text-white">
                     <i class="fas fa-clock fa-2x"></i>
-                    <h3>{{ late_today }}</h3>
+                    <h3 class="counter" data-target="{{ late_today }}">0</h3>
                     <small>Late Today</small>
+                    <div class="sparkline-container">
+                        <canvas id="sparklineLate" height="30"></canvas>
+                    </div>
                 </div>
             </div>
         </a>
@@ -251,75 +532,293 @@
             <div class="card stat-card stat-absent h-100 shadow">
                 <div class="card-body text-center text-white">
                     <i class="fas fa-user-times fa-2x"></i>
-                    <h3>{{ absent_today }}</h3>
+                    <h3 class="counter" data-target="{{ absent_today }}">0</h3>
                     <small>Absent Today</small>
+                    <div class="sparkline-container">
+                        <canvas id="sparklineAbsent" height="30"></canvas>
+                    </div>
                 </div>
             </div>
         </a>
     </div>
 </div>
 
-<!-- School Stats Table -->
-{% if school_stats %}
-<div class="card stats-table-card">
-    <div class="card-header">
-        <i class="fas fa-chart-bar me-2"></i>Branch Statistics (Today)
+<div class="row g-4">
+    <!-- School Stats Table -->
+    <div class="col-lg-8">
+        {% if school_stats %}
+        <div class="card stats-table-card h-100">
+            <div class="card-header">
+                <i class="fas fa-chart-bar me-2"></i>Branch Statistics (Today)
+            </div>
+            <div class="card-body">
+                <div class="table-responsive">
+                    <table class="table table-hover">
+                        <thead>
+                            <tr>
+                                <th>Branch</th>
+                                <th>Total Staff</th>
+                                <th>Present</th>
+                                <th>Late</th>
+                                <th>Attendance Rate</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for stat in school_stats %}
+                            <tr>
+                                <td>
+                                    <span class="branch-name">{{ stat.school.name }}</span>
+                                    {% if stat.school.short_name %}
+                                    <div class="branch-short">{{ stat.school.short_name }}</div>
+                                    {% endif %}
+                                </td>
+                                <td>
+                                    <span class="fw-semibold">{{ stat.total_staff }}</span>
+                                </td>
+                                <td>
+                                    <span class="badge-stat success">{{ stat.present }}</span>
+                                </td>
+                                <td>
+                                    <span class="badge-stat warning">{{ stat.late }}</span>
+                                </td>
+                                <td style="min-width: 150px;">
+                                    {% if stat.total_staff > 0 %}
+                                    {% set rate = (stat.present / stat.total_staff * 100)|round(1) %}
+                                    <div class="progress" style="height: 22px;">
+                                        <div class="progress-bar {% if rate >= 80 %}bg-success{% elif rate >= 50 %}bg-warning{% else %}bg-danger{% endif %}" style="width: {{ rate }}%">
+                                            {{ rate }}%
+                                        </div>
+                                    </div>
+                                    {% else %}
+                                    <span class="text-muted fst-italic">N/A</span>
+                                    {% endif %}
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+        {% else %}
+        <div class="card stats-table-card h-100">
+            <div class="card-header">
+                <i class="fas fa-chart-bar me-2"></i>Branch Statistics (Today)
+            </div>
+            <div class="card-body empty-state">
+                <i class="fas fa-chart-bar d-block"></i>
+                <p class="mb-0">No branch statistics available</p>
+            </div>
+        </div>
+        {% endif %}
     </div>
-    <div class="card-body">
-        <div class="table-responsive">
-            <table class="table table-hover">
-                <thead>
-                    <tr>
-                        <th>Branch</th>
-                        <th>Total Staff</th>
-                        <th>Present</th>
-                        <th>Late</th>
-                        <th>Attendance Rate</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    {% for stat in school_stats %}
-                    <tr>
-                        <td>
-                            <span class="branch-name">{{ stat.school.name }}</span>
-                            {% if stat.school.short_name %}
-                            <div class="branch-short">{{ stat.school.short_name }}</div>
-                            {% endif %}
-                        </td>
-                        <td>
-                            <span class="fw-semibold">{{ stat.total_staff }}</span>
-                        </td>
-                        <td>
-                            <span class="badge-stat success">{{ stat.present }}</span>
-                        </td>
-                        <td>
-                            <span class="badge-stat warning">{{ stat.late }}</span>
-                        </td>
-                        <td style="min-width: 150px;">
-                            {% if stat.total_staff > 0 %}
-                            {% set rate = (stat.present / stat.total_staff * 100)|round(1) %}
-                            <div class="progress" style="height: 22px;">
-                                <div class="progress-bar {% if rate >= 80 %}bg-success{% elif rate >= 50 %}bg-warning{% else %}bg-danger{% endif %}" style="width: {{ rate }}%">
-                                    {{ rate }}%
-                                </div>
+
+    <!-- Recent Activity Feed -->
+    <div class="col-lg-4">
+        <div class="card activity-card h-100">
+            <div class="card-header d-flex justify-content-between align-items-center">
+                <span><i class="fas fa-stream me-2"></i>Recent Activity</span>
+                <span class="live-indicator"><span class="live-dot"></span>Live</span>
+            </div>
+            <div class="activity-feed" id="activityFeed">
+                {% if recent_activities %}
+                    {% for activity in recent_activities %}
+                    <div class="activity-item">
+                        <div class="activity-icon {{ activity.type }}">
+                            <i class="fas fa-{% if activity.type == 'check-in' %}sign-in-alt{% elif activity.type == 'late' %}clock{% elif activity.type == 'check-out' %}sign-out-alt{% else %}user-times{% endif %}"></i>
+                        </div>
+                        <div class="activity-content">
+                            <div class="activity-name">
+                                {{ activity.name }}
+                                {% if activity.type == 'late' %}
+                                <span class="activity-badge late">Late</span>
+                                {% elif activity.type == 'check-in' and activity.early %}
+                                <span class="activity-badge early">Early</span>
+                                {% endif %}
                             </div>
-                            {% else %}
-                            <span class="text-muted fst-italic">N/A</span>
-                            {% endif %}
-                        </td>
-                    </tr>
+                            <div class="activity-details">{{ activity.branch }}</div>
+                        </div>
+                        <div class="activity-time">{{ activity.time }}</div>
+                    </div>
                     {% endfor %}
-                </tbody>
-            </table>
+                {% else %}
+                    <div class="activity-item">
+                        <div class="activity-icon check-in">
+                            <i class="fas fa-sign-in-alt"></i>
+                        </div>
+                        <div class="activity-content">
+                            <div class="activity-name">No recent activity</div>
+                            <div class="activity-details">Check-ins will appear here</div>
+                        </div>
+                    </div>
+                {% endif %}
+            </div>
         </div>
     </div>
 </div>
-{% else %}
-<div class="card stats-table-card">
-    <div class="card-body empty-state">
-        <i class="fas fa-chart-bar d-block"></i>
-        <p class="mb-0">No branch statistics available</p>
-    </div>
-</div>
-{% endif %}
+
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<script>
+// Clock functionality
+function updateClock() {
+    const now = new Date();
+    const hours = now.getHours();
+    const minutes = now.getMinutes();
+    const seconds = now.getSeconds();
+    
+    // Analog clock
+    const hourDeg = (hours % 12) * 30 + minutes * 0.5;
+    const minuteDeg = minutes * 6;
+    const secondDeg = seconds * 6;
+    
+    document.getElementById('hourHand').style.transform = `rotate(${hourDeg}deg)`;
+    document.getElementById('minuteHand').style.transform = `rotate(${minuteDeg}deg)`;
+    document.getElementById('secondHand').style.transform = `rotate(${secondDeg}deg)`;
+    
+    // Digital clock
+    const hours12 = hours % 12 || 12;
+    const ampm = hours >= 12 ? 'PM' : 'AM';
+    
+    document.getElementById('digitalHours').textContent = hours12.toString().padStart(2, '0');
+    document.getElementById('digitalMinutes').textContent = minutes.toString().padStart(2, '0');
+    document.getElementById('digitalSeconds').textContent = ':' + seconds.toString().padStart(2, '0');
+    document.getElementById('ampm').textContent = ampm;
+    
+    // Date
+    const options = { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' };
+    document.getElementById('digitalDate').textContent = now.toLocaleDateString('en-US', options);
+}
+
+// Add clock marks
+function createClockMarks() {
+    const marksContainer = document.querySelector('.clock-marks');
+    for (let i = 0; i < 12; i++) {
+        const mark = document.createElement('div');
+        mark.className = 'clock-mark' + (i % 3 === 0 ? ' major' : '');
+        mark.style.transform = `translateX(-50%) rotate(${i * 30}deg)`;
+        marksContainer.appendChild(mark);
+    }
+}
+
+// Welcome message based on time
+function updateWelcome() {
+    const hour = new Date().getHours();
+    let greeting = 'Good morning';
+    if (hour >= 12 && hour < 17) greeting = 'Good afternoon';
+    else if (hour >= 17) greeting = 'Good evening';
+    
+    const welcomeEl = document.getElementById('welcomeMessage');
+    const username = welcomeEl.querySelector('strong').textContent;
+    welcomeEl.innerHTML = `${greeting}, <strong>${username}</strong>`;
+}
+
+// Animated counters
+function animateCounters() {
+    const counters = document.querySelectorAll('.counter');
+    const speed = 200;
+    
+    counters.forEach(counter => {
+        const target = +counter.getAttribute('data-target');
+        const increment = target / speed;
+        
+        const updateCount = () => {
+            const count = +counter.innerText;
+            if (count < target) {
+                counter.innerText = Math.ceil(count + increment);
+                setTimeout(updateCount, 1);
+            } else {
+                counter.innerText = target;
+            }
+        };
+        
+        updateCount();
+    });
+}
+
+// Sparkline charts
+function createSparklines() {
+    const sparklineConfig = {
+        type: 'line',
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: { legend: { display: false } },
+            scales: {
+                x: { display: false },
+                y: { display: false }
+            },
+            elements: {
+                point: { radius: 0 },
+                line: { borderWidth: 2, tension: 0.4 }
+            }
+        }
+    };
+
+    // Sample data - replace with real data from backend
+    const sparklineData = {
+        schools: [3, 3, 3, 4, 4, 4, {{ total_schools }}],
+        staff: [{{ total_staff|default(0) - 5 }}, {{ total_staff|default(0) - 3 }}, {{ total_staff|default(0) - 2 }}, {{ total_staff|default(0) - 1 }}, {{ total_staff|default(0) }}, {{ total_staff|default(0) }}, {{ total_staff }}],
+        present: [{{ today_attendance|default(0) * 0.8 }}, {{ today_attendance|default(0) * 0.85 }}, {{ today_attendance|default(0) * 0.9 }}, {{ today_attendance|default(0) * 0.88 }}, {{ today_attendance|default(0) * 0.92 }}, {{ today_attendance|default(0) * 0.95 }}, {{ today_attendance }}],
+        late: [{{ late_today|default(0) * 1.3 }}, {{ late_today|default(0) * 1.2 }}, {{ late_today|default(0) * 1.1 }}, {{ late_today|default(0) * 1.15 }}, {{ late_today|default(0) * 1.05 }}, {{ late_today|default(0) * 1.02 }}, {{ late_today }}],
+        absent: [{{ absent_today|default(0) * 1.2 }}, {{ absent_today|default(0) * 1.15 }}, {{ absent_today|default(0) * 1.1 }}, {{ absent_today|default(0) * 1.05 }}, {{ absent_today|default(0) * 1.08 }}, {{ absent_today|default(0) * 1.02 }}, {{ absent_today }}]
+    };
+
+    const labels = ['', '', '', '', '', '', ''];
+
+    // Schools sparkline
+    new Chart(document.getElementById('sparklineSchools'), {
+        ...sparklineConfig,
+        data: {
+            labels,
+            datasets: [{ data: sparklineData.schools, borderColor: 'rgba(255,255,255,0.8)', fill: false }]
+        }
+    });
+
+    // Staff sparkline
+    new Chart(document.getElementById('sparklineStaff'), {
+        ...sparklineConfig,
+        data: {
+            labels,
+            datasets: [{ data: sparklineData.staff, borderColor: 'rgba(255,255,255,0.8)', fill: false }]
+        }
+    });
+
+    // Present sparkline
+    new Chart(document.getElementById('sparklinePresent'), {
+        ...sparklineConfig,
+        data: {
+            labels,
+            datasets: [{ data: sparklineData.present, borderColor: 'rgba(255,255,255,0.8)', fill: false }]
+        }
+    });
+
+    // Late sparkline
+    new Chart(document.getElementById('sparklineLate'), {
+        ...sparklineConfig,
+        data: {
+            labels,
+            datasets: [{ data: sparklineData.late, borderColor: 'rgba(255,255,255,0.8)', fill: false }]
+        }
+    });
+
+    // Absent sparkline
+    new Chart(document.getElementById('sparklineAbsent'), {
+        ...sparklineConfig,
+        data: {
+            labels,
+            datasets: [{ data: sparklineData.absent, borderColor: 'rgba(255,255,255,0.8)', fill: false }]
+        }
+    });
+}
+
+// Initialize everything
+document.addEventListener('DOMContentLoaded', function() {
+    createClockMarks();
+    updateClock();
+    setInterval(updateClock, 1000);
+    updateWelcome();
+    animateCounters();
+    createSparklines();
+});
+</script>
 {% endblock %}
