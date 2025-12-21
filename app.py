@@ -80,7 +80,7 @@ class User(db.Model, UserMixin):
 
 class Staff(db.Model):
     id = db.Column(db.Integer, primary_key=True)
-    staff_id = db.Column(db.String(50), nullable=False)  # Removed unique=True
+    staff_id = db.Column(db.String(50), nullable=False)
     name = db.Column(db.String(200), nullable=False)
     department = db.Column(db.String(100))
     school_id = db.Column(db.Integer, db.ForeignKey('school.id'), nullable=False)
@@ -88,7 +88,6 @@ class Staff(db.Model):
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
     attendance_records = db.relationship('Attendance', backref='staff', lazy=True, cascade='all, delete-orphan')
     
-    # Composite unique constraint: staff_id unique per organization (via school)
     __table_args__ = (
         db.Index('idx_staff_id_school', 'staff_id', 'school_id'),
     )
@@ -126,9 +125,7 @@ def get_settings():
         db.session.commit()
     return settings
 
-# Helper function to check staff_id uniqueness within organization
 def is_staff_id_unique_in_org(staff_id, organization_id, exclude_staff_id=None):
-    """Check if staff_id is unique within the organization"""
     query = Staff.query.join(School).filter(
         Staff.staff_id == staff_id,
         School.organization_id == organization_id
@@ -307,20 +304,39 @@ def search_staff():
 @app.route('/staff')
 @login_required
 def staff_list():
+    organization_id = request.args.get('organization_id', type=int)
+    
     if current_user.role == 'super_admin':
-        staff = Staff.query.all()
-        schools = School.query.all()
+        organizations = Organization.query.all()
+        
+        if organization_id:
+            school_ids = [s.id for s in School.query.filter_by(organization_id=organization_id).all()]
+            staff = Staff.query.filter(Staff.school_id.in_(school_ids)).all() if school_ids else []
+            schools = School.query.filter_by(organization_id=organization_id).all()
+        else:
+            staff = Staff.query.all()
+            schools = School.query.all()
     else:
+        organizations = []
         schools = current_user.get_accessible_schools()
         school_ids = [s.id for s in schools]
         staff = Staff.query.filter(Staff.school_id.in_(school_ids)).all()
     
-    return render_template('staff.html', staff=staff, schools=schools)
+    return render_template('staff.html', 
+                          staff=staff, 
+                          schools=schools, 
+                          organizations=organizations,
+                          selected_organization=organization_id)
 
 @app.route('/staff/add', methods=['GET', 'POST'])
 @login_required
 def add_staff():
-    schools = current_user.get_accessible_schools()
+    if current_user.role == 'super_admin':
+        organizations = Organization.query.all()
+        schools = School.query.all()
+    else:
+        organizations = []
+        schools = current_user.get_accessible_schools()
     
     if request.method == 'POST':
         staff_id = request.form.get('staff_id')
@@ -328,18 +344,15 @@ def add_staff():
         school_id = int(request.form.get('school_id'))
         department = request.form.get('department')
         
-        # Validate school access
         if not current_user.can_access_school(school_id):
             flash('Access denied to this branch.', 'danger')
             return redirect(url_for('staff_list'))
         
-        # Get organization_id for the selected school
         school = School.query.get(school_id)
         if not school:
             flash('Invalid branch selected.', 'danger')
             return redirect(url_for('add_staff'))
         
-        # Check if staff_id is unique within the organization
         if not is_staff_id_unique_in_org(staff_id, school.organization_id):
             flash(f'Staff ID "{staff_id}" already exists in this organization.', 'danger')
             return redirect(url_for('add_staff'))
@@ -355,7 +368,7 @@ def add_staff():
         flash('Staff added successfully!', 'success')
         return redirect(url_for('staff_list'))
     
-    return render_template('add_staff.html', schools=schools)
+    return render_template('add_staff.html', schools=schools, organizations=organizations)
 
 @app.route('/staff/edit/<int:id>', methods=['POST'])
 @login_required
@@ -369,18 +382,15 @@ def edit_staff(id):
     new_staff_id = request.form.get('staff_id')
     new_school_id = int(request.form.get('school_id'))
     
-    # Validate new school access
     if not current_user.can_access_school(new_school_id):
         flash('Access denied to this branch.', 'danger')
         return redirect(url_for('staff_list'))
     
-    # Get organization_id for the new school
     new_school = School.query.get(new_school_id)
     if not new_school:
         flash('Invalid branch selected.', 'danger')
         return redirect(url_for('staff_list'))
     
-    # Check if staff_id is unique within the organization (excluding current staff)
     if not is_staff_id_unique_in_org(new_staff_id, new_school.organization_id, exclude_staff_id=id):
         flash(f'Staff ID "{new_staff_id}" already exists in this organization.', 'danger')
         return redirect(url_for('staff_list'))
@@ -463,7 +473,6 @@ def bulk_upload():
                     skipped += 1
                     continue
                 
-                # Check uniqueness within organization
                 if not is_staff_id_unique_in_org(staff_id, school.organization_id):
                     errors.append(f'Staff ID "{staff_id}" already exists')
                     skipped += 1
@@ -761,6 +770,19 @@ def get_branch_departments(branch_id):
     school = School.query.get_or_404(branch_id)
     departments = Department.query.filter_by(organization_id=school.organization_id).all()
     return jsonify([{'id': d.id, 'name': d.name} for d in departments])
+
+@app.route('/api/organization-branches/<int:org_id>')
+@login_required
+def get_organization_branches(org_id):
+    if current_user.role == 'super_admin':
+        branches = School.query.filter_by(organization_id=org_id).all()
+    else:
+        accessible_ids = current_user.get_accessible_school_ids()
+        branches = School.query.filter(
+            School.organization_id == org_id,
+            School.id.in_(accessible_ids)
+        ).all()
+    return jsonify([{'id': b.id, 'name': b.name} for b in branches])
 
 @app.route('/reports/attendance', methods=['GET'])
 @login_required
