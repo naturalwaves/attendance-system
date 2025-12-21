@@ -693,7 +693,7 @@ new Chart(distCtx, {
         labels: {{ distribution_labels|tojson }},
         datasets: [{
             data: {{ distribution_data|tojson }},
-            backgroundColor: ['#28a745', '#17a2b8', '#ffc107']
+            backgroundColor: ['#28a745', '#ffc107']
         }]
     },
     options: { responsive: true, plugins: { legend: { position: 'bottom' } } }
