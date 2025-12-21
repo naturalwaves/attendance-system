@@ -159,7 +159,7 @@
         color: #333;
     }
 
-    /* Activity Ticker - GREEN BACKGROUND */
+    /* Activity Ticker - GREEN BACKGROUND with GOLD BADGES */
     .ticker-section {
         margin-bottom: 1.5rem;
     }
@@ -245,7 +245,7 @@
         color: rgba(255, 255, 255, 0.9);
     }
     .ticker-item .check {
-        color: #6ee7b7;
+        color: #fff;
         font-weight: bold;
     }
     .ticker-item .name {
@@ -257,15 +257,16 @@
         font-size: 0.75rem;
     }
     .ticker-item .branch {
-        background: rgba(110, 231, 183, 0.3);
-        padding: 2px 8px;
+        background: linear-gradient(135deg, #fbbf24, #f59e0b);
+        padding: 2px 10px;
         border-radius: 4px;
         font-size: 0.7rem;
-        color: #d1fae5;
-        font-weight: 500;
+        color: #78350f;
+        font-weight: 600;
+        box-shadow: 0 2px 4px rgba(0, 0, 0, 0.15);
     }
 
-    /* Stat Cards - Compact, Beautiful, Fits in One Row */
+    /* Stat Cards */
     .stats-row {
         display: flex;
         gap: 0.75rem;
@@ -356,8 +357,6 @@
         margin-top: 0.5rem;
         opacity: 0.8;
     }
-
-    /* Enhanced text visibility for lighter cards (yellow/late) */
     .stat-late h3,
     .stat-late .label {
         text-shadow: 0 2px 6px rgba(0,0,0,0.25);
@@ -410,8 +409,6 @@
         background: #e9ecef;
     }
 
-    /* ========== First Check-in & Search ========== */
-    
     /* Header Layout */
     .dashboard-header {
         display: grid;
@@ -434,7 +431,7 @@
         justify-content: flex-end;
     }
 
-    /* First Check-in Card - YELLOW/GOLD (Original) */
+    /* First Check-in Card - YELLOW/GOLD */
     .first-checkin-card {
         background: linear-gradient(135deg, #fff9e6 0%, #fff3cd 100%);
         border: 1px solid rgba(255, 193, 7, 0.3);
@@ -721,9 +718,8 @@
     }
 </style>
 
-<!-- Dashboard Header with Search, First Check-in, and Clock -->
+<!-- Dashboard Header -->
 <div class="dashboard-header">
-    <!-- Left: Title, Welcome, Search -->
     <div class="header-left">
         <div>
             <h2 class="mb-1 fw-bold"><i class="fas fa-tachometer-alt me-2 text-primary"></i>Dashboard</h2>
@@ -738,7 +734,6 @@
         </div>
     </div>
     
-    <!-- Center: First Check-in -->
     <div class="header-center">
         <div class="first-checkin-card no-checkin" id="firstCheckinCard">
             <div class="trophy-icon">
@@ -759,7 +754,6 @@
         </div>
     </div>
     
-    <!-- Right: Clock -->
     <div class="header-right">
         <div class="clock-container">
             <div class="analog-clock">
@@ -802,7 +796,7 @@
     </div>
 </div>
 
-<!-- Stats Cards - Compact & Beautiful -->
+<!-- Stats Cards -->
 <div class="stats-row">
     <div class="stat-card-wrapper">
         <a href="{{ url_for('schools') }}" class="text-decoration-none">
@@ -950,17 +944,13 @@
 
 <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 <script>
-// Update greeting based on actual time
+// Greeting
 function updateGreeting() {
     const hour = new Date().getHours();
     let greeting;
-    if (hour < 12) {
-        greeting = 'Good morning';
-    } else if (hour < 17) {
-        greeting = 'Good afternoon';
-    } else {
-        greeting = 'Good evening';
-    }
+    if (hour < 12) greeting = 'Good morning';
+    else if (hour < 17) greeting = 'Good afternoon';
+    else greeting = 'Good evening';
     document.getElementById('welcomeMessage').innerHTML = greeting + ', <strong>{{ current_user.username }}</strong>';
 }
 updateGreeting();
@@ -995,7 +985,7 @@ function updateClock() {
 updateClock();
 setInterval(updateClock, 1000);
 
-// Animated Counters (2 second duration with easing)
+// Animated Counters
 function animateCounters() {
     document.querySelectorAll('.counter').forEach(counter => {
         const target = parseInt(counter.dataset.target) || 0;
@@ -1017,10 +1007,9 @@ function animateCounters() {
         requestAnimationFrame(animate);
     });
 }
-
 animateCounters();
 
-// Update First Check-in Card
+// First Check-in
 function updateFirstCheckin(data) {
     const card = document.getElementById('firstCheckinCard');
     const nameEl = document.getElementById('firstCheckinName');
@@ -1045,7 +1034,7 @@ function updateFirstCheckin(data) {
     }
 }
 
-// Auto-refresh dashboard stats every 15 seconds
+// Dashboard Refresh
 function refreshDashboard() {
     fetch('/api/dashboard-stats')
         .then(response => response.json())
@@ -1078,18 +1067,16 @@ function refreshDashboard() {
         })
         .catch(error => console.log('Dashboard refresh error:', error));
 }
-
 setTimeout(refreshDashboard, 1000);
 setInterval(refreshDashboard, 15000);
 
-// Staff Search Functionality
+// Search
 const searchInput = document.getElementById('staffSearch');
 const searchResults = document.getElementById('searchResults');
 let searchTimeout;
 
 searchInput.addEventListener('input', function() {
     const query = this.value.trim();
-    
     clearTimeout(searchTimeout);
     
     if (query.length < 2) {
@@ -1191,10 +1178,7 @@ function createSparkline(canvasId) {
             maintainAspectRatio: false,
             plugins: { legend: { display: false } },
             scales: { x: { display: false }, y: { display: false } },
-            animation: {
-                duration: 1500,
-                easing: 'easeOutQuart'
-            }
+            animation: { duration: 1500, easing: 'easeOutQuart' }
         }
     });
 }
