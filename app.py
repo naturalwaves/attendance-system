@@ -48,8 +48,6 @@ class School(db.Model):
     name = db.Column(db.String(200), nullable=False)
     address = db.Column(db.Text)
     organization_id = db.Column(db.Integer, db.ForeignKey('organization.id'), nullable=False)
-    expected_start_time = db.Column(db.String(10), default='09:00')
-    expected_end_time = db.Column(db.String(10), default='17:00')
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
     staff = db.relationship('Staff', backref='school', lazy=True, cascade='all, delete-orphan')
     attendance_records = db.relationship('Attendance', backref='school', lazy=True, cascade='all, delete-orphan')
@@ -140,18 +138,6 @@ def get_user_school_ids():
         return [s.id for s in School.query.all()]
     return [s.id for s in current_user.schools]
 
-def get_expected_start(school):
-    try:
-        return datetime.strptime(school.expected_start_time or '09:00', '%H:%M').time()
-    except:
-        return datetime.strptime('09:00', '%H:%M').time()
-
-def get_expected_end(school):
-    try:
-        return datetime.strptime(school.expected_end_time or '17:00', '%H:%M').time()
-    except:
-        return datetime.strptime('17:00', '%H:%M').time()
-
 # ============================================
 # AUTHENTICATION ROUTES
 # ============================================
@@ -200,22 +186,22 @@ def dashboard():
         db.func.date(Attendance.check_in) == today
     ).count()
     
+    # Late count (after 9:00 AM)
     late_count = 0
-    schools = School.query.filter(School.id.in_(school_ids)).all()
-    
-    for school in schools:
-        expected_start = get_expected_start(school)
-        records = Attendance.query.filter(
-            Attendance.school_id == school.id,
-            db.func.date(Attendance.check_in) == today
-        ).all()
-        for record in records:
-            if record.check_in.time() > expected_start:
-                late_count += 1
+    nine_am = datetime.strptime('09:00', '%H:%M').time()
+    records = Attendance.query.filter(
+        Attendance.school_id.in_(school_ids),
+        db.func.date(Attendance.check_in) == today
+    ).all()
+    for record in records:
+        if record.check_in.time() > nine_am:
+            late_count += 1
     
     today_absent = max(0, total_staff - today_attendance)
     
+    # Branch stats
     branch_stats = []
+    schools = School.query.filter(School.id.in_(school_ids)).all()
     for school in schools:
         school_staff = Staff.query.filter_by(school_id=school.id, is_active=True).count()
         school_present = Attendance.query.filter(
@@ -223,14 +209,13 @@ def dashboard():
             db.func.date(Attendance.check_in) == today
         ).count()
         
-        expected_start = get_expected_start(school)
         school_late = 0
-        records = Attendance.query.filter(
+        school_records = Attendance.query.filter(
             Attendance.school_id == school.id,
             db.func.date(Attendance.check_in) == today
         ).all()
-        for record in records:
-            if record.check_in.time() > expected_start:
+        for record in school_records:
+            if record.check_in.time() > nine_am:
                 school_late += 1
         
         school_absent = max(0, school_staff - school_present)
@@ -264,6 +249,7 @@ def dashboard():
 def api_dashboard_stats():
     today = date.today()
     school_ids = get_user_school_ids()
+    nine_am = datetime.strptime('09:00', '%H:%M').time()
     
     total_schools = len(school_ids)
     total_staff = Staff.query.filter(Staff.school_id.in_(school_ids), Staff.is_active == True).count()
@@ -274,17 +260,13 @@ def api_dashboard_stats():
     ).count()
     
     late_count = 0
-    schools = School.query.filter(School.id.in_(school_ids)).all()
-    
-    for school in schools:
-        expected_start = get_expected_start(school)
-        records = Attendance.query.filter(
-            Attendance.school_id == school.id,
-            db.func.date(Attendance.check_in) == today
-        ).all()
-        for record in records:
-            if record.check_in.time() > expected_start:
-                late_count += 1
+    records = Attendance.query.filter(
+        Attendance.school_id.in_(school_ids),
+        db.func.date(Attendance.check_in) == today
+    ).all()
+    for record in records:
+        if record.check_in.time() > nine_am:
+            late_count += 1
     
     absent_count = max(0, total_staff - today_attendance)
     
@@ -342,6 +324,7 @@ def api_search_staff():
     
     today = date.today()
     school_ids = get_user_school_ids()
+    nine_am = datetime.strptime('09:00', '%H:%M').time()
     
     staff_results = Staff.query.filter(
         Staff.school_id.in_(school_ids),
@@ -363,8 +346,7 @@ def api_search_staff():
         ).first()
         
         if attendance:
-            expected_start = get_expected_start(school)
-            if attendance.check_in.time() > expected_start:
+            if attendance.check_in.time() > nine_am:
                 status, status_text = 'late', 'Late'
             else:
                 status, status_text = 'signed-in', 'Signed In'
@@ -388,70 +370,6 @@ def api_search_staff():
         })
     
     return jsonify(results)
-
-@app.route('/api/branch-staff/<int:branch_id>')
-@login_required
-def api_branch_staff(branch_id):
-    today = date.today()
-    school = School.query.get_or_404(branch_id)
-    
-    # Check access
-    if current_user.role not in ['super_admin', 'school_admin']:
-        if school.id not in [s.id for s in current_user.schools]:
-            return jsonify({'error': 'Access denied'}), 403
-    
-    staff_list = Staff.query.filter_by(school_id=branch_id, is_active=True).order_by(Staff.name).all()
-    
-    attendance_records = Attendance.query.filter(
-        Attendance.school_id == branch_id,
-        db.func.date(Attendance.check_in) == today
-    ).all()
-    
-    attendance_lookup = {a.staff_id: a for a in attendance_records}
-    expected_start = get_expected_start(school)
-    
-    colors_list = ['#667eea', '#11998e', '#e74c3c', '#9b59b6', '#3498db', '#1abc9c', '#e67e22', '#2c3e50']
-    
-    staff_data = []
-    for staff in staff_list:
-        attendance = attendance_lookup.get(staff.id)
-        
-        if attendance:
-            if attendance.check_in.time() > expected_start:
-                status, status_text = 'late', 'Late'
-            else:
-                status, status_text = 'signed-in', 'On Time'
-            time_str = attendance.check_in.strftime('%H:%M')
-        else:
-            status, status_text = 'absent', 'Absent'
-            time_str = None
-        
-        name_parts = staff.name.split()
-        initials = ''.join([p[0].upper() for p in name_parts[:2]])
-        color = colors_list[sum(ord(c) for c in staff.name) % len(colors_list)]
-        
-        staff_data.append({
-            'id': staff.id,
-            'name': staff.name,
-            'department': staff.department or 'General',
-            'initials': initials,
-            'color': color,
-            'status': status,
-            'status_text': status_text,
-            'checkin_time': time_str
-        })
-    
-    # Sort: On Time > Late > Absent
-    status_order = {'signed-in': 0, 'late': 1, 'absent': 2}
-    staff_data.sort(key=lambda x: (status_order.get(x['status'], 3), x['name']))
-    
-    return jsonify({
-        'branch': school.name,
-        'staff': staff_data,
-        'total': len(staff_data),
-        'present': len([s for s in staff_data if s['status'] in ['signed-in', 'late']]),
-        'absent': len([s for s in staff_data if s['status'] == 'absent'])
-    })
 
 @app.route('/api/sync', methods=['POST'])
 def api_sync():
@@ -489,9 +407,8 @@ def api_sync():
             if existing:
                 return jsonify({'message': 'Already checked in today', 'record_id': existing.id})
             
-            school = School.query.get(staff.school_id)
-            expected_start = get_expected_start(school)
-            status = 'late' if check_time.time() > expected_start else 'present'
+            nine_am = datetime.strptime('09:00', '%H:%M').time()
+            status = 'late' if check_time.time() > nine_am else 'present'
             
             attendance = Attendance(
                 staff_id=staff.id,
@@ -598,9 +515,7 @@ def add_branch():
         school = School(
             name=request.form.get('name'),
             address=request.form.get('address'),
-            organization_id=request.form.get('organization_id'),
-            expected_start_time=request.form.get('expected_start_time', '09:00'),
-            expected_end_time=request.form.get('expected_end_time', '17:00')
+            organization_id=request.form.get('organization_id')
         )
         db.session.add(school)
         db.session.commit()
@@ -623,8 +538,6 @@ def edit_branch(id):
         school.address = request.form.get('address')
         if current_user.role == 'super_admin':
             school.organization_id = request.form.get('organization_id')
-        school.expected_start_time = request.form.get('expected_start_time', '09:00')
-        school.expected_end_time = request.form.get('expected_end_time', '17:00')
         db.session.commit()
         flash('Branch updated successfully!', 'success')
         return redirect(url_for('branches'))
@@ -865,6 +778,7 @@ def late_report():
     start_date = request.args.get('start_date', date.today().strftime('%Y-%m-%d'))
     end_date = request.args.get('end_date', date.today().strftime('%Y-%m-%d'))
     school_id = request.args.get('school_id', '')
+    nine_am = datetime.strptime('09:00', '%H:%M').time()
     
     late_records = []
     target_schools = [School.query.get(school_id)] if school_id else schools
@@ -872,7 +786,6 @@ def late_report():
     for school in target_schools:
         if not school:
             continue
-        expected_start = get_expected_start(school)
         
         records = Attendance.query.filter(
             Attendance.school_id == school.id,
@@ -881,12 +794,12 @@ def late_report():
         ).all()
         
         for record in records:
-            if record.check_in.time() > expected_start:
+            if record.check_in.time() > nine_am:
                 late_records.append({
                     'record': record,
-                    'expected_time': expected_start,
+                    'expected_time': nine_am,
                     'late_by': datetime.combine(date.today(), record.check_in.time()) - 
-                              datetime.combine(date.today(), expected_start)
+                              datetime.combine(date.today(), nine_am)
                 })
     
     return render_template('reports/late.html',
@@ -929,6 +842,7 @@ def overtime_report():
     start_date = request.args.get('start_date', date.today().strftime('%Y-%m-%d'))
     end_date = request.args.get('end_date', date.today().strftime('%Y-%m-%d'))
     school_id = request.args.get('school_id', '')
+    five_pm = datetime.strptime('17:00', '%H:%M').time()
     
     overtime_records = []
     target_schools = [School.query.get(school_id)] if school_id else schools
@@ -936,7 +850,6 @@ def overtime_report():
     for school in target_schools:
         if not school:
             continue
-        expected_end = get_expected_end(school)
         
         records = Attendance.query.filter(
             Attendance.school_id == school.id,
@@ -946,12 +859,12 @@ def overtime_report():
         ).all()
         
         for record in records:
-            if record.check_out and record.check_out.time() > expected_end:
+            if record.check_out and record.check_out.time() > five_pm:
                 overtime_records.append({
                     'record': record,
-                    'expected_end': expected_end,
+                    'expected_end': five_pm,
                     'overtime': datetime.combine(date.today(), record.check_out.time()) - 
-                               datetime.combine(date.today(), expected_end)
+                               datetime.combine(date.today(), five_pm)
                 })
     
     return render_template('reports/overtime.html',
@@ -969,6 +882,8 @@ def analytics():
     school_ids = get_user_school_ids()
     schools = get_user_schools()
     organizations = Organization.query.all() if current_user.role == 'super_admin' else []
+    nine_am = datetime.strptime('09:00', '%H:%M').time()
+    five_pm = datetime.strptime('17:00', '%H:%M').time()
     
     period = request.args.get('period', 'today')
     org_id = request.args.get('organization', '')
@@ -1039,13 +954,10 @@ def analytics():
     
     late_count = on_time_count = total_late_minutes = 0
     for record in attendance_records:
-        school = School.query.get(record.school_id)
-        expected_start = get_expected_start(school)
-        
-        if record.check_in.time() > expected_start:
+        if record.check_in.time() > nine_am:
             late_count += 1
             total_late_minutes += (datetime.combine(date.today(), record.check_in.time()) - 
-                                  datetime.combine(date.today(), expected_start)).seconds // 60
+                                  datetime.combine(date.today(), nine_am)).seconds // 60
         else:
             on_time_count += 1
     
@@ -1055,12 +967,9 @@ def analytics():
     # Overtime
     total_overtime_minutes = 0
     for record in attendance_records:
-        if record.check_out:
-            school = School.query.get(record.school_id)
-            expected_end = get_expected_end(school)
-            if record.check_out.time() > expected_end:
-                total_overtime_minutes += (datetime.combine(date.today(), record.check_out.time()) - 
-                                          datetime.combine(date.today(), expected_end)).seconds // 60
+        if record.check_out and record.check_out.time() > five_pm:
+            total_overtime_minutes += (datetime.combine(date.today(), record.check_out.time()) - 
+                                      datetime.combine(date.today(), five_pm)).seconds // 60
     
     # Daily chart
     daily_attendance = []
@@ -1108,7 +1017,6 @@ def analytics():
 @app.route('/analytics/download-pdf')
 @login_required
 def download_analytics_pdf():
-    # Similar logic to analytics route - simplified for PDF
     school_ids = get_user_school_ids()
     today = date.today()
     
@@ -1204,30 +1112,15 @@ def internal_error(error):
 # DATABASE INIT
 # ============================================
 
-def run_migrations():
-    try:
-        from sqlalchemy import text
-        db.session.execute(text("ALTER TABLE school ADD COLUMN IF NOT EXISTS expected_start_time VARCHAR(10) DEFAULT '09:00'"))
-        db.session.execute(text("ALTER TABLE school ADD COLUMN IF NOT EXISTS expected_end_time VARCHAR(10) DEFAULT '17:00'"))
-        db.session.execute(text("ALTER TABLE school ADD COLUMN IF NOT EXISTS created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP"))
-        db.session.commit()
-    except:
-        db.session.rollback()
-
 def init_db():
     with app.app_context():
         db.create_all()
-        run_migrations()
         
         if not User.query.filter_by(username='admin').first():
             admin = User(username='admin', email='admin@example.com', role='super_admin')
             admin.set_password('admin123')
             db.session.add(admin)
             db.session.commit()
-
-# This runs on Render startup
-with app.app_context():
-    run_migrations()
 
 if __name__ == '__main__':
     init_db()
