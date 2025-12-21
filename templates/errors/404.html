@@ -1,0 +1,10 @@
+{% extends "base.html" %}
+{% block title %}Page Not Found{% endblock %}
+{% block content %}
+<div style="text-align: center; padding: 80px 20px;">
+    <h1 style="font-size: 5rem; color: #667eea; margin: 0;">404</h1>
+    <h2 style="color: #333; margin: 10px 0;">Page Not Found</h2>
+    <p style="color: #666;">The page you're looking for doesn't exist.</p>
+    <a href="{{ url_for('dashboard') }}" style="display: inline-block; margin-top: 20px; padding: 12px 30px; background: linear-gradient(135deg, #667eea, #764ba2); color: white; text-decoration: none; border-radius: 25px;">Go to Dashboard</a>
+</div>
+{% endblock %}
