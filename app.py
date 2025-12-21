@@ -46,6 +46,22 @@ class Organization(db.Model):
     name = db.Column(db.String(100), nullable=False)
     logo_url = db.Column(db.String(500), nullable=True)
     branches = db.relationship('School', backref='organization', lazy=True)
+    departments = db.relationship('Department', backref='organization', lazy=True, cascade='all, delete-orphan')
+
+class Department(db.Model):
+    __tablename__ = 'departments'
+    id = db.Column(db.Integer, primary_key=True)
+    name = db.Column(db.String(100), nullable=False)
+    organization_id = db.Column(db.Integer, db.ForeignKey('organizations.id'), nullable=False)
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    
+    @staticmethod
+    def create_defaults(organization_id):
+        defaults = ['Academic', 'Non-Academic', 'Administrative', 'Support Staff']
+        for name in defaults:
+            dept = Department(name=name, organization_id=organization_id)
+            db.session.add(dept)
+        db.session.commit()
 
 user_schools = db.Table('user_schools',
     db.Column('user_id', db.Integer, db.ForeignKey('users.id'), primary_key=True),
@@ -256,7 +272,9 @@ def add_organization():
         org = Organization(name=name, logo_url=logo_url)
         db.session.add(org)
         db.session.commit()
-        flash('Organization added successfully!', 'success')
+        # Create default departments for new organization
+        Department.create_defaults(org.id)
+        flash('Organization added successfully with default departments!', 'success')
         return redirect(url_for('settings'))
     return render_template('add_organization.html')
 
@@ -285,6 +303,126 @@ def delete_organization(id):
     db.session.commit()
     flash('Organization deleted successfully!', 'success')
     return redirect(url_for('settings'))
+
+# Department Management Routes
+@app.route('/organizations/<int:org_id>/departments')
+@login_required
+@role_required('super_admin')
+def manage_departments(org_id):
+    org = Organization.query.get_or_404(org_id)
+    departments = Department.query.filter_by(organization_id=org_id).order_by(Department.name).all()
+    
+    # Check staff count for each department
+    dept_staff_counts = {}
+    for dept in departments:
+        count = Staff.query.join(School).filter(
+            School.organization_id == org_id,
+            Staff.department == dept.name
+        ).count()
+        dept_staff_counts[dept.id] = count
+    
+    return render_template('manage_departments.html', organization=org, departments=departments, dept_staff_counts=dept_staff_counts)
+
+@app.route('/organizations/<int:org_id>/departments/add', methods=['POST'])
+@login_required
+@role_required('super_admin')
+def add_department(org_id):
+    org = Organization.query.get_or_404(org_id)
+    name = request.form.get('name', '').strip()
+    
+    if not name:
+        flash('Department name is required.', 'danger')
+        return redirect(url_for('manage_departments', org_id=org_id))
+    
+    # Check for duplicate
+    existing = Department.query.filter_by(organization_id=org_id, name=name).first()
+    if existing:
+        flash('A department with this name already exists.', 'danger')
+        return redirect(url_for('manage_departments', org_id=org_id))
+    
+    dept = Department(name=name, organization_id=org_id)
+    db.session.add(dept)
+    db.session.commit()
+    flash(f'Department "{name}" added successfully!', 'success')
+    return redirect(url_for('manage_departments', org_id=org_id))
+
+@app.route('/organizations/<int:org_id>/departments/edit/<int:dept_id>', methods=['POST'])
+@login_required
+@role_required('super_admin')
+def edit_department(org_id, dept_id):
+    dept = Department.query.get_or_404(dept_id)
+    
+    if dept.organization_id != org_id:
+        flash('Invalid department.', 'danger')
+        return redirect(url_for('manage_departments', org_id=org_id))
+    
+    old_name = dept.name
+    new_name = request.form.get('name', '').strip()
+    
+    if not new_name:
+        flash('Department name is required.', 'danger')
+        return redirect(url_for('manage_departments', org_id=org_id))
+    
+    # Check for duplicate
+    existing = Department.query.filter_by(organization_id=org_id, name=new_name).first()
+    if existing and existing.id != dept_id:
+        flash('A department with this name already exists.', 'danger')
+        return redirect(url_for('manage_departments', org_id=org_id))
+    
+    # Update staff with old department name to new name
+    Staff.query.join(School).filter(
+        School.organization_id == org_id,
+        Staff.department == old_name
+    ).update({Staff.department: new_name}, synchronize_session=False)
+    
+    dept.name = new_name
+    db.session.commit()
+    flash(f'Department renamed from "{old_name}" to "{new_name}".', 'success')
+    return redirect(url_for('manage_departments', org_id=org_id))
+
+@app.route('/organizations/<int:org_id>/departments/delete/<int:dept_id>')
+@login_required
+@role_required('super_admin')
+def delete_department(org_id, dept_id):
+    dept = Department.query.get_or_404(dept_id)
+    
+    if dept.organization_id != org_id:
+        flash('Invalid department.', 'danger')
+        return redirect(url_for('manage_departments', org_id=org_id))
+    
+    # Check if staff are assigned
+    staff_count = Staff.query.join(School).filter(
+        School.organization_id == org_id,
+        Staff.department == dept.name
+    ).count()
+    
+    if staff_count > 0:
+        flash(f'Cannot delete "{dept.name}" - {staff_count} staff member(s) are assigned to this department.', 'danger')
+        return redirect(url_for('manage_departments', org_id=org_id))
+    
+    dept_name = dept.name
+    db.session.delete(dept)
+    db.session.commit()
+    flash(f'Department "{dept_name}" deleted successfully!', 'success')
+    return redirect(url_for('manage_departments', org_id=org_id))
+
+# API endpoint to get departments for a branch
+@app.route('/api/branch-departments/<int:branch_id>')
+@login_required
+def get_branch_departments(branch_id):
+    school = School.query.get_or_404(branch_id)
+    
+    if school.organization_id:
+        departments = Department.query.filter_by(organization_id=school.organization_id).order_by(Department.name).all()
+        return jsonify([{'id': d.id, 'name': d.name} for d in departments])
+    else:
+        # Fallback for branches without organization
+        return jsonify([
+            {'id': 0, 'name': 'Academic'},
+            {'id': 0, 'name': 'Non-Academic'},
+            {'id': 0, 'name': 'Administrative'},
+            {'id': 0, 'name': 'Support Staff'}
+        ])
 
 @app.route('/dashboard')
 @login_required
@@ -666,7 +804,8 @@ def add_staff():
         schools = School.query.all()
     else:
         schools = [current_user.school]
-    departments = ['Academic', 'Admin', 'Non-Academic', 'Management']
+    # Get departments - will be loaded dynamically via JS based on selected branch
+    departments = ['Academic', 'Non-Academic', 'Administrative', 'Support Staff']
     return render_template('add_staff.html', schools=schools, departments=departments)
 
 @app.route('/staff/edit/<int:id>', methods=['POST'])
@@ -738,6 +877,15 @@ def bulk_upload():
         school_id = request.form.get('school_id')
         if current_user.role == 'school_admin':
             school_id = current_user.school_id
+        
+        # Get valid departments for this branch's organization
+        school = School.query.get(school_id)
+        valid_departments = []
+        if school and school.organization_id:
+            valid_departments = [d.name for d in Department.query.filter_by(organization_id=school.organization_id).all()]
+        if not valid_departments:
+            valid_departments = ['Academic', 'Non-Academic', 'Administrative', 'Support Staff']
+        
         try:
             stream = io.StringIO(file.stream.read().decode('UTF-8'))
             reader = csv.DictReader(stream)
@@ -754,8 +902,8 @@ def bulk_upload():
                 if existing:
                     skipped += 1
                     continue
-                if department not in ['Academic', 'Admin', 'Non-Academic', 'Management']:
-                    department = 'Academic'
+                if department not in valid_departments:
+                    department = valid_departments[0] if valid_departments else 'Academic'
                 staff = Staff(staff_id=staff_id, name=name, department=department, school_id=school_id)
                 db.session.add(staff)
                 added += 1
@@ -1375,7 +1523,17 @@ def analytics():
         schools = current_user.get_accessible_schools()
     
     organizations = current_user.get_accessible_organizations()
-    departments = ['Academic', 'Admin', 'Non-Academic', 'Management']
+    
+    # Get departments dynamically
+    if organization_id:
+        departments = [d.name for d in Department.query.filter_by(organization_id=organization_id).all()]
+    else:
+        # Get all unique departments across accessible organizations
+        all_depts = set()
+        for org in organizations:
+            for dept in Department.query.filter_by(organization_id=org.id).all():
+                all_depts.add(dept.name)
+        departments = sorted(list(all_depts)) if all_depts else ['Academic', 'Non-Academic', 'Administrative', 'Support Staff']
     
     staff_query = Staff.query.filter_by(is_active=True)
     
@@ -1492,7 +1650,7 @@ def analytics():
     
     department_labels = []
     department_data = []
-    for dept in ['Academic', 'Admin', 'Non-Academic', 'Management']:
+    for dept in departments:
         dept_staff = [s for s in all_staff if s.department == dept]
         if dept_staff:
             dept_staff_ids = [s.id for s in dept_staff]
@@ -1537,17 +1695,14 @@ def analytics():
     needs_attention.sort(key=lambda x: x['late_count'], reverse=True)
     needs_attention = needs_attention[:5]
     
-    # Distribution Chart Data
     distribution_labels = ['On Time', 'Late']
     distribution_data = [on_time_count, late_count]
     
-    # Presence Chart Data
     total_expected = total_staff * working_days
     total_absent = total_expected - total_records if total_expected > total_records else 0
     presence_labels = ['Present', 'Absent']
     presence_data = [total_records, total_absent]
     
-    # Weekly Comparison Data
     this_week_start = today - timedelta(days=today.weekday())
     last_week_start = this_week_start - timedelta(days=7)
     last_week_end = this_week_start - timedelta(days=1)
@@ -1579,7 +1734,6 @@ def analytics():
         last_day_rate = round((last_day_att / total_staff) * 100, 1) if total_staff > 0 else 0
         weekly_last_week.append(min(last_day_rate, 100))
     
-    # Early Arrivals Champions
     early_arrivals = []
     for s in all_staff:
         if s.department == 'Management':
@@ -1604,7 +1758,6 @@ def analytics():
     early_arrivals.sort(key=lambda x: x['avg_early_mins'], reverse=True)
     early_arrivals = early_arrivals[:5]
     
-    # Perfect Attendance
     perfect_attendance = []
     for s in all_staff:
         if s.department == 'Management':
@@ -1617,7 +1770,6 @@ def analytics():
     perfect_attendance.sort(key=lambda x: x['days'], reverse=True)
     perfect_attendance = perfect_attendance[:5]
     
-    # Most Improved
     most_improved = []
     for s in all_staff:
         if s.department == 'Management':
@@ -1631,7 +1783,6 @@ def analytics():
     most_improved.sort(key=lambda x: x['reduction'], reverse=True)
     most_improved = most_improved[:5]
     
-    # Attendance Streaks
     attendance_streaks = []
     for s in all_staff:
         if s.department == 'Management':
@@ -1855,6 +2006,20 @@ def init_db():
     try:
         db.create_all()
         
+        # Add departments table
+        try:
+            db.session.execute(db.text('''
+                CREATE TABLE IF NOT EXISTS departments (
+                    id SERIAL PRIMARY KEY,
+                    name VARCHAR(100) NOT NULL,
+                    organization_id INTEGER NOT NULL REFERENCES organizations(id),
+                    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+                )
+            '''))
+            db.session.commit()
+        except:
+            db.session.rollback()
+        
         try:
             db.session.execute(db.text('ALTER TABLE schools ADD COLUMN organization_id INTEGER'))
             db.session.commit()
@@ -1889,6 +2054,11 @@ def init_db():
             admin = User(username='admin', role='super_admin')
             admin.set_password('admin123')
             db.session.add(admin)
+        
+        # Create default departments for existing organizations without departments
+        for org in Organization.query.all():
+            if not Department.query.filter_by(organization_id=org.id).first():
+                Department.create_defaults(org.id)
         
         db.session.commit()
         return 'Database initialized successfully!'
