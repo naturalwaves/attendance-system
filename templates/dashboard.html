@@ -412,87 +412,79 @@
     /* Expandable Branch Row Styles */
     .branch-row {
         cursor: pointer;
+        user-select: none;
     }
     .branch-row:hover {
         background: #f0fdf4 !important;
     }
     .branch-row.expanded {
-        background: #f0fdf4 !important;
+        background: #ecfdf5 !important;
+        border-left: 3px solid #10b981;
     }
-    .branch-row .expand-icon {
-        transition: transform 0.3s ease;
+    .expand-icon {
+        display: inline-block;
+        transition: transform 0.2s ease;
         color: #10b981;
-        margin-right: 8px;
+        margin-right: 6px;
+        font-size: 0.75rem;
     }
     .branch-row.expanded .expand-icon {
         transform: rotate(90deg);
     }
-    .staff-details-row {
+    .staff-details {
         display: none;
-    }
-    .staff-details-row.show {
-        display: table-row;
-    }
-    .staff-details-row td {
-        padding: 0 !important;
         background: #f8fffe;
     }
-    .staff-list-container {
-        max-height: 0;
-        overflow: hidden;
-        transition: max-height 0.3s ease;
+    .staff-details.show {
+        display: table-row;
     }
-    .staff-details-row.show .staff-list-container {
-        max-height: 500px;
+    .staff-details td {
+        padding: 0 !important;
+        border-top: none !important;
     }
-    .staff-list {
+    .staff-list-wrapper {
         padding: 1rem 1.5rem;
-    }
-    .staff-list-header {
-        display: flex;
-        justify-content: space-between;
-        align-items: center;
-        margin-bottom: 0.75rem;
-        padding-bottom: 0.5rem;
-        border-bottom: 1px solid #e0e0e0;
-    }
-    .staff-list-header h6 {
-        margin: 0;
-        font-size: 0.8rem;
-        color: #666;
+        background: linear-gradient(135deg, #f0fdf4 0%, #ecfdf5 100%);
+        border-left: 3px solid #10b981;
     }
     .staff-list-table {
         width: 100%;
         font-size: 0.85rem;
+        background: #fff;
+        border-radius: 8px;
+        overflow: hidden;
+        box-shadow: 0 2px 8px rgba(0,0,0,0.05);
     }
     .staff-list-table th {
+        background: #f8f9fa;
         font-weight: 600;
-        color: #666;
         font-size: 0.7rem;
         text-transform: uppercase;
-        padding: 0.5rem 0.75rem;
+        color: #666;
+        padding: 0.6rem 0.75rem;
         border-bottom: 1px solid #eee;
     }
     .staff-list-table td {
-        padding: 0.5rem 0.75rem;
+        padding: 0.6rem 0.75rem;
         border-bottom: 1px solid #f5f5f5;
+        vertical-align: middle;
     }
     .staff-list-table tr:last-child td {
         border-bottom: none;
     }
     .status-badge {
         display: inline-block;
-        padding: 3px 10px;
+        padding: 4px 10px;
         border-radius: 12px;
         font-size: 0.7rem;
         font-weight: 600;
     }
     .status-badge.present {
-        background: #d1fae5;
+        background: linear-gradient(135deg, #d1fae5, #a7f3d0);
         color: #065f46;
     }
     .status-badge.absent {
-        background: #fee2e2;
+        background: linear-gradient(135deg, #fee2e2, #fecaca);
         color: #991b1b;
     }
     .staff-loading {
@@ -502,15 +494,17 @@
     }
     .staff-loading i {
         animation: spin 1s linear infinite;
+        margin-right: 8px;
     }
     @keyframes spin {
         from { transform: rotate(0deg); }
         to { transform: rotate(360deg); }
     }
-    .no-staff {
+    .no-staff-msg {
         text-align: center;
         padding: 1.5rem;
         color: #888;
+        font-size: 0.85rem;
     }
 
     /* Header Layout */
@@ -903,7 +897,7 @@
 <!-- Stats Cards -->
 <div class="stats-row">
     <div class="stat-card-wrapper">
-        <a href="{{ url_for('branches') }}" class="text-decoration-none">
+        <a href="{{ url_for('schools') }}" class="text-decoration-none">
             <div class="card stat-card stat-schools h-100">
                 <div class="decorative-circle"></div>
                 <div class="decorative-circle-2"></div>
@@ -911,7 +905,7 @@
                     <div class="icon-wrapper">
                         <i class="fas fa-building"></i>
                     </div>
-                    <h3 class="counter" data-target="{{ branch_stats|length }}">0</h3>
+                    <h3 class="counter" data-target="{{ total_schools }}">0</h3>
                     <div class="label">Branches</div>
                     <div class="sparkline-container">
                         <canvas id="sparkBranches" height="25"></canvas>
@@ -939,7 +933,7 @@
         </a>
     </div>
     <div class="stat-card-wrapper">
-        <a href="{{ url_for('attendance_report') }}" class="text-decoration-none">
+        <a href="{{ url_for('attendance_report', today=1) }}" class="text-decoration-none">
             <div class="card stat-card stat-present h-100">
                 <div class="decorative-circle"></div>
                 <div class="decorative-circle-2"></div>
@@ -947,7 +941,7 @@
                     <div class="icon-wrapper">
                         <i class="fas fa-user-check"></i>
                     </div>
-                    <h3 class="counter" data-target="{{ total_present }}">0</h3>
+                    <h3 class="counter" data-target="{{ today_attendance }}">0</h3>
                     <div class="label">Present Today</div>
                     <div class="sparkline-container">
                         <canvas id="sparkPresent" height="25"></canvas>
@@ -957,7 +951,7 @@
         </a>
     </div>
     <div class="stat-card-wrapper">
-        <a href="{{ url_for('late_report') }}" class="text-decoration-none">
+        <a href="{{ url_for('late_report', today=1) }}" class="text-decoration-none">
             <div class="card stat-card stat-late h-100">
                 <div class="decorative-circle"></div>
                 <div class="decorative-circle-2"></div>
@@ -965,7 +959,7 @@
                     <div class="icon-wrapper">
                         <i class="fas fa-clock"></i>
                     </div>
-                    <h3 class="counter" data-target="0">0</h3>
+                    <h3 class="counter" data-target="{{ late_today }}">0</h3>
                     <div class="label">Late Today</div>
                     <div class="sparkline-container">
                         <canvas id="sparkLate" height="25"></canvas>
@@ -975,7 +969,7 @@
         </a>
     </div>
     <div class="stat-card-wrapper">
-        <a href="{{ url_for('absent_report') }}" class="text-decoration-none">
+        <a href="{{ url_for('absent_report', today=1) }}" class="text-decoration-none">
             <div class="card stat-card stat-absent h-100">
                 <div class="decorative-circle"></div>
                 <div class="decorative-circle-2"></div>
@@ -983,7 +977,7 @@
                     <div class="icon-wrapper">
                         <i class="fas fa-user-times"></i>
                     </div>
-                    <h3 class="counter" data-target="{{ total_absent }}">0</h3>
+                    <h3 class="counter" data-target="{{ absent_today }}">0</h3>
                     <div class="label">Absent Today</div>
                     <div class="sparkline-container">
                         <canvas id="sparkAbsent" height="25"></canvas>
@@ -994,12 +988,12 @@
     </div>
 </div>
 
-<!-- Branch Statistics Table with Expandable Rows -->
-{% if branch_stats %}
+<!-- Branch Statistics Table -->
+{% if school_stats %}
 <div class="card branch-table">
     <div class="card-header">
         <i class="fas fa-chart-bar me-2 text-primary"></i>Branch Statistics (Today)
-        <small class="text-muted ms-2">Click a branch to view staff</small>
+        <small class="text-muted ms-2">— Click a branch to view staff</small>
     </div>
     <div class="card-body p-0">
         <div class="table-responsive">
@@ -1009,23 +1003,26 @@
                         <th>Branch</th>
                         <th>Total Staff</th>
                         <th>Present</th>
-                        <th>Absent</th>
+                        <th>Late</th>
                         <th>Attendance Rate</th>
                     </tr>
                 </thead>
-                <tbody id="branchTableBody">
-                    {% for stat in branch_stats %}
+                <tbody>
+                    {% for stat in school_stats %}
                     <tr class="branch-row" data-branch-id="{{ stat.id }}">
                         <td>
                             <i class="fas fa-chevron-right expand-icon"></i>
-                            <strong>{{ stat.name }}</strong>
+                            <strong>{{ stat.school.name }}</strong>
+                            {% if stat.school.short_name %}
+                            <small class="text-muted ms-1">({{ stat.school.short_name }})</small>
+                            {% endif %}
                         </td>
-                        <td>{{ stat.total }}</td>
+                        <td>{{ stat.total_staff }}</td>
                         <td><span class="badge bg-success">{{ stat.present }}</span></td>
-                        <td><span class="badge bg-danger">{{ stat.absent }}</span></td>
+                        <td><span class="badge bg-warning text-dark">{{ stat.late }}</span></td>
                         <td style="min-width: 150px;">
-                            {% if stat.total > 0 %}
-                            {% set rate = (stat.present / stat.total * 100)|round(1) %}
+                            {% if stat.total_staff > 0 %}
+                            {% set rate = (stat.present / stat.total_staff * 100)|round(1) %}
                             <div class="d-flex align-items-center gap-2">
                                 <div class="progress flex-grow-1">
                                     <div class="progress-bar {% if rate >= 80 %}bg-success{% elif rate >= 50 %}bg-warning{% else %}bg-danger{% endif %}" style="width: {{ rate }}%"></div>
@@ -1037,13 +1034,11 @@
                             {% endif %}
                         </td>
                     </tr>
-                    <tr class="staff-details-row" data-branch-id="{{ stat.id }}">
+                    <tr class="staff-details" data-branch-id="{{ stat.id }}">
                         <td colspan="5">
-                            <div class="staff-list-container">
-                                <div class="staff-list">
-                                    <div class="staff-loading">
-                                        <i class="fas fa-spinner"></i> Loading staff...
-                                    </div>
+                            <div class="staff-list-wrapper">
+                                <div class="staff-loading">
+                                    <i class="fas fa-spinner"></i> Loading staff...
                                 </div>
                             </div>
                         </td>
@@ -1136,7 +1131,7 @@ function updateFirstCheckin(data) {
         card.classList.remove('no-checkin');
         nameEl.textContent = data.first_checkin.name;
         branchEl.textContent = data.first_checkin.branch;
-        deptEl.textContent = '';
+        deptEl.textContent = '• ' + data.first_checkin.department;
         timeValue.textContent = data.first_checkin.time;
         timeContainer.style.display = 'flex';
     } else {
@@ -1154,19 +1149,18 @@ function refreshDashboard() {
         .then(response => response.json())
         .then(data => {
             const counters = document.querySelectorAll('.counter');
-            if (counters[0]) counters[0].dataset.target = data.branch_stats ? data.branch_stats.length : 0;
-            if (counters[1]) counters[1].dataset.target = data.total_staff || 0;
-            if (counters[2]) counters[2].dataset.target = data.total_present || 0;
-            if (counters[3]) counters[3].dataset.target = data.late_count || 0;
-            if (counters[4]) counters[4].dataset.target = data.total_absent || 0;
+            const keys = ['total_schools', 'total_staff', 'today_attendance', 'late_today', 'absent_today'];
+            counters.forEach((counter, index) => {
+                counter.dataset.target = data[keys[index]];
+            });
             
             animateCounters();
             updateFirstCheckin(data);
             
-            if (data.activity && data.activity.length > 0) {
+            if (data.recent_activity && data.recent_activity.length > 0) {
                 let tickerHTML = '';
                 for (let i = 0; i < 2; i++) {
-                    data.activity.forEach(activity => {
+                    data.recent_activity.forEach(activity => {
                         tickerHTML += `
                             <div class="ticker-item">
                                 <span class="check">✓</span>
@@ -1191,9 +1185,10 @@ let currentExpandedBranch = null;
 document.querySelectorAll('.branch-row').forEach(row => {
     row.addEventListener('click', function() {
         const branchId = this.dataset.branchId;
-        const detailsRow = document.querySelector(`.staff-details-row[data-branch-id="${branchId}"]`);
+        const detailsRow = document.querySelector(`.staff-details[data-branch-id="${branchId}"]`);
+        const wrapper = detailsRow.querySelector('.staff-list-wrapper');
         
-        // If clicking the same row, collapse it
+        // If clicking same row, collapse it
         if (currentExpandedBranch === branchId) {
             this.classList.remove('expanded');
             detailsRow.classList.remove('show');
@@ -1201,10 +1196,10 @@ document.querySelectorAll('.branch-row').forEach(row => {
             return;
         }
         
-        // Collapse previous expanded row
+        // Collapse previous
         if (currentExpandedBranch) {
             document.querySelector(`.branch-row[data-branch-id="${currentExpandedBranch}"]`).classList.remove('expanded');
-            document.querySelector(`.staff-details-row[data-branch-id="${currentExpandedBranch}"]`).classList.remove('show');
+            document.querySelector(`.staff-details[data-branch-id="${currentExpandedBranch}"]`).classList.remove('show');
         }
         
         // Expand this row
@@ -1212,15 +1207,15 @@ document.querySelectorAll('.branch-row').forEach(row => {
         detailsRow.classList.add('show');
         currentExpandedBranch = branchId;
         
-        // Fetch staff data
-        const staffList = detailsRow.querySelector('.staff-list');
-        staffList.innerHTML = '<div class="staff-loading"><i class="fas fa-spinner"></i> Loading staff...</div>';
+        // Show loading
+        wrapper.innerHTML = '<div class="staff-loading"><i class="fas fa-spinner"></i> Loading staff...</div>';
         
+        // Fetch staff data
         fetch(`/api/branch-staff/${branchId}`)
             .then(response => response.json())
             .then(data => {
                 if (data.length === 0) {
-                    staffList.innerHTML = '<div class="no-staff"><i class="fas fa-users-slash"></i> No staff in this branch</div>';
+                    wrapper.innerHTML = '<div class="no-staff-msg"><i class="fas fa-users-slash me-2"></i>No active staff in this branch</div>';
                     return;
                 }
                 
@@ -1229,9 +1224,9 @@ document.querySelectorAll('.branch-row').forEach(row => {
                         <thead>
                             <tr>
                                 <th>Name</th>
+                                <th>Department</th>
                                 <th>Status</th>
                                 <th>Time In</th>
-                                <th>Time Out</th>
                             </tr>
                         </thead>
                         <tbody>
@@ -1241,20 +1236,20 @@ document.querySelectorAll('.branch-row').forEach(row => {
                     const statusClass = staff.status === 'Present' ? 'present' : 'absent';
                     html += `
                         <tr>
-                            <td>${staff.name}</td>
+                            <td><strong>${staff.name}</strong></td>
+                            <td>${staff.department}</td>
                             <td><span class="status-badge ${statusClass}">${staff.status}</span></td>
                             <td>${staff.time_in}</td>
-                            <td>${staff.time_out}</td>
                         </tr>
                     `;
                 });
                 
                 html += '</tbody></table>';
-                staffList.innerHTML = html;
+                wrapper.innerHTML = html;
             })
             .catch(error => {
-                staffList.innerHTML = '<div class="no-staff"><i class="fas fa-exclamation-circle"></i> Error loading staff</div>';
-                console.log('Error fetching staff:', error);
+                wrapper.innerHTML = '<div class="no-staff-msg"><i class="fas fa-exclamation-circle me-2"></i>Error loading staff</div>';
+                console.log('Error:', error);
             });
     });
 });
@@ -1277,16 +1272,19 @@ searchInput.addEventListener('input', function() {
         fetch(`/api/search-staff?q=${encodeURIComponent(query)}`)
             .then(response => response.json())
             .then(data => {
-                if (data && data.length > 0) {
+                if (data.results && data.results.length > 0) {
                     let html = '';
-                    data.forEach(staff => {
+                    data.results.forEach(staff => {
                         const initials = staff.name.split(' ').map(n => n[0]).join('').substring(0, 2).toUpperCase();
                         let statusClass = 'absent';
                         let statusText = 'Absent';
                         
-                        if (staff.status === 'Present') {
+                        if (staff.status === 'signed_in') {
                             statusClass = 'signed-in';
-                            statusText = staff.time_in !== '-' ? `In ${staff.time_in}` : 'Present';
+                            statusText = staff.time ? `In ${staff.time}` : 'Signed In';
+                        } else if (staff.status === 'late') {
+                            statusClass = 'late';
+                            statusText = staff.time ? `Late ${staff.time}` : 'Late';
                         }
                         
                         html += `
