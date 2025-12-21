@@ -352,6 +352,72 @@ def dashboard():
                          late_today=late_today,
                          absent_today=absent_today)
 
+@app.route('/api/dashboard-stats')
+@login_required
+def dashboard_stats():
+    """API endpoint for real-time dashboard updates"""
+    today = date.today()
+    accessible_school_ids = current_user.get_accessible_school_ids()
+    
+    if current_user.role == 'super_admin':
+        schools = School.query.all()
+        all_staff = Staff.query.filter_by(is_active=True).all()
+    elif accessible_school_ids:
+        schools = current_user.get_accessible_schools()
+        all_staff = Staff.query.filter(Staff.school_id.in_(accessible_school_ids), Staff.is_active==True).all()
+    else:
+        schools = []
+        all_staff = []
+    
+    total_schools = len(schools)
+    total_staff = len(all_staff)
+    all_staff_ids = [s.id for s in all_staff]
+    
+    today_attendance = Attendance.query.filter(
+        Attendance.staff_id.in_(all_staff_ids),
+        Attendance.date == today
+    ).count() if all_staff_ids else 0
+    
+    late_today = Attendance.query.filter(
+        Attendance.staff_id.in_(all_staff_ids),
+        Attendance.date == today,
+        Attendance.is_late == True
+    ).count() if all_staff_ids else 0
+    
+    non_mgmt_staff = [s for s in all_staff if s.department != 'Management']
+    non_mgmt_ids = [s.id for s in non_mgmt_staff]
+    present_ids = [a.staff_id for a in Attendance.query.filter(
+        Attendance.staff_id.in_(non_mgmt_ids),
+        Attendance.date == today
+    ).all()] if non_mgmt_ids else []
+    absent_today = len([s for s in non_mgmt_staff if s.id not in present_ids])
+    
+    # Recent activity (last 20 check-ins today)
+    recent_activity = []
+    if all_staff_ids:
+        recent_checkins = Attendance.query.filter(
+            Attendance.staff_id.in_(all_staff_ids),
+            Attendance.date == today
+        ).order_by(Attendance.sign_in_time.desc()).limit(20).all()
+        
+        for checkin in recent_checkins:
+            staff = Staff.query.get(checkin.staff_id)
+            if staff and staff.school:
+                recent_activity.append({
+                    'name': staff.name,
+                    'time': checkin.sign_in_time.strftime('%H:%M') if checkin.sign_in_time else '',
+                    'branch': staff.school.short_name or staff.school.name
+                })
+    
+    return jsonify({
+        'total_schools': total_schools,
+        'total_staff': total_staff,
+        'today_attendance': today_attendance,
+        'late_today': late_today,
+        'absent_today': absent_today,
+        'recent_activity': recent_activity
+    })
+
 @app.route('/schools')
 @login_required
 @role_required('super_admin')
