@@ -1238,5 +1238,16 @@ def init_db():
     db.session.commit()
     return 'Database initialized! Default admin: admin/admin123'
 
+# Auto-fix database on startup - adds missing columns
+with app.app_context():
+    try:
+        with db.engine.connect() as conn:
+            conn.execute(db.text('ALTER TABLE "user" ADD COLUMN allowed_schools TEXT;'))
+            conn.commit()
+            print("Added allowed_schools column")
+    except Exception as e:
+        # Column already exists or other error - that's fine
+        print(f"DB migration check: {e}")
+
 if __name__ == '__main__':
     app.run(debug=True)
