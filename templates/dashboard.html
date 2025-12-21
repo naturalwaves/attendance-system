@@ -4,10 +4,10 @@
 
 {% block content %}
 <style>
-    /* Stats Cards Enhancement */
+    /* Compact Stats Cards */
     .stat-card {
         border: none;
-        border-radius: 16px;
+        border-radius: 14px;
         overflow: hidden;
         transition: all 0.3s ease;
         position: relative;
@@ -17,8 +17,8 @@
         position: absolute;
         top: 0;
         right: 0;
-        width: 100px;
-        height: 100px;
+        width: 80px;
+        height: 80px;
         background: rgba(255,255,255,0.1);
         border-radius: 50%;
         transform: translate(30%, -30%);
@@ -28,125 +28,175 @@
         position: absolute;
         bottom: 0;
         left: 0;
-        width: 60px;
-        height: 60px;
+        width: 50px;
+        height: 50px;
         background: rgba(255,255,255,0.08);
         border-radius: 50%;
         transform: translate(-30%, 30%);
     }
     .stat-card:hover {
-        transform: translateY(-5px);
-        box-shadow: 0 12px 30px rgba(0,0,0,0.2) !important;
+        transform: translateY(-4px);
+        box-shadow: 0 10px 25px rgba(0,0,0,0.2) !important;
     }
     .stat-card .card-body {
         position: relative;
         z-index: 1;
-        padding: 1.5rem 1rem;
+        padding: 1rem 0.75rem;
     }
     .stat-card i.fa-2x {
+        font-size: 1.5rem;
         opacity: 0.9;
-        margin-bottom: 0.75rem !important;
+        margin-bottom: 0.5rem !important;
     }
     .stat-card h3 {
-        font-size: 2.25rem;
+        font-size: 1.75rem;
         font-weight: 700;
-        margin-bottom: 0.25rem !important;
+        margin-bottom: 0.15rem !important;
         text-shadow: 0 2px 4px rgba(0,0,0,0.1);
     }
     .stat-card small {
-        font-size: 0.8rem;
+        font-size: 0.7rem;
         text-transform: uppercase;
         letter-spacing: 0.5px;
         opacity: 0.9;
         font-weight: 500;
     }
     .stat-card .sparkline-container {
-        margin-top: 10px;
-        height: 30px;
+        margin-top: 8px;
+        height: 25px;
         opacity: 0.7;
     }
 
     /* Dashboard Header */
     .dashboard-header {
-        margin-bottom: 1.75rem;
+        margin-bottom: 1.25rem;
     }
     .dashboard-header h2 {
         font-weight: 700;
+        font-size: 1.5rem;
         color: #333;
-        margin-bottom: 0.25rem;
+        margin-bottom: 0.15rem;
+    }
+    .dashboard-header p {
+        font-size: 0.85rem;
     }
 
-    /* Clock Styles */
+    /* Premium Clock Container */
     .clock-container {
         display: flex;
         align-items: center;
-        gap: 20px;
-        background: linear-gradient(145deg, #ffffff 0%, #f8f9fa 100%);
-        padding: 15px 25px;
-        border-radius: 20px;
-        box-shadow: 0 4px 20px rgba(0,0,0,0.08);
+        gap: 18px;
+        background: linear-gradient(145deg, #ffffff 0%, #f5f7fa 100%);
+        padding: 12px 20px;
+        border-radius: 16px;
+        box-shadow: 
+            0 4px 20px rgba(0,0,0,0.06),
+            0 1px 3px rgba(0,0,0,0.04);
     }
     
-    /* Analog Clock */
+    /* Premium Analog Clock */
     .analog-clock {
-        width: 90px;
-        height: 90px;
+        width: 80px;
+        height: 80px;
         border-radius: 50%;
-        background: linear-gradient(145deg, #ffffff 0%, #f0f0f0 100%);
+        background: linear-gradient(145deg, #ffffff 0%, #f8f9fa 100%);
         box-shadow: 
-            0 0 0 4px #fff,
-            0 4px 15px rgba(0,0,0,0.1),
-            inset 0 2px 10px rgba(0,0,0,0.05);
+            0 0 0 3px #fff,
+            0 8px 20px rgba(0,0,0,0.1),
+            inset 0 2px 10px rgba(0,0,0,0.03),
+            inset 0 -2px 10px rgba(255,255,255,0.8);
         position: relative;
-    }
-    .analog-clock::before {
-        content: '';
-        position: absolute;
-        top: 50%;
-        left: 50%;
-        width: 10px;
-        height: 10px;
-        background: linear-gradient(135deg, #dc3545 0%, #c82333 100%);
-        border-radius: 50%;
-        transform: translate(-50%, -50%);
-        z-index: 10;
-        box-shadow: 0 2px 5px rgba(220,53,69,0.4);
     }
     .clock-face {
         width: 100%;
         height: 100%;
         position: relative;
     }
-    .clock-face::after {
-        content: '';
+    
+    /* Clock Brand Mark at 12 */
+    .clock-brand {
         position: absolute;
-        top: 8px;
+        top: 16px;
         left: 50%;
-        width: 2px;
-        height: 6px;
-        background: #dc3545;
         transform: translateX(-50%);
-        border-radius: 2px;
+        width: 6px;
+        height: 6px;
+        background: linear-gradient(135deg, #dc3545 0%, #c82333 100%);
+        border-radius: 50%;
+        box-shadow: 0 0 6px rgba(220,53,69,0.5);
     }
-    .clock-marks {
+    
+    /* Hour Markers */
+    .clock-markers {
         position: absolute;
         width: 100%;
         height: 100%;
     }
-    .clock-mark {
+    .clock-marker {
         position: absolute;
+        left: 50%;
+        top: 6px;
+        transform-origin: 50% 34px;
+    }
+    .clock-marker::after {
+        content: '';
+        display: block;
         width: 2px;
         height: 6px;
-        background: #ccc;
-        left: 50%;
-        transform-origin: 50% 45px;
-        border-radius: 2px;
+        background: linear-gradient(to bottom, #bbb, #ddd);
+        border-radius: 1px;
+        margin-left: -1px;
     }
-    .clock-mark.major {
+    .clock-marker.major::after {
+        width: 2.5px;
         height: 8px;
-        width: 2px;
-        background: #666;
+        background: linear-gradient(to bottom, #666, #999);
+        margin-left: -1.25px;
     }
+    
+    /* Minute Ticks */
+    .clock-ticks {
+        position: absolute;
+        width: 100%;
+        height: 100%;
+    }
+    .clock-tick {
+        position: absolute;
+        left: 50%;
+        top: 4px;
+        width: 1px;
+        height: 3px;
+        background: #e0e0e0;
+        transform-origin: 50% 36px;
+        margin-left: -0.5px;
+    }
+    
+    /* Clock Center */
+    .clock-center {
+        position: absolute;
+        top: 50%;
+        left: 50%;
+        width: 10px;
+        height: 10px;
+        background: linear-gradient(145deg, #444 0%, #222 100%);
+        border-radius: 50%;
+        transform: translate(-50%, -50%);
+        z-index: 10;
+        box-shadow: 0 1px 3px rgba(0,0,0,0.3);
+    }
+    .clock-center::after {
+        content: '';
+        position: absolute;
+        top: 50%;
+        left: 50%;
+        width: 4px;
+        height: 4px;
+        background: linear-gradient(135deg, #dc3545 0%, #ff6b7a 100%);
+        border-radius: 50%;
+        transform: translate(-50%, -50%);
+    }
+    
+    /* Clock Hands */
     .hand {
         position: absolute;
         bottom: 50%;
@@ -155,25 +205,39 @@
         border-radius: 4px;
     }
     .hour-hand {
-        width: 4px;
-        height: 22px;
-        background: linear-gradient(to top, #333 0%, #555 100%);
-        margin-left: -2px;
+        width: 3.5px;
+        height: 18px;
+        background: linear-gradient(to top, #2c3e50 0%, #34495e 100%);
+        margin-left: -1.75px;
         z-index: 3;
+        border-radius: 2px;
     }
     .minute-hand {
-        width: 3px;
-        height: 30px;
-        background: linear-gradient(to top, #555 0%, #777 100%);
-        margin-left: -1.5px;
+        width: 2.5px;
+        height: 26px;
+        background: linear-gradient(to top, #34495e 0%, #5d6d7e 100%);
+        margin-left: -1.25px;
         z-index: 2;
+        border-radius: 2px;
     }
     .second-hand {
-        width: 1.5px;
-        height: 35px;
-        background: linear-gradient(to top, #dc3545 0%, #ff6b7a 100%);
-        margin-left: -0.75px;
+        width: 1px;
+        height: 30px;
+        background: #dc3545;
+        margin-left: -0.5px;
         z-index: 4;
+        transition: transform 0.1s cubic-bezier(0.4, 2.3, 0.3, 1);
+    }
+    .second-hand::after {
+        content: '';
+        position: absolute;
+        bottom: -8px;
+        left: 50%;
+        width: 3px;
+        height: 10px;
+        background: #dc3545;
+        margin-left: -1.5px;
+        border-radius: 2px;
     }
     
     /* Digital Clock */
@@ -181,42 +245,55 @@
         text-align: left;
     }
     .digital-time {
-        font-size: 1.75rem;
+        font-size: 1.4rem;
         font-weight: 700;
         color: #333;
         font-family: 'Segoe UI', system-ui, sans-serif;
-        letter-spacing: 1px;
+        letter-spacing: 0.5px;
         line-height: 1.2;
     }
     .digital-time .seconds {
-        font-size: 1rem;
+        font-size: 0.85rem;
         color: #dc3545;
         font-weight: 600;
     }
     .digital-time .ampm {
-        font-size: 0.85rem;
+        font-size: 0.7rem;
         color: #6c757d;
-        margin-left: 5px;
+        margin-left: 4px;
         font-weight: 600;
     }
     .digital-date {
-        font-size: 0.8rem;
+        font-size: 0.7rem;
         color: #6c757d;
-        margin-top: 2px;
+        margin-top: 1px;
     }
 
-    /* Branch Statistics Card */
+    /* Welcome Message */
+    .welcome-section {
+        margin-bottom: 0.25rem;
+    }
+    .welcome-text {
+        font-size: 0.9rem;
+        color: #6c757d;
+    }
+    .welcome-text strong {
+        color: #333;
+    }
+
+    /* Branch Statistics Card - Compact */
     .stats-table-card {
         border: none;
-        border-radius: 16px;
-        box-shadow: 0 4px 20px rgba(0,0,0,0.08);
+        border-radius: 14px;
+        box-shadow: 0 4px 15px rgba(0,0,0,0.06);
         overflow: hidden;
     }
     .stats-table-card .card-header {
         background: linear-gradient(135deg, #f8f9fa 0%, #fff 100%);
         border-bottom: 1px solid #eee;
-        padding: 1.15rem 1.5rem;
+        padding: 0.9rem 1.25rem;
         font-weight: 600;
+        font-size: 0.9rem;
         color: #333;
     }
     .stats-table-card .card-header i {
@@ -227,20 +304,21 @@
     }
     .stats-table-card .table {
         margin-bottom: 0;
+        font-size: 0.85rem;
     }
     .stats-table-card .table thead th {
         background: #fafbfc;
         border-top: none;
         border-bottom: 2px solid #eee;
         font-weight: 600;
-        font-size: 0.75rem;
+        font-size: 0.7rem;
         text-transform: uppercase;
         letter-spacing: 0.5px;
         color: #6c757d;
-        padding: 1rem 1.25rem;
+        padding: 0.75rem 1rem;
     }
     .stats-table-card .table tbody td {
-        padding: 1rem 1.25rem;
+        padding: 0.7rem 1rem;
         vertical-align: middle;
         border-color: #f3f3f3;
     }
@@ -258,19 +336,20 @@
     .branch-name {
         font-weight: 600;
         color: #333;
+        font-size: 0.85rem;
     }
     .branch-short {
-        font-size: 0.75rem;
+        font-size: 0.7rem;
         color: #6c757d;
-        margin-top: 2px;
+        margin-top: 1px;
     }
 
-    /* Badge Enhancements */
+    /* Badge Enhancements - Compact */
     .badge-stat {
-        font-size: 0.85rem;
+        font-size: 0.75rem;
         font-weight: 600;
-        padding: 0.4rem 0.75rem;
-        border-radius: 8px;
+        padding: 0.3rem 0.6rem;
+        border-radius: 6px;
     }
     .badge-stat.success {
         background: linear-gradient(135deg, #d4edda 0%, #c3e6cb 100%);
@@ -281,163 +360,178 @@
         color: #856404;
     }
 
-    /* Progress Bar Enhancement */
+    /* Progress Bar - Compact */
     .progress {
-        border-radius: 10px;
+        border-radius: 8px;
         background: #e9ecef;
         overflow: hidden;
+        height: 18px !important;
     }
     .progress-bar {
-        border-radius: 10px;
+        border-radius: 8px;
         font-weight: 600;
-        font-size: 0.75rem;
+        font-size: 0.7rem;
         display: flex;
         align-items: center;
         justify-content: center;
         transition: width 0.6s ease;
     }
 
-    /* Recent Activity Feed */
-    .activity-card {
-        border: none;
-        border-radius: 16px;
-        box-shadow: 0 4px 20px rgba(0,0,0,0.08);
-        overflow: hidden;
-    }
-    .activity-card .card-header {
+    /* Activity Ticker */
+    .activity-ticker-container {
         background: linear-gradient(135deg, #f8f9fa 0%, #fff 100%);
-        border-bottom: 1px solid #eee;
-        padding: 1.15rem 1.5rem;
-        font-weight: 600;
-        color: #333;
+        border-radius: 12px;
+        box-shadow: 0 2px 10px rgba(0,0,0,0.04);
+        padding: 0.6rem 1rem;
+        margin-top: 1rem;
+        overflow: hidden;
+        position: relative;
     }
-    .activity-card .card-header i {
-        color: #17a2b8;
+    .activity-ticker-container::before {
+        content: '';
+        position: absolute;
+        left: 0;
+        top: 0;
+        bottom: 0;
+        width: 50px;
+        background: linear-gradient(to right, #f8f9fa, transparent);
+        z-index: 2;
     }
-    .activity-feed {
-        max-height: 300px;
-        overflow-y: auto;
+    .activity-ticker-container::after {
+        content: '';
+        position: absolute;
+        right: 0;
+        top: 0;
+        bottom: 0;
+        width: 50px;
+        background: linear-gradient(to left, #fff, transparent);
+        z-index: 2;
     }
-    .activity-item {
-        padding: 1rem 1.5rem;
-        border-bottom: 1px solid #f3f3f3;
+    .ticker-label {
+        position: absolute;
+        left: 0;
+        top: 0;
+        bottom: 0;
         display: flex;
-        align-items: flex-start;
-        gap: 12px;
-        transition: background 0.2s ease;
+        align-items: center;
+        padding: 0 1rem;
+        background: linear-gradient(135deg, #dc3545 0%, #c82333 100%);
+        color: #fff;
+        font-size: 0.7rem;
+        font-weight: 600;
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+        z-index: 3;
+        border-radius: 12px 0 0 12px;
     }
-    .activity-item:last-child {
-        border-bottom: none;
+    .ticker-label i {
+        margin-right: 6px;
     }
-    .activity-item:hover {
-        background: #f8f9fa;
+    .ticker-label .live-dot {
+        width: 6px;
+        height: 6px;
+        background: #fff;
+        border-radius: 50%;
+        margin-left: 8px;
+        animation: pulse 1.5s infinite;
     }
-    .activity-icon {
-        width: 36px;
-        height: 36px;
+    .activity-ticker {
+        display: flex;
+        animation: ticker 30s linear infinite;
+        padding-left: 100px;
+    }
+    .activity-ticker:hover {
+        animation-play-state: paused;
+    }
+    @keyframes ticker {
+        0% { transform: translateX(0); }
+        100% { transform: translateX(-50%); }
+    }
+    @keyframes pulse {
+        0%, 100% { opacity: 1; }
+        50% { opacity: 0.4; }
+    }
+    .ticker-item {
+        display: flex;
+        align-items: center;
+        white-space: nowrap;
+        padding: 0 2rem;
+        font-size: 0.8rem;
+        color: #555;
+    }
+    .ticker-item .ticker-icon {
+        width: 22px;
+        height: 22px;
         border-radius: 50%;
         display: flex;
         align-items: center;
         justify-content: center;
-        font-size: 0.85rem;
-        flex-shrink: 0;
+        margin-right: 8px;
+        font-size: 0.65rem;
     }
-    .activity-icon.check-in {
+    .ticker-icon.check-in {
         background: linear-gradient(135deg, #d4edda 0%, #c3e6cb 100%);
         color: #155724;
     }
-    .activity-icon.late {
+    .ticker-icon.late {
         background: linear-gradient(135deg, #fff3cd 0%, #ffeeba 100%);
         color: #856404;
     }
-    .activity-icon.check-out {
+    .ticker-icon.check-out {
         background: linear-gradient(135deg, #cce5ff 0%, #b8daff 100%);
         color: #004085;
     }
-    .activity-icon.absent {
-        background: linear-gradient(135deg, #f8d7da 0%, #f5c6cb 100%);
-        color: #721c24;
-    }
-    .activity-content {
-        flex: 1;
-        min-width: 0;
-    }
-    .activity-name {
+    .ticker-name {
         font-weight: 600;
         color: #333;
-        font-size: 0.9rem;
+        margin-right: 6px;
     }
-    .activity-details {
-        font-size: 0.8rem;
+    .ticker-action {
         color: #6c757d;
-        margin-top: 2px;
+        margin-right: 6px;
     }
-    .activity-time {
-        font-size: 0.75rem;
+    .ticker-time {
         color: #adb5bd;
-        white-space: nowrap;
+        font-size: 0.75rem;
     }
-    .activity-badge {
-        font-size: 0.7rem;
+    .ticker-branch {
+        background: #f1f3f4;
+        color: #5f6368;
         padding: 2px 8px;
         border-radius: 10px;
-        font-weight: 600;
+        font-size: 0.7rem;
         margin-left: 8px;
     }
-    .activity-badge.late {
+    .ticker-badge {
+        padding: 2px 6px;
+        border-radius: 8px;
+        font-size: 0.65rem;
+        font-weight: 600;
+        margin-left: 6px;
+    }
+    .ticker-badge.late {
         background: #fff3cd;
         color: #856404;
     }
-    .activity-badge.early {
+    .ticker-badge.early {
         background: #d4edda;
         color: #155724;
+    }
+    .ticker-separator {
+        color: #ddd;
+        margin: 0 1rem;
     }
 
     /* Empty State */
     .empty-state {
         text-align: center;
-        padding: 3rem 1rem;
+        padding: 2rem 1rem;
         color: #6c757d;
     }
     .empty-state i {
-        font-size: 3rem;
+        font-size: 2.5rem;
         opacity: 0.2;
-        margin-bottom: 1rem;
-    }
-
-    /* Live Indicator */
-    .live-indicator {
-        display: inline-flex;
-        align-items: center;
-        gap: 6px;
-        font-size: 0.7rem;
-        color: #28a745;
-        font-weight: 600;
-        text-transform: uppercase;
-        letter-spacing: 0.5px;
-    }
-    .live-dot {
-        width: 8px;
-        height: 8px;
-        background: #28a745;
-        border-radius: 50%;
-        animation: pulse 2s infinite;
-    }
-    @keyframes pulse {
-        0%, 100% { opacity: 1; transform: scale(1); }
-        50% { opacity: 0.5; transform: scale(1.2); }
-    }
-
-    /* Welcome Message */
-    .welcome-section {
-        margin-bottom: 0.5rem;
-    }
-    .welcome-text {
-        font-size: 1rem;
-        color: #6c757d;
-    }
-    .welcome-text strong {
-        color: #333;
+        margin-bottom: 0.75rem;
     }
 </style>
 
@@ -452,12 +546,13 @@
     <div class="clock-container">
         <div class="analog-clock">
             <div class="clock-face">
-                <div class="clock-marks">
-                    <!-- Hour marks will be added by JS -->
-                </div>
+                <div class="clock-brand"></div>
+                <div class="clock-ticks" id="clockTicks"></div>
+                <div class="clock-markers" id="clockMarkers"></div>
                 <div class="hand hour-hand" id="hourHand"></div>
                 <div class="hand minute-hand" id="minuteHand"></div>
                 <div class="hand second-hand" id="secondHand"></div>
+                <div class="clock-center"></div>
             </div>
         </div>
         <div class="digital-clock">
@@ -470,16 +565,16 @@
 </div>
 
 <!-- Stats Cards -->
-<div class="row mb-4 g-3">
+<div class="row mb-3 g-2">
     <div class="col">
         <a href="{{ url_for('schools') }}" class="text-decoration-none">
-            <div class="card stat-card stat-schools h-100 shadow">
+            <div class="card stat-card stat-schools h-100 shadow-sm">
                 <div class="card-body text-center text-white">
                     <i class="fas fa-building fa-2x"></i>
                     <h3 class="counter" data-target="{{ total_schools }}">0</h3>
                     <small>Branches</small>
                     <div class="sparkline-container">
-                        <canvas id="sparklineSchools" height="30"></canvas>
+                        <canvas id="sparklineSchools" height="25"></canvas>
                     </div>
                 </div>
             </div>
@@ -487,13 +582,13 @@
     </div>
     <div class="col">
         <a href="{{ url_for('staff_list') }}" class="text-decoration-none">
-            <div class="card stat-card stat-staff h-100 shadow">
+            <div class="card stat-card stat-staff h-100 shadow-sm">
                 <div class="card-body text-center text-white">
                     <i class="fas fa-users fa-2x"></i>
                     <h3 class="counter" data-target="{{ total_staff }}">0</h3>
                     <small>Total Staff</small>
                     <div class="sparkline-container">
-                        <canvas id="sparklineStaff" height="30"></canvas>
+                        <canvas id="sparklineStaff" height="25"></canvas>
                     </div>
                 </div>
             </div>
@@ -501,13 +596,13 @@
     </div>
     <div class="col">
         <a href="{{ url_for('attendance_report', today=1) }}" class="text-decoration-none">
-            <div class="card stat-card stat-present h-100 shadow">
+            <div class="card stat-card stat-present h-100 shadow-sm">
                 <div class="card-body text-center text-white">
                     <i class="fas fa-user-check fa-2x"></i>
                     <h3 class="counter" data-target="{{ today_attendance }}">0</h3>
                     <small>Present Today</small>
                     <div class="sparkline-container">
-                        <canvas id="sparklinePresent" height="30"></canvas>
+                        <canvas id="sparklinePresent" height="25"></canvas>
                     </div>
                 </div>
             </div>
@@ -515,13 +610,13 @@
     </div>
     <div class="col">
         <a href="{{ url_for('late_report', today=1) }}" class="text-decoration-none">
-            <div class="card stat-card stat-late h-100 shadow">
+            <div class="card stat-card stat-late h-100 shadow-sm">
                 <div class="card-body text-center text-white">
                     <i class="fas fa-clock fa-2x"></i>
                     <h3 class="counter" data-target="{{ late_today }}">0</h3>
                     <small>Late Today</small>
                     <div class="sparkline-container">
-                        <canvas id="sparklineLate" height="30"></canvas>
+                        <canvas id="sparklineLate" height="25"></canvas>
                     </div>
                 </div>
             </div>
@@ -529,13 +624,13 @@
     </div>
     <div class="col">
         <a href="{{ url_for('absent_report', today=1) }}" class="text-decoration-none">
-            <div class="card stat-card stat-absent h-100 shadow">
+            <div class="card stat-card stat-absent h-100 shadow-sm">
                 <div class="card-body text-center text-white">
                     <i class="fas fa-user-times fa-2x"></i>
                     <h3 class="counter" data-target="{{ absent_today }}">0</h3>
                     <small>Absent Today</small>
                     <div class="sparkline-container">
-                        <canvas id="sparklineAbsent" height="30"></canvas>
+                        <canvas id="sparklineAbsent" height="25"></canvas>
                     </div>
                 </div>
             </div>
@@ -543,133 +638,171 @@
     </div>
 </div>
 
-<div class="row g-4">
-    <!-- School Stats Table -->
-    <div class="col-lg-8">
-        {% if school_stats %}
-        <div class="card stats-table-card h-100">
-            <div class="card-header">
-                <i class="fas fa-chart-bar me-2"></i>Branch Statistics (Today)
-            </div>
-            <div class="card-body">
-                <div class="table-responsive">
-                    <table class="table table-hover">
-                        <thead>
-                            <tr>
-                                <th>Branch</th>
-                                <th>Total Staff</th>
-                                <th>Present</th>
-                                <th>Late</th>
-                                <th>Attendance Rate</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            {% for stat in school_stats %}
-                            <tr>
-                                <td>
-                                    <span class="branch-name">{{ stat.school.name }}</span>
-                                    {% if stat.school.short_name %}
-                                    <div class="branch-short">{{ stat.school.short_name }}</div>
-                                    {% endif %}
-                                </td>
-                                <td>
-                                    <span class="fw-semibold">{{ stat.total_staff }}</span>
-                                </td>
-                                <td>
-                                    <span class="badge-stat success">{{ stat.present }}</span>
-                                </td>
-                                <td>
-                                    <span class="badge-stat warning">{{ stat.late }}</span>
-                                </td>
-                                <td style="min-width: 150px;">
-                                    {% if stat.total_staff > 0 %}
-                                    {% set rate = (stat.present / stat.total_staff * 100)|round(1) %}
-                                    <div class="progress" style="height: 22px;">
-                                        <div class="progress-bar {% if rate >= 80 %}bg-success{% elif rate >= 50 %}bg-warning{% else %}bg-danger{% endif %}" style="width: {{ rate }}%">
-                                            {{ rate }}%
-                                        </div>
-                                    </div>
-                                    {% else %}
-                                    <span class="text-muted fst-italic">N/A</span>
-                                    {% endif %}
-                                </td>
-                            </tr>
-                            {% endfor %}
-                        </tbody>
-                    </table>
-                </div>
-            </div>
-        </div>
-        {% else %}
-        <div class="card stats-table-card h-100">
-            <div class="card-header">
-                <i class="fas fa-chart-bar me-2"></i>Branch Statistics (Today)
-            </div>
-            <div class="card-body empty-state">
-                <i class="fas fa-chart-bar d-block"></i>
-                <p class="mb-0">No branch statistics available</p>
-            </div>
-        </div>
-        {% endif %}
+<!-- Branch Statistics Table - Full Width -->
+{% if school_stats %}
+<div class="card stats-table-card">
+    <div class="card-header">
+        <i class="fas fa-chart-bar me-2"></i>Branch Statistics (Today)
     </div>
-
-    <!-- Recent Activity Feed -->
-    <div class="col-lg-4">
-        <div class="card activity-card h-100">
-            <div class="card-header d-flex justify-content-between align-items-center">
-                <span><i class="fas fa-stream me-2"></i>Recent Activity</span>
-                <span class="live-indicator"><span class="live-dot"></span>Live</span>
-            </div>
-            <div class="activity-feed" id="activityFeed">
-                {% if recent_activities %}
-                    {% for activity in recent_activities %}
-                    <div class="activity-item">
-                        <div class="activity-icon {{ activity.type }}">
-                            <i class="fas fa-{% if activity.type == 'check-in' %}sign-in-alt{% elif activity.type == 'late' %}clock{% elif activity.type == 'check-out' %}sign-out-alt{% else %}user-times{% endif %}"></i>
-                        </div>
-                        <div class="activity-content">
-                            <div class="activity-name">
-                                {{ activity.name }}
-                                {% if activity.type == 'late' %}
-                                <span class="activity-badge late">Late</span>
-                                {% elif activity.type == 'check-in' and activity.early %}
-                                <span class="activity-badge early">Early</span>
-                                {% endif %}
+    <div class="card-body">
+        <div class="table-responsive">
+            <table class="table table-hover mb-0">
+                <thead>
+                    <tr>
+                        <th>Branch</th>
+                        <th>Total Staff</th>
+                        <th>Present</th>
+                        <th>Late</th>
+                        <th>Attendance Rate</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for stat in school_stats %}
+                    <tr>
+                        <td>
+                            <span class="branch-name">{{ stat.school.name }}</span>
+                            {% if stat.school.short_name %}
+                            <div class="branch-short">{{ stat.school.short_name }}</div>
+                            {% endif %}
+                        </td>
+                        <td>
+                            <span class="fw-semibold">{{ stat.total_staff }}</span>
+                        </td>
+                        <td>
+                            <span class="badge-stat success">{{ stat.present }}</span>
+                        </td>
+                        <td>
+                            <span class="badge-stat warning">{{ stat.late }}</span>
+                        </td>
+                        <td style="min-width: 140px;">
+                            {% if stat.total_staff > 0 %}
+                            {% set rate = (stat.present / stat.total_staff * 100)|round(1) %}
+                            <div class="progress">
+                                <div class="progress-bar {% if rate >= 80 %}bg-success{% elif rate >= 50 %}bg-warning{% else %}bg-danger{% endif %}" style="width: {{ rate }}%">
+                                    {{ rate }}%
+                                </div>
                             </div>
-                            <div class="activity-details">{{ activity.branch }}</div>
-                        </div>
-                        <div class="activity-time">{{ activity.time }}</div>
-                    </div>
+                            {% else %}
+                            <span class="text-muted fst-italic">N/A</span>
+                            {% endif %}
+                        </td>
+                    </tr>
                     {% endfor %}
-                {% else %}
-                    <div class="activity-item">
-                        <div class="activity-icon check-in">
-                            <i class="fas fa-sign-in-alt"></i>
-                        </div>
-                        <div class="activity-content">
-                            <div class="activity-name">No recent activity</div>
-                            <div class="activity-details">Check-ins will appear here</div>
-                        </div>
-                    </div>
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+{% else %}
+<div class="card stats-table-card">
+    <div class="card-header">
+        <i class="fas fa-chart-bar me-2"></i>Branch Statistics (Today)
+    </div>
+    <div class="card-body empty-state">
+        <i class="fas fa-chart-bar d-block"></i>
+        <p class="mb-0">No branch statistics available</p>
+    </div>
+</div>
+{% endif %}
+
+<!-- Activity Ticker -->
+<div class="activity-ticker-container">
+    <div class="ticker-label">
+        <i class="fas fa-stream"></i>Live
+        <span class="live-dot"></span>
+    </div>
+    <div class="activity-ticker" id="activityTicker">
+        {% if recent_activities %}
+            {% for activity in recent_activities %}
+            <div class="ticker-item">
+                <span class="ticker-icon {{ activity.type }}">
+                    <i class="fas fa-{% if activity.type == 'check-in' %}sign-in-alt{% elif activity.type == 'late' %}clock{% elif activity.type == 'check-out' %}sign-out-alt{% else %}user-times{% endif %}"></i>
+                </span>
+                <span class="ticker-name">{{ activity.name }}</span>
+                <span class="ticker-action">{{ activity.action }}</span>
+                <span class="ticker-time">{{ activity.time }}</span>
+                <span class="ticker-branch">{{ activity.branch }}</span>
+                {% if activity.type == 'late' %}
+                <span class="ticker-badge late">Late</span>
+                {% elif activity.early %}
+                <span class="ticker-badge early">Early</span>
                 {% endif %}
             </div>
-        </div>
+            {% endfor %}
+            <!-- Duplicate for seamless loop -->
+            {% for activity in recent_activities %}
+            <div class="ticker-item">
+                <span class="ticker-icon {{ activity.type }}">
+                    <i class="fas fa-{% if activity.type == 'check-in' %}sign-in-alt{% elif activity.type == 'late' %}clock{% elif activity.type == 'check-out' %}sign-out-alt{% else %}user-times{% endif %}"></i>
+                </span>
+                <span class="ticker-name">{{ activity.name }}</span>
+                <span class="ticker-action">{{ activity.action }}</span>
+                <span class="ticker-time">{{ activity.time }}</span>
+                <span class="ticker-branch">{{ activity.branch }}</span>
+                {% if activity.type == 'late' %}
+                <span class="ticker-badge late">Late</span>
+                {% elif activity.early %}
+                <span class="ticker-badge early">Early</span>
+                {% endif %}
+            </div>
+            {% endfor %}
+        {% else %}
+            <div class="ticker-item">
+                <span class="ticker-icon check-in"><i class="fas fa-info-circle"></i></span>
+                <span class="ticker-name">No recent activity</span>
+                <span class="ticker-action">—</span>
+                <span class="ticker-time">Check-ins will appear here as they happen</span>
+            </div>
+            <div class="ticker-item">
+                <span class="ticker-icon check-in"><i class="fas fa-info-circle"></i></span>
+                <span class="ticker-name">No recent activity</span>
+                <span class="ticker-action">—</span>
+                <span class="ticker-time">Check-ins will appear here as they happen</span>
+            </div>
+        {% endif %}
     </div>
 </div>
 
 <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 <script>
-// Clock functionality
+// Premium Clock
+function createClockMarkers() {
+    const markersContainer = document.getElementById('clockMarkers');
+    const ticksContainer = document.getElementById('clockTicks');
+    
+    // Hour markers
+    for (let i = 0; i < 12; i++) {
+        const marker = document.createElement('div');
+        marker.className = 'clock-marker' + (i % 3 === 0 ? ' major' : '');
+        marker.style.transform = `rotate(${i * 30}deg)`;
+        markersContainer.appendChild(marker);
+    }
+    
+    // Minute ticks
+    for (let i = 0; i < 60; i++) {
+        if (i % 5 !== 0) {
+            const tick = document.createElement('div');
+            tick.className = 'clock-tick';
+            tick.style.transform = `rotate(${i * 6}deg)`;
+            ticksContainer.appendChild(tick);
+        }
+    }
+}
+
 function updateClock() {
     const now = new Date();
     const hours = now.getHours();
     const minutes = now.getMinutes();
     const seconds = now.getSeconds();
+    const milliseconds = now.getMilliseconds();
+    
+    // Smooth second hand movement
+    const smoothSeconds = seconds + milliseconds / 1000;
     
     // Analog clock
     const hourDeg = (hours % 12) * 30 + minutes * 0.5;
-    const minuteDeg = minutes * 6;
-    const secondDeg = seconds * 6;
+    const minuteDeg = minutes * 6 + seconds * 0.1;
+    const secondDeg = smoothSeconds * 6;
     
     document.getElementById('hourHand').style.transform = `rotate(${hourDeg}deg)`;
     document.getElementById('minuteHand').style.transform = `rotate(${minuteDeg}deg)`;
@@ -685,19 +818,8 @@ function updateClock() {
     document.getElementById('ampm').textContent = ampm;
     
     // Date
-    const options = { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' };
+    const options = { weekday: 'short', day: 'numeric', month: 'short', year: 'numeric' };
     document.getElementById('digitalDate').textContent = now.toLocaleDateString('en-US', options);
-}
-
-// Add clock marks
-function createClockMarks() {
-    const marksContainer = document.querySelector('.clock-marks');
-    for (let i = 0; i < 12; i++) {
-        const mark = document.createElement('div');
-        mark.className = 'clock-mark' + (i % 3 === 0 ? ' major' : '');
-        mark.style.transform = `translateX(-50%) rotate(${i * 30}deg)`;
-        marksContainer.appendChild(mark);
-    }
 }
 
 // Welcome message based on time
@@ -712,22 +834,30 @@ function updateWelcome() {
     welcomeEl.innerHTML = `${greeting}, <strong>${username}</strong>`;
 }
 
-// Animated counters
+// Animated counters - SLOWER (2 seconds)
 function animateCounters() {
     const counters = document.querySelectorAll('.counter');
-    const speed = 200;
+    const duration = 2000; // 2 seconds
+    const frameDuration = 1000 / 60; // 60fps
+    const totalFrames = Math.round(duration / frameDuration);
     
     counters.forEach(counter => {
         const target = +counter.getAttribute('data-target');
-        const increment = target / speed;
+        let frame = 0;
+        
+        const easeOutQuad = t => t * (2 - t); // Easing function
         
         const updateCount = () => {
-            const count = +counter.innerText;
-            if (count < target) {
-                counter.innerText = Math.ceil(count + increment);
-                setTimeout(updateCount, 1);
+            frame++;
+            const progress = easeOutQuad(frame / totalFrames);
+            const currentCount = Math.round(target * progress);
+            
+            counter.textContent = currentCount;
+            
+            if (frame < totalFrames) {
+                requestAnimationFrame(updateCount);
             } else {
-                counter.innerText = target;
+                counter.textContent = target;
             }
         };
         
@@ -749,73 +879,55 @@ function createSparklines() {
             },
             elements: {
                 point: { radius: 0 },
-                line: { borderWidth: 2, tension: 0.4 }
+                line: { borderWidth: 1.5, tension: 0.4 }
             }
         }
     };
 
-    // Sample data - replace with real data from backend
-    const sparklineData = {
-        schools: [3, 3, 3, 4, 4, 4, {{ total_schools }}],
-        staff: [{{ total_staff|default(0) - 5 }}, {{ total_staff|default(0) - 3 }}, {{ total_staff|default(0) - 2 }}, {{ total_staff|default(0) - 1 }}, {{ total_staff|default(0) }}, {{ total_staff|default(0) }}, {{ total_staff }}],
-        present: [{{ today_attendance|default(0) * 0.8 }}, {{ today_attendance|default(0) * 0.85 }}, {{ today_attendance|default(0) * 0.9 }}, {{ today_attendance|default(0) * 0.88 }}, {{ today_attendance|default(0) * 0.92 }}, {{ today_attendance|default(0) * 0.95 }}, {{ today_attendance }}],
-        late: [{{ late_today|default(0) * 1.3 }}, {{ late_today|default(0) * 1.2 }}, {{ late_today|default(0) * 1.1 }}, {{ late_today|default(0) * 1.15 }}, {{ late_today|default(0) * 1.05 }}, {{ late_today|default(0) * 1.02 }}, {{ late_today }}],
-        absent: [{{ absent_today|default(0) * 1.2 }}, {{ absent_today|default(0) * 1.15 }}, {{ absent_today|default(0) * 1.1 }}, {{ absent_today|default(0) * 1.05 }}, {{ absent_today|default(0) * 1.08 }}, {{ absent_today|default(0) * 1.02 }}, {{ absent_today }}]
+    const labels = ['', '', '', '', '', '', ''];
+    
+    // Generate sample trend data
+    const generateTrend = (current, variance) => {
+        const data = [];
+        for (let i = 6; i >= 0; i--) {
+            const val = Math.max(0, current + Math.floor((Math.random() - 0.5) * variance * 2) - (i * variance * 0.1));
+            data.push(val);
+        }
+        data[6] = current;
+        return data;
     };
 
-    const labels = ['', '', '', '', '', '', ''];
+    const configs = [
+        { id: 'sparklineSchools', target: {{ total_schools }}, variance: 1 },
+        { id: 'sparklineStaff', target: {{ total_staff }}, variance: 3 },
+        { id: 'sparklinePresent', target: {{ today_attendance }}, variance: 5 },
+        { id: 'sparklineLate', target: {{ late_today }}, variance: 2 },
+        { id: 'sparklineAbsent', target: {{ absent_today }}, variance: 2 }
+    ];
 
-    // Schools sparkline
-    new Chart(document.getElementById('sparklineSchools'), {
-        ...sparklineConfig,
-        data: {
-            labels,
-            datasets: [{ data: sparklineData.schools, borderColor: 'rgba(255,255,255,0.8)', fill: false }]
-        }
-    });
-
-    // Staff sparkline
-    new Chart(document.getElementById('sparklineStaff'), {
-        ...sparklineConfig,
-        data: {
-            labels,
-            datasets: [{ data: sparklineData.staff, borderColor: 'rgba(255,255,255,0.8)', fill: false }]
-        }
-    });
-
-    // Present sparkline
-    new Chart(document.getElementById('sparklinePresent'), {
-        ...sparklineConfig,
-        data: {
-            labels,
-            datasets: [{ data: sparklineData.present, borderColor: 'rgba(255,255,255,0.8)', fill: false }]
-        }
-    });
-
-    // Late sparkline
-    new Chart(document.getElementById('sparklineLate'), {
-        ...sparklineConfig,
-        data: {
-            labels,
-            datasets: [{ data: sparklineData.late, borderColor: 'rgba(255,255,255,0.8)', fill: false }]
-        }
-    });
-
-    // Absent sparkline
-    new Chart(document.getElementById('sparklineAbsent'), {
-        ...sparklineConfig,
-        data: {
-            labels,
-            datasets: [{ data: sparklineData.absent, borderColor: 'rgba(255,255,255,0.8)', fill: false }]
+    configs.forEach(cfg => {
+        const canvas = document.getElementById(cfg.id);
+        if (canvas) {
+            new Chart(canvas, {
+                ...sparklineConfig,
+                data: {
+                    labels,
+                    datasets: [{
+                        data: generateTrend(cfg.target, cfg.variance),
+                        borderColor: 'rgba(255,255,255,0.8)',
+                        fill: false
+                    }]
+                }
+            });
         }
     });
 }
 
-// Initialize everything
+// Initialize
 document.addEventListener('DOMContentLoaded', function() {
-    createClockMarks();
+    createClockMarkers();
     updateClock();
-    setInterval(updateClock, 1000);
+    setInterval(updateClock, 50); // Smooth second hand
     updateWelcome();
     animateCounters();
     createSparklines();
