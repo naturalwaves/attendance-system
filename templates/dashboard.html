@@ -159,7 +159,7 @@
         color: #333;
     }
 
-    /* Activity Ticker - GREEN BACKGROUND with GOLD BADGES */
+    /* Activity Ticker */
     .ticker-section {
         margin-bottom: 1.5rem;
     }
@@ -357,10 +357,6 @@
         margin-top: 0.5rem;
         opacity: 0.8;
     }
-    .stat-late h3,
-    .stat-late .label {
-        text-shadow: 0 2px 6px rgba(0,0,0,0.25);
-    }
 
     /* Branch Stats Table */
     .branch-table {
@@ -409,7 +405,7 @@
         background: #e9ecef;
     }
 
-    /* Expandable Branch Row Styles */
+    /* Expandable Branch Row */
     .branch-row {
         cursor: pointer;
         user-select: none;
@@ -469,8 +465,16 @@
         border-bottom: 1px solid #f5f5f5;
         vertical-align: middle;
     }
-    .staff-list-table tr:last-child td {
+    .staff-list-table tbody tr:last-child td {
         border-bottom: none;
+    }
+    /* Alternating row colors */
+    .staff-list-table tbody tr:nth-child(even) {
+        background: #fafbfc;
+    }
+    /* Hover effect on staff rows */
+    .staff-list-table tbody tr:hover {
+        background: #f0fdf4;
     }
     .status-badge {
         display: inline-block;
@@ -482,6 +486,10 @@
     .status-badge.present {
         background: linear-gradient(135deg, #d1fae5, #a7f3d0);
         color: #065f46;
+    }
+    .status-badge.late {
+        background: linear-gradient(135deg, #fef3c7, #fde68a);
+        color: #92400e;
     }
     .status-badge.absent {
         background: linear-gradient(135deg, #fee2e2, #fecaca);
@@ -529,7 +537,7 @@
         justify-content: flex-end;
     }
 
-    /* First Check-in Card - YELLOW/GOLD */
+    /* First Check-in Card */
     .first-checkin-card {
         background: linear-gradient(135deg, #fff9e6 0%, #fff3cd 100%);
         border: 1px solid rgba(255, 193, 7, 0.3);
@@ -551,9 +559,6 @@
         border: 1px solid #dee2e6;
         box-shadow: 0 4px 15px rgba(0, 0, 0, 0.05);
     }
-    .first-checkin-card.no-checkin:hover {
-        box-shadow: 0 6px 20px rgba(0, 0, 0, 0.1);
-    }
     .trophy-icon {
         width: 42px;
         height: 42px;
@@ -568,7 +573,6 @@
     .trophy-icon i {
         color: #fff;
         font-size: 1.1rem;
-        text-shadow: 0 1px 2px rgba(0,0,0,0.2);
     }
     .first-checkin-card.no-checkin .trophy-icon {
         background: linear-gradient(135deg, #adb5bd 0%, #6c757d 100%);
@@ -605,7 +609,6 @@
         display: flex;
         align-items: center;
         gap: 0.5rem;
-        flex-wrap: wrap;
     }
     .first-checkin-details .branch {
         background: rgba(255, 193, 7, 0.2);
@@ -623,9 +626,6 @@
         display: flex;
         align-items: center;
         gap: 3px;
-    }
-    .first-checkin-time i {
-        font-size: 0.65rem;
     }
 
     /* Search Box */
@@ -661,14 +661,12 @@
         color: #aaa;
         font-size: 0.8rem;
         pointer-events: none;
-        transition: color 0.3s ease;
     }
-    .search-box:focus + .search-icon,
-    .search-container:hover .search-icon {
+    .search-box:focus + .search-icon {
         color: #10b981;
     }
     
-    /* Search Results Dropdown */
+    /* Search Results */
     .search-results {
         position: absolute;
         top: calc(100% + 5px);
@@ -688,14 +686,8 @@
         animation: slideDown 0.2s ease;
     }
     @keyframes slideDown {
-        from {
-            opacity: 0;
-            transform: translateY(-10px);
-        }
-        to {
-            opacity: 1;
-            transform: translateY(0);
-        }
+        from { opacity: 0; transform: translateY(-10px); }
+        to { opacity: 1; transform: translateY(0); }
     }
     .search-result-item {
         padding: 0.75rem 1rem;
@@ -733,9 +725,6 @@
         font-weight: 600;
         font-size: 0.85rem;
         color: #333;
-        white-space: nowrap;
-        overflow: hidden;
-        text-overflow: ellipsis;
     }
     .search-result-meta {
         font-size: 0.7rem;
@@ -769,22 +758,9 @@
         color: #888;
         font-size: 0.85rem;
     }
-    .search-no-results i {
-        font-size: 1.5rem;
-        margin-bottom: 0.5rem;
-        display: block;
-        opacity: 0.5;
-    }
 
     /* Responsive */
     @media (max-width: 1200px) {
-        .stat-card h3 {
-            font-size: 1.5rem;
-        }
-        .stat-card .icon-wrapper {
-            width: 36px;
-            height: 36px;
-        }
         .dashboard-header {
             grid-template-columns: 1fr;
             gap: 1rem;
@@ -1219,6 +1195,12 @@ document.querySelectorAll('.branch-row').forEach(row => {
                     return;
                 }
                 
+                // Sort: Present first, then Late, then Absent
+                data.sort((a, b) => {
+                    const order = { 'Present': 1, 'Late': 2, 'Absent': 3 };
+                    return (order[a.status] || 4) - (order[b.status] || 4);
+                });
+                
                 let html = `
                     <table class="staff-list-table">
                         <thead>
@@ -1227,19 +1209,24 @@ document.querySelectorAll('.branch-row').forEach(row => {
                                 <th>Department</th>
                                 <th>Status</th>
                                 <th>Time In</th>
+                                <th>Time Out</th>
                             </tr>
                         </thead>
                         <tbody>
                 `;
                 
                 data.forEach(staff => {
-                    const statusClass = staff.status === 'Present' ? 'present' : 'absent';
+                    let statusClass = 'absent';
+                    if (staff.status === 'Present') statusClass = 'present';
+                    else if (staff.status === 'Late') statusClass = 'late';
+                    
                     html += `
                         <tr>
                             <td><strong>${staff.name}</strong></td>
                             <td>${staff.department}</td>
                             <td><span class="status-badge ${statusClass}">${staff.status}</span></td>
                             <td>${staff.time_in}</td>
+                            <td>${staff.time_out || '-'}</td>
                         </tr>
                     `;
                 });
