@@ -506,8 +506,8 @@ def bulk_upload():
 @super_admin_required
 def schools():
     organizations = Organization.query.all()
-    schools = School.query.all()
-    return render_template('schools.html', schools=schools, organizations=organizations)
+    all_schools = School.query.all()
+    return render_template('schools.html', schools=all_schools, organizations=organizations)
 
 @app.route('/schools/add', methods=['POST'])
 @login_required
@@ -559,9 +559,9 @@ def delete_school(id):
 @login_required
 @super_admin_required
 def users():
-    users = User.query.all()
-    schools = School.query.all()
-    return render_template('users.html', users=users, schools=schools)
+    all_users = User.query.all()
+    all_schools = School.query.all()
+    return render_template('users.html', users=all_users, schools=all_schools)
 
 @app.route('/users/add', methods=['POST'])
 @login_required
@@ -635,17 +635,17 @@ def delete_user(id):
 @login_required
 @super_admin_required
 def settings():
-    settings = get_settings()
+    sys_settings = get_settings()
     organizations = Organization.query.all()
     
     if request.method == 'POST':
-        settings.company_name = request.form.get('company_name')
-        settings.logo_url = request.form.get('logo_url', '')
+        sys_settings.company_name = request.form.get('company_name')
+        sys_settings.logo_url = request.form.get('logo_url', '')
         db.session.commit()
         flash('Settings updated successfully!', 'success')
         return redirect(url_for('settings'))
     
-    return render_template('settings.html', settings=settings, organizations=organizations)
+    return render_template('settings.html', settings=sys_settings, organizations=organizations)
 
 @app.route('/organizations/add', methods=['POST'])
 @login_required
@@ -1142,7 +1142,7 @@ def api_record_attendance():
         if attendance:
             return jsonify({'error': 'Already signed in today', 'attendance_id': attendance.id}), 400
         
-        schedule_in = datetime.strptime(staff.school.schedule_in, '%H:%M').time()
+        schedule_in = datetime.strptime(staff.school.schedule_in or '08:00', '%H:%M').time()
         is_late = record_time.time() > schedule_in
         
         attendance = Attendance(
@@ -1172,7 +1172,7 @@ def api_record_attendance():
         
         attendance.sign_out_time = record_time
         
-        schedule_out = datetime.strptime(staff.school.schedule_out, '%H:%M').time()
+        schedule_out = datetime.strptime(staff.school.schedule_out or '17:00', '%H:%M').time()
         if record_time.time() > schedule_out:
             scheduled_out_dt = datetime.combine(today, schedule_out)
             overtime = (record_time - scheduled_out_dt).seconds // 60
@@ -1238,16 +1238,22 @@ def init_db():
     db.session.commit()
     return 'Database initialized! Default admin: admin/admin123'
 
-# Auto-fix database on startup - adds missing columns
+# Auto-fix database on startup - adds all missing columns
 with app.app_context():
-    try:
-        with db.engine.connect() as conn:
-            conn.execute(db.text('ALTER TABLE "user" ADD COLUMN allowed_schools TEXT;'))
-            conn.commit()
-            print("Added allowed_schools column")
-    except Exception as e:
-        # Column already exists or other error - that's fine
-        print(f"DB migration check: {e}")
+    migrations = [
+        'ALTER TABLE "user" ADD COLUMN allowed_schools TEXT;',
+        'ALTER TABLE school ADD COLUMN schedule_in VARCHAR(10) DEFAULT \'08:00\';',
+        'ALTER TABLE school ADD COLUMN schedule_out VARCHAR(10) DEFAULT \'17:00\';',
+    ]
+    
+    for sql in migrations:
+        try:
+            with db.engine.connect() as conn:
+                conn.execute(db.text(sql))
+                conn.commit()
+                print(f"Migration OK: {sql[:50]}...")
+        except Exception as e:
+            print(f"Migration skipped: {sql[:30]}... - {str(e)[:50]}")
 
 if __name__ == '__main__':
     app.run(debug=True)
