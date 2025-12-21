@@ -272,7 +272,6 @@ def add_organization():
         org = Organization(name=name, logo_url=logo_url)
         db.session.add(org)
         db.session.commit()
-        # Create default departments for new organization
         Department.create_defaults(org.id)
         flash('Organization added successfully with default departments!', 'success')
         return redirect(url_for('settings'))
@@ -304,7 +303,6 @@ def delete_organization(id):
     flash('Organization deleted successfully!', 'success')
     return redirect(url_for('settings'))
 
-# Department Management Routes
 @app.route('/organizations/<int:org_id>/departments')
 @login_required
 @role_required('super_admin')
@@ -312,7 +310,6 @@ def manage_departments(org_id):
     org = Organization.query.get_or_404(org_id)
     departments = Department.query.filter_by(organization_id=org_id).order_by(Department.name).all()
     
-    # Check staff count for each department
     dept_staff_counts = {}
     for dept in departments:
         count = Staff.query.join(School).filter(
@@ -334,7 +331,6 @@ def add_department(org_id):
         flash('Department name is required.', 'danger')
         return redirect(url_for('manage_departments', org_id=org_id))
     
-    # Check for duplicate
     existing = Department.query.filter_by(organization_id=org_id, name=name).first()
     if existing:
         flash('A department with this name already exists.', 'danger')
@@ -363,13 +359,11 @@ def edit_department(org_id, dept_id):
         flash('Department name is required.', 'danger')
         return redirect(url_for('manage_departments', org_id=org_id))
     
-    # Check for duplicate
     existing = Department.query.filter_by(organization_id=org_id, name=new_name).first()
     if existing and existing.id != dept_id:
         flash('A department with this name already exists.', 'danger')
         return redirect(url_for('manage_departments', org_id=org_id))
     
-    # Update staff with old department name to new name
     Staff.query.join(School).filter(
         School.organization_id == org_id,
         Staff.department == old_name
@@ -390,7 +384,6 @@ def delete_department(org_id, dept_id):
         flash('Invalid department.', 'danger')
         return redirect(url_for('manage_departments', org_id=org_id))
     
-    # Check if staff are assigned
     staff_count = Staff.query.join(School).filter(
         School.organization_id == org_id,
         Staff.department == dept.name
@@ -406,7 +399,6 @@ def delete_department(org_id, dept_id):
     flash(f'Department "{dept_name}" deleted successfully!', 'success')
     return redirect(url_for('manage_departments', org_id=org_id))
 
-# API endpoint to get departments for a branch
 @app.route('/api/branch-departments/<int:branch_id>')
 @login_required
 def get_branch_departments(branch_id):
@@ -416,7 +408,6 @@ def get_branch_departments(branch_id):
         departments = Department.query.filter_by(organization_id=school.organization_id).order_by(Department.name).all()
         return jsonify([{'id': d.id, 'name': d.name} for d in departments])
     else:
-        # Fallback for branches without organization
         return jsonify([
             {'id': 0, 'name': 'Academic'},
             {'id': 0, 'name': 'Non-Academic'},
@@ -777,7 +768,13 @@ def staff_list():
             'status': status,
             'status_color': status_color
         })
-    schools = School.query.all()
+    
+    # Fix: Use get_accessible_schools() for all users
+    if current_user.role == 'super_admin':
+        schools = School.query.all()
+    else:
+        schools = current_user.get_accessible_schools()
+    
     return render_template('staff.html', staff_with_status=staff_with_status, schools=schools)
 
 @app.route('/staff/add', methods=['GET', 'POST'])
@@ -789,8 +786,14 @@ def add_staff():
         name = request.form.get('name')
         department = request.form.get('department')
         school_id = request.form.get('school_id')
-        if current_user.role == 'school_admin':
-            school_id = current_user.school_id
+        
+        # Validate school access for non-super_admin
+        if current_user.role != 'super_admin':
+            accessible_ids = current_user.get_accessible_school_ids()
+            if int(school_id) not in accessible_ids:
+                flash('You do not have permission to add staff to this branch.', 'danger')
+                return redirect(url_for('add_staff'))
+        
         existing = Staff.query.filter_by(staff_id=staff_id).first()
         if existing:
             flash('Staff ID already exists!', 'danger')
@@ -800,11 +803,13 @@ def add_staff():
         db.session.commit()
         flash('Staff added successfully!', 'success')
         return redirect(url_for('staff_list'))
+    
+    # Fix: Use get_accessible_schools() for all non-super_admin users
     if current_user.role == 'super_admin':
         schools = School.query.all()
     else:
-        schools = [current_user.school]
-    # Get departments - will be loaded dynamically via JS based on selected branch
+        schools = current_user.get_accessible_schools()
+    
     departments = ['Academic', 'Non-Academic', 'Administrative', 'Support Staff']
     return render_template('add_staff.html', schools=schools, departments=departments)
 
@@ -814,9 +819,12 @@ def add_staff():
 def edit_staff(id):
     staff = Staff.query.get_or_404(id)
     
-    if current_user.role == 'school_admin' and staff.school_id != current_user.school_id:
-        flash('You do not have permission to edit this staff.', 'danger')
-        return redirect(url_for('staff_list'))
+    # Check permission
+    if current_user.role != 'super_admin':
+        accessible_ids = current_user.get_accessible_school_ids()
+        if staff.school_id not in accessible_ids:
+            flash('You do not have permission to edit this staff.', 'danger')
+            return redirect(url_for('staff_list'))
     
     new_staff_id = request.form.get('staff_sid')
     if new_staff_id != staff.staff_id:
@@ -840,9 +848,14 @@ def edit_staff(id):
 @role_required('super_admin', 'school_admin')
 def toggle_staff(id):
     staff = Staff.query.get_or_404(id)
-    if current_user.role == 'school_admin' and staff.school_id != current_user.school_id:
-        flash('You do not have permission to modify this staff.', 'danger')
-        return redirect(url_for('staff_list'))
+    
+    # Check permission
+    if current_user.role != 'super_admin':
+        accessible_ids = current_user.get_accessible_school_ids()
+        if staff.school_id not in accessible_ids:
+            flash('You do not have permission to modify this staff.', 'danger')
+            return redirect(url_for('staff_list'))
+    
     staff.is_active = not staff.is_active
     db.session.commit()
     status = 'activated' if staff.is_active else 'deactivated'
@@ -875,10 +888,14 @@ def bulk_upload():
             flash('Please upload a CSV file!', 'danger')
             return redirect(url_for('bulk_upload'))
         school_id = request.form.get('school_id')
-        if current_user.role == 'school_admin':
-            school_id = current_user.school_id
         
-        # Get valid departments for this branch's organization
+        # Validate school access for non-super_admin
+        if current_user.role != 'super_admin':
+            accessible_ids = current_user.get_accessible_school_ids()
+            if int(school_id) not in accessible_ids:
+                flash('You do not have permission to upload staff to this branch.', 'danger')
+                return redirect(url_for('bulk_upload'))
+        
         school = School.query.get(school_id)
         valid_departments = []
         if school and school.organization_id:
@@ -912,10 +929,13 @@ def bulk_upload():
         except Exception as e:
             flash(f'Error processing file: {str(e)}', 'danger')
         return redirect(url_for('staff_list'))
+    
+    # Fix: Use get_accessible_schools() for all non-super_admin users
     if current_user.role == 'super_admin':
         schools = School.query.all()
     else:
-        schools = [current_user.school]
+        schools = current_user.get_accessible_schools()
+    
     return render_template('bulk_upload.html', schools=schools)
 
 @app.route('/users')
@@ -1524,11 +1544,9 @@ def analytics():
     
     organizations = current_user.get_accessible_organizations()
     
-    # Get departments dynamically
     if organization_id:
         departments = [d.name for d in Department.query.filter_by(organization_id=organization_id).all()]
     else:
-        # Get all unique departments across accessible organizations
         all_depts = set()
         for org in organizations:
             for dept in Department.query.filter_by(organization_id=org.id).all():
@@ -2006,7 +2024,6 @@ def init_db():
     try:
         db.create_all()
         
-        # Add departments table
         try:
             db.session.execute(db.text('''
                 CREATE TABLE IF NOT EXISTS departments (
@@ -2055,7 +2072,6 @@ def init_db():
             admin.set_password('admin123')
             db.session.add(admin)
         
-        # Create default departments for existing organizations without departments
         for org in Organization.query.all():
             if not Department.query.filter_by(organization_id=org.id).first():
                 Department.create_defaults(org.id)
