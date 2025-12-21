@@ -392,6 +392,25 @@ def dashboard_stats():
     ).all()] if non_mgmt_ids else []
     absent_today = len([s for s in non_mgmt_staff if s.id not in present_ids])
     
+    # First check-in today
+    first_checkin = None
+    if all_staff_ids:
+        first_attendance = Attendance.query.filter(
+            Attendance.staff_id.in_(all_staff_ids),
+            Attendance.date == today,
+            Attendance.sign_in_time.isnot(None)
+        ).order_by(Attendance.sign_in_time.asc()).first()
+        
+        if first_attendance:
+            staff = Staff.query.get(first_attendance.staff_id)
+            if staff and staff.school:
+                first_checkin = {
+                    'name': staff.name,
+                    'branch': staff.school.short_name or staff.school.name,
+                    'department': staff.department,
+                    'time': first_attendance.sign_in_time.strftime('%H:%M')
+                }
+    
     # Recent activity (last 20 check-ins today)
     recent_activity = []
     if all_staff_ids:
@@ -415,8 +434,66 @@ def dashboard_stats():
         'today_attendance': today_attendance,
         'late_today': late_today,
         'absent_today': absent_today,
+        'first_checkin': first_checkin,
         'recent_activity': recent_activity
     })
+
+@app.route('/api/search-staff')
+@login_required
+def search_staff():
+    """API endpoint for staff search"""
+    query = request.args.get('q', '').strip()
+    
+    if len(query) < 2:
+        return jsonify({'results': []})
+    
+    today = date.today()
+    accessible_school_ids = current_user.get_accessible_school_ids()
+    
+    # Build staff query
+    staff_query = Staff.query.filter(Staff.is_active == True)
+    
+    if current_user.role != 'super_admin' and accessible_school_ids:
+        staff_query = staff_query.filter(Staff.school_id.in_(accessible_school_ids))
+    
+    # Search by name or staff_id
+    staff_query = staff_query.filter(
+        db.or_(
+            Staff.name.ilike(f'%{query}%'),
+            Staff.staff_id.ilike(f'%{query}%')
+        )
+    ).limit(10)
+    
+    results = []
+    for staff in staff_query.all():
+        # Get today's attendance
+        attendance = Attendance.query.filter_by(
+            staff_id=staff.id,
+            date=today
+        ).first()
+        
+        status = 'absent'
+        time_str = None
+        
+        if attendance:
+            if attendance.is_late:
+                status = 'late'
+            else:
+                status = 'signed_in'
+            if attendance.sign_in_time:
+                time_str = attendance.sign_in_time.strftime('%H:%M')
+        
+        results.append({
+            'id': staff.id,
+            'staff_id': staff.staff_id,
+            'name': staff.name,
+            'branch': staff.school.short_name or staff.school.name if staff.school else 'N/A',
+            'department': staff.department,
+            'status': status,
+            'time': time_str
+        })
+    
+    return jsonify({'results': results})
 
 @app.route('/schools')
 @login_required
