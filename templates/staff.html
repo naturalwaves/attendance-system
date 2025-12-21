@@ -42,7 +42,7 @@
                     <tr>
                         <th>Staff ID</th>
                         <th>Name</th>
-                        <th>School</th>
+                        <th>Branch</th>
                         <th>Department</th>
                         <th>Status</th>
                         <th>Active</th>
@@ -119,21 +119,19 @@
                     </div>
                     
                     <div class="mb-3">
-                        <label for="editDepartment" class="form-label">Department</label>
-                        <select class="form-select" id="editDepartment" name="department" required>
-                            <option value="Academic">Academic</option>
-                            <option value="Admin">Admin</option>
-                            <option value="Non-Academic">Non-Academic</option>
-                            <option value="Management">Management</option>
-                        </select>
-                    </div>
-                    
-                    <div class="mb-3">
                         <label for="editSchool" class="form-label">Branch</label>
                         <select class="form-select" id="editSchool" name="school_id" required>
                             {% for school in schools %}
                             <option value="{{ school.id }}">{{ school.name }}</option>
                             {% endfor %}
+                        </select>
+                        <small class="text-muted">Changing branch will update available departments</small>
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label for="editDepartment" class="form-label">Department</label>
+                        <select class="form-select" id="editDepartment" name="department" required>
+                            <option value="">Loading departments...</option>
                         </select>
                     </div>
                     
@@ -185,6 +183,38 @@ document.getElementById('staffSearch').addEventListener('input', function() {
     document.getElementById('staffTable').classList.toggle('d-none', visibleCount === 0);
 });
 
+// Load departments for a branch
+function loadDepartments(branchId, currentDepartment = null) {
+    const deptSelect = document.getElementById('editDepartment');
+    deptSelect.innerHTML = '<option value="">Loading...</option>';
+    
+    fetch(`/api/branch-departments/${branchId}`)
+        .then(response => response.json())
+        .then(departments => {
+            if (departments.length > 0) {
+                deptSelect.innerHTML = departments.map(dept => 
+                    `<option value="${dept.name}" ${dept.name === currentDepartment ? 'selected' : ''}>${dept.name}</option>`
+                ).join('');
+                
+                // If current department not in list, add it as selected
+                if (currentDepartment && !departments.find(d => d.name === currentDepartment)) {
+                    deptSelect.innerHTML = `<option value="${currentDepartment}" selected>${currentDepartment}</option>` + deptSelect.innerHTML;
+                }
+            } else {
+                deptSelect.innerHTML = '<option value="">No departments found</option>';
+            }
+        })
+        .catch(error => {
+            console.error('Error loading departments:', error);
+            deptSelect.innerHTML = '<option value="">Error loading departments</option>';
+        });
+}
+
+// Branch change in edit modal - reload departments
+document.getElementById('editSchool').addEventListener('change', function() {
+    loadDepartments(this.value);
+});
+
 // Edit button click
 document.querySelectorAll('.edit-btn').forEach(btn => {
     btn.addEventListener('click', function() {
@@ -200,16 +230,7 @@ document.querySelectorAll('.edit-btn').forEach(btn => {
         document.getElementById('editStaffId').value = staffId;
         document.getElementById('editName').value = name;
         
-        // Set department dropdown - loop through options to find match
-        const deptSelect = document.getElementById('editDepartment');
-        for (let i = 0; i < deptSelect.options.length; i++) {
-            if (deptSelect.options[i].value === department) {
-                deptSelect.selectedIndex = i;
-                break;
-            }
-        }
-        
-        // Set school dropdown - loop through options to find match
+        // Set school dropdown
         const schoolSelect = document.getElementById('editSchool');
         for (let i = 0; i < schoolSelect.options.length; i++) {
             if (schoolSelect.options[i].value === schoolId) {
@@ -217,6 +238,9 @@ document.querySelectorAll('.edit-btn').forEach(btn => {
                 break;
             }
         }
+        
+        // Load departments for the selected branch, then select current department
+        loadDepartments(schoolId, department);
         
         // Set active dropdown
         const activeSelect = document.getElementById('editActive');
