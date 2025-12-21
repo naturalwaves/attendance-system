@@ -134,6 +134,44 @@ def is_staff_id_unique_in_org(staff_id, organization_id, exclude_staff_id=None):
         query = query.filter(Staff.id != exclude_staff_id)
     return query.first() is None
 
+# Auto-fix database on startup - adds all missing columns
+with app.app_context():
+    migrations = [
+        # User table
+        'ALTER TABLE "user" ADD COLUMN allowed_schools TEXT;',
+        'ALTER TABLE "user" ADD COLUMN created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP;',
+        # School table
+        'ALTER TABLE school ADD COLUMN organization_id INTEGER;',
+        'ALTER TABLE school ADD COLUMN schedule_in VARCHAR(10) DEFAULT \'08:00\';',
+        'ALTER TABLE school ADD COLUMN schedule_out VARCHAR(10) DEFAULT \'17:00\';',
+        'ALTER TABLE school ADD COLUMN created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP;',
+        # Staff table
+        'ALTER TABLE staff ADD COLUMN department VARCHAR(100);',
+        'ALTER TABLE staff ADD COLUMN is_active BOOLEAN DEFAULT TRUE;',
+        'ALTER TABLE staff ADD COLUMN created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP;',
+        # Attendance table
+        'ALTER TABLE attendance ADD COLUMN status VARCHAR(20) DEFAULT \'present\';',
+        'ALTER TABLE attendance ADD COLUMN is_late BOOLEAN DEFAULT FALSE;',
+        'ALTER TABLE attendance ADD COLUMN late_reset BOOLEAN DEFAULT FALSE;',
+        'ALTER TABLE attendance ADD COLUMN overtime_minutes INTEGER DEFAULT 0;',
+        'ALTER TABLE attendance ADD COLUMN created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP;',
+        # Organization table
+        'ALTER TABLE organization ADD COLUMN logo_url VARCHAR(500) DEFAULT \'\';',
+        'ALTER TABLE organization ADD COLUMN created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP;',
+        # Department table
+        'ALTER TABLE department ADD COLUMN created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP;',
+        # SystemSettings table
+        'ALTER TABLE system_settings ADD COLUMN logo_url VARCHAR(500) DEFAULT \'\';',
+    ]
+    
+    for sql in migrations:
+        try:
+            with db.engine.connect() as conn:
+                conn.execute(db.text(sql))
+                conn.commit()
+        except:
+            pass
+
 # Routes
 @app.route('/')
 def index():
@@ -877,7 +915,7 @@ def late_report():
                 r.staff.school.name,
                 r.staff.department,
                 r.sign_in_time.strftime('%H:%M:%S') if r.sign_in_time else '',
-                r.staff.school.schedule_in
+                r.staff.school.schedule_in or '08:00'
             ])
         output.seek(0)
         return Response(
@@ -996,7 +1034,7 @@ def overtime_report():
                 r.staff.school.name,
                 r.staff.department,
                 r.sign_out_time.strftime('%H:%M:%S') if r.sign_out_time else '',
-                r.staff.school.schedule_out,
+                r.staff.school.schedule_out or '17:00',
                 r.overtime_minutes
             ])
         output.seek(0)
@@ -1237,23 +1275,6 @@ def init_db():
     
     db.session.commit()
     return 'Database initialized! Default admin: admin/admin123'
-
-# Auto-fix database on startup - adds all missing columns
-with app.app_context():
-    migrations = [
-        'ALTER TABLE "user" ADD COLUMN allowed_schools TEXT;',
-        'ALTER TABLE school ADD COLUMN schedule_in VARCHAR(10) DEFAULT \'08:00\';',
-        'ALTER TABLE school ADD COLUMN schedule_out VARCHAR(10) DEFAULT \'17:00\';',
-    ]
-    
-    for sql in migrations:
-        try:
-            with db.engine.connect() as conn:
-                conn.execute(db.text(sql))
-                conn.commit()
-                print(f"Migration OK: {sql[:50]}...")
-        except Exception as e:
-            print(f"Migration skipped: {sql[:30]}... - {str(e)[:50]}")
 
 if __name__ == '__main__':
     app.run(debug=True)
