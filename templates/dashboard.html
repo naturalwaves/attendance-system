@@ -51,7 +51,7 @@
         transform: translate(-50%, -50%);
         width: 4px;
         height: 4px;
-        background: #dc3545;
+        background: #10b981;
         border-radius: 50%;
     }
     .hour-marks {
@@ -80,7 +80,7 @@
         transform: translateX(-50%);
         width: 4px;
         height: 4px;
-        background: #dc3545;
+        background: #10b981;
         border-radius: 50%;
     }
     .hand {
@@ -107,7 +107,7 @@
     .second-hand {
         width: 1px;
         height: 34px;
-        background: #dc3545;
+        background: #10b981;
         margin-left: -0.5px;
         z-index: 4;
     }
@@ -119,7 +119,7 @@
         transform: translateX(-50%);
         width: 3px;
         height: 10px;
-        background: #dc3545;
+        background: #10b981;
         border-radius: 1px;
     }
     .digital-clock {
@@ -135,7 +135,7 @@
     }
     .digital-time .seconds {
         font-size: 0.9rem;
-        color: #dc3545;
+        color: #10b981;
         font-weight: 600;
     }
     .digital-time .ampm {
@@ -159,7 +159,7 @@
         color: #333;
     }
 
-    /* Activity Ticker */
+    /* Activity Ticker - GREEN ACCENT BACKGROUND */
     .ticker-section {
         margin-bottom: 1.5rem;
     }
@@ -173,7 +173,7 @@
         display: inline-flex;
         align-items: center;
         gap: 5px;
-        background: linear-gradient(135deg, #28a745, #20c997);
+        background: linear-gradient(135deg, #10b981, #059669);
         color: white;
         padding: 4px 10px;
         border-radius: 12px;
@@ -198,12 +198,12 @@
         color: #888;
     }
     .ticker-wrapper {
-        background: linear-gradient(135deg, #f8f9fa 0%, #fff 100%);
+        background: linear-gradient(135deg, #065f46 0%, #047857 50%, #059669 100%);
         border-radius: 10px;
-        padding: 10px 0;
+        padding: 12px 0;
         position: relative;
         overflow: hidden;
-        border: 1px solid #eee;
+        box-shadow: 0 4px 15px rgba(16, 185, 129, 0.3);
     }
     .ticker-wrapper::before,
     .ticker-wrapper::after {
@@ -217,11 +217,11 @@
     }
     .ticker-wrapper::before {
         left: 0;
-        background: linear-gradient(to right, #f8f9fa, transparent);
+        background: linear-gradient(to right, #065f46, transparent);
     }
     .ticker-wrapper::after {
         right: 0;
-        background: linear-gradient(to left, #fff, transparent);
+        background: linear-gradient(to left, #059669, transparent);
     }
     .ticker-track {
         display: flex;
@@ -242,26 +242,26 @@
         gap: 8px;
         white-space: nowrap;
         font-size: 0.8rem;
-        color: #555;
+        color: rgba(255, 255, 255, 0.9);
     }
     .ticker-item .check {
-        color: #28a745;
+        color: #6ee7b7;
         font-weight: bold;
     }
     .ticker-item .name {
         font-weight: 600;
-        color: #333;
+        color: #fff;
     }
     .ticker-item .time {
-        color: #888;
+        color: rgba(255, 255, 255, 0.7);
         font-size: 0.75rem;
     }
     .ticker-item .branch {
-        background: #e9ecef;
+        background: rgba(255, 255, 255, 0.2);
         padding: 2px 8px;
         border-radius: 4px;
         font-size: 0.7rem;
-        color: #666;
+        color: #fff;
     }
 
     /* Stat Cards - Compact, Beautiful, Fits in One Row */
@@ -435,20 +435,20 @@
 
     /* First Check-in Card */
     .first-checkin-card {
-        background: linear-gradient(135deg, #fff9e6 0%, #fff3cd 100%);
-        border: 1px solid rgba(255, 193, 7, 0.3);
+        background: linear-gradient(135deg, #ecfdf5 0%, #d1fae5 100%);
+        border: 1px solid rgba(16, 185, 129, 0.3);
         border-radius: 12px;
         padding: 0.75rem 1.25rem;
         display: flex;
         align-items: center;
         gap: 0.75rem;
-        box-shadow: 0 4px 15px rgba(255, 193, 7, 0.15);
+        box-shadow: 0 4px 15px rgba(16, 185, 129, 0.15);
         transition: all 0.3s ease;
         min-width: 220px;
     }
     .first-checkin-card:hover {
         transform: translateY(-2px);
-        box-shadow: 0 6px 20px rgba(255, 193, 7, 0.25);
+        box-shadow: 0 6px 20px rgba(16, 185, 129, 0.25);
     }
     .first-checkin-card.no-checkin {
         background: linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%);
@@ -462,11 +462,11 @@
         width: 42px;
         height: 42px;
         border-radius: 50%;
-        background: linear-gradient(135deg, #ffc107 0%, #ff9800 100%);
+        background: linear-gradient(135deg, #10b981 0%, #059669 100%);
         display: flex;
         align-items: center;
         justify-content: center;
-        box-shadow: 0 4px 12px rgba(255, 193, 7, 0.4);
+        box-shadow: 0 4px 12px rgba(16, 185, 129, 0.4);
         flex-shrink: 0;
     }
     .trophy-icon i {
@@ -487,7 +487,7 @@
         font-size: 0.6rem;
         text-transform: uppercase;
         letter-spacing: 0.5px;
-        color: #b8860b;
+        color: #059669;
         font-weight: 700;
         margin-bottom: 2px;
     }
@@ -512,7 +512,7 @@
         flex-wrap: wrap;
     }
     .first-checkin-details .branch {
-        background: rgba(255, 193, 7, 0.2);
+        background: rgba(16, 185, 129, 0.2);
         padding: 1px 6px;
         border-radius: 4px;
         font-weight: 500;
@@ -523,7 +523,7 @@
     .first-checkin-time {
         font-size: 0.75rem;
         font-weight: 700;
-        color: #28a745;
+        color: #10b981;
         display: flex;
         align-items: center;
         gap: 3px;
@@ -553,8 +553,8 @@
     }
     .search-box:focus {
         outline: none;
-        border-color: #667eea;
-        box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.15);
+        border-color: #10b981;
+        box-shadow: 0 0 0 3px rgba(16, 185, 129, 0.15);
         background: #fff;
     }
     .search-icon {
@@ -569,7 +569,7 @@
     }
     .search-box:focus + .search-icon,
     .search-container:hover .search-icon {
-        color: #667eea;
+        color: #10b981;
     }
     
     /* Search Results Dropdown */
@@ -614,13 +614,13 @@
         border-bottom: none;
     }
     .search-result-item:hover {
-        background: #f8f9fa;
+        background: #f0fdf4;
     }
     .search-result-avatar {
         width: 36px;
         height: 36px;
         border-radius: 50%;
-        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        background: linear-gradient(135deg, #10b981 0%, #059669 100%);
         display: flex;
         align-items: center;
         justify-content: center;
@@ -656,8 +656,8 @@
         flex-shrink: 0;
     }
     .search-result-status.signed-in {
-        background: linear-gradient(135deg, #d4edda 0%, #c3e6cb 100%);
-        color: #155724;
+        background: linear-gradient(135deg, #d1fae5 0%, #a7f3d0 100%);
+        color: #065f46;
     }
     .search-result-status.late {
         background: linear-gradient(135deg, #fff3cd 0%, #ffeeba 100%);
