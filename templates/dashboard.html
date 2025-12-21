@@ -1,938 +1,164 @@
-{% extends 'base.html' %}
+{% extends "base.html" %}
 
 {% block title %}Dashboard - Attendance System{% endblock %}
 
 {% block content %}
-<style>
-    /* Clock Styles */
-    .clock-container {
-        display: flex;
-        align-items: center;
-        gap: 20px;
-    }
-    .analog-clock {
-        width: 80px;
-        height: 80px;
-        border-radius: 50%;
-        background: linear-gradient(145deg, #ffffff, #e6e6e6);
-        box-shadow: 
-            0 4px 15px rgba(0,0,0,0.1),
-            inset 0 2px 4px rgba(255,255,255,0.9),
-            inset 0 -2px 4px rgba(0,0,0,0.05);
-        position: relative;
-        border: 3px solid #f0f0f0;
-    }
-    .clock-face {
-        width: 100%;
-        height: 100%;
-        position: relative;
-    }
-    .clock-center {
-        position: absolute;
-        top: 50%;
-        left: 50%;
-        transform: translate(-50%, -50%);
-        width: 8px;
-        height: 8px;
-        background: linear-gradient(145deg, #444, #222);
-        border-radius: 50%;
-        z-index: 10;
-        box-shadow: 0 1px 3px rgba(0,0,0,0.3);
-    }
-    .clock-center::after {
-        content: '';
-        position: absolute;
-        top: 50%;
-        left: 50%;
-        transform: translate(-50%, -50%);
-        width: 4px;
-        height: 4px;
-        background: #dc3545;
-        border-radius: 50%;
-    }
-    .hour-marks {
-        position: absolute;
-        width: 100%;
-        height: 100%;
-    }
-    .hour-mark {
-        position: absolute;
-        width: 2px;
-        height: 6px;
-        background: #333;
-        left: 50%;
-        transform-origin: center 40px;
-        border-radius: 1px;
-    }
-    .hour-mark.main {
-        height: 8px;
-        width: 2.5px;
-        background: #222;
-    }
-    .brand-dot {
-        position: absolute;
-        top: 18px;
-        left: 50%;
-        transform: translateX(-50%);
-        width: 4px;
-        height: 4px;
-        background: #dc3545;
-        border-radius: 50%;
-    }
-    .hand {
-        position: absolute;
-        bottom: 50%;
-        left: 50%;
-        transform-origin: bottom center;
-        border-radius: 2px;
-    }
-    .hour-hand {
-        width: 3px;
-        height: 22px;
-        background: linear-gradient(to top, #222, #444);
-        margin-left: -1.5px;
-        z-index: 3;
-    }
-    .minute-hand {
-        width: 2px;
-        height: 30px;
-        background: linear-gradient(to top, #333, #555);
-        margin-left: -1px;
-        z-index: 2;
-    }
-    .second-hand {
-        width: 1px;
-        height: 34px;
-        background: #dc3545;
-        margin-left: -0.5px;
-        z-index: 4;
-    }
-    .second-hand::after {
-        content: '';
-        position: absolute;
-        bottom: -8px;
-        left: 50%;
-        transform: translateX(-50%);
-        width: 3px;
-        height: 10px;
-        background: #dc3545;
-        border-radius: 1px;
-    }
-    .digital-clock {
-        text-align: left;
-    }
-    .digital-time {
-        font-size: 1.5rem;
-        font-weight: 700;
-        color: #333;
-        font-family: 'Segoe UI', system-ui, sans-serif;
-        letter-spacing: 1px;
-        line-height: 1.2;
-    }
-    .digital-time .seconds {
-        font-size: 0.9rem;
-        color: #dc3545;
-        font-weight: 600;
-    }
-    .digital-time .ampm {
-        font-size: 0.7rem;
-        color: #666;
-        margin-left: 3px;
-        font-weight: 500;
-    }
-    .digital-date {
-        font-size: 0.75rem;
-        color: #888;
-        margin-top: 2px;
-    }
-
-    /* Welcome Message */
-    .welcome-text {
-        font-size: 0.85rem;
-        color: #666;
-    }
-    .welcome-text strong {
-        color: #333;
-    }
-
-    /* Activity Ticker */
-    .ticker-section {
-        margin-bottom: 1.5rem;
-    }
-    .ticker-header {
-        display: flex;
-        align-items: center;
-        gap: 8px;
-        margin-bottom: 8px;
-    }
-    .live-badge {
-        display: inline-flex;
-        align-items: center;
-        gap: 5px;
-        background: linear-gradient(135deg, #28a745, #20c997);
-        color: white;
-        padding: 4px 10px;
-        border-radius: 12px;
-        font-size: 0.7rem;
-        font-weight: 600;
-        text-transform: uppercase;
-        letter-spacing: 0.5px;
-    }
-    .live-dot {
-        width: 6px;
-        height: 6px;
-        background: #fff;
-        border-radius: 50%;
-        animation: pulse 1.5s ease-in-out infinite;
-    }
-    @keyframes pulse {
-        0%, 100% { opacity: 1; transform: scale(1); }
-        50% { opacity: 0.5; transform: scale(0.8); }
-    }
-    .ticker-label {
-        font-size: 0.75rem;
-        color: #888;
-    }
-    .ticker-wrapper {
-        background: linear-gradient(135deg, #f8f9fa 0%, #fff 100%);
-        border-radius: 10px;
-        padding: 10px 0;
-        position: relative;
-        overflow: hidden;
-        border: 1px solid #eee;
-    }
-    .ticker-wrapper::before,
-    .ticker-wrapper::after {
-        content: '';
-        position: absolute;
-        top: 0;
-        bottom: 0;
-        width: 40px;
-        z-index: 2;
-        pointer-events: none;
-    }
-    .ticker-wrapper::before {
-        left: 0;
-        background: linear-gradient(to right, #f8f9fa, transparent);
-    }
-    .ticker-wrapper::after {
-        right: 0;
-        background: linear-gradient(to left, #fff, transparent);
-    }
-    .ticker-track {
-        display: flex;
-        gap: 30px;
-        animation: ticker 30s linear infinite;
-        width: max-content;
-    }
-    .ticker-track:hover {
-        animation-play-state: paused;
-    }
-    @keyframes ticker {
-        0% { transform: translateX(0); }
-        100% { transform: translateX(-50%); }
-    }
-    .ticker-item {
-        display: flex;
-        align-items: center;
-        gap: 8px;
-        white-space: nowrap;
-        font-size: 0.8rem;
-        color: #555;
-    }
-    .ticker-item .check {
-        color: #28a745;
-        font-weight: bold;
-    }
-    .ticker-item .name {
-        font-weight: 600;
-        color: #333;
-    }
-    .ticker-item .time {
-        color: #888;
-        font-size: 0.75rem;
-    }
-    .ticker-item .branch {
-        background: #e9ecef;
-        padding: 2px 8px;
-        border-radius: 4px;
-        font-size: 0.7rem;
-        color: #666;
-    }
-
-    /* Stat Cards - Compact, Beautiful, Fits in One Row */
-    .stats-row {
-        display: flex;
-        gap: 0.75rem;
-        margin-bottom: 1.5rem;
-    }
-    .stat-card-wrapper {
-        flex: 1;
-        min-width: 0;
-    }
-    .stat-card {
-        border: none;
-        border-radius: 12px;
-        transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-        position: relative;
-        overflow: hidden;
-        height: 100%;
-    }
-    .stat-card:hover {
-        transform: translateY(-6px);
-        box-shadow: 0 15px 35px rgba(0,0,0,0.2);
-    }
-    .stat-card:hover .decorative-circle {
-        transform: scale(1.2);
-    }
-    .stat-card:hover .decorative-circle-2 {
-        transform: scale(1.3);
-    }
-    .stat-card .card-body {
-        padding: 1rem 0.75rem;
-        position: relative;
-        z-index: 2;
-        text-align: center;
-    }
-    .stat-card .decorative-circle {
-        position: absolute;
-        width: 70px;
-        height: 70px;
-        border-radius: 50%;
-        background: rgba(255,255,255,0.1);
-        top: -20px;
-        right: -20px;
-        z-index: 1;
-        transition: transform 0.3s ease;
-    }
-    .stat-card .decorative-circle-2 {
-        position: absolute;
-        width: 50px;
-        height: 50px;
-        border-radius: 50%;
-        background: rgba(255,255,255,0.08);
-        bottom: -15px;
-        left: -15px;
-        z-index: 1;
-        transition: transform 0.3s ease;
-    }
-    .stat-card .icon-wrapper {
-        width: 40px;
-        height: 40px;
-        border-radius: 10px;
-        background: rgba(255,255,255,0.2);
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        margin: 0 auto 0.5rem;
-        backdrop-filter: blur(5px);
-    }
-    .stat-card .icon-wrapper i {
-        font-size: 1.1rem;
-        color: #fff;
-    }
-    .stat-card h3 {
-        font-size: 1.75rem;
-        font-weight: 700;
-        margin: 0;
-        line-height: 1.1;
-        text-shadow: 0 2px 4px rgba(0,0,0,0.15);
-    }
-    .stat-card .label {
-        font-size: 0.65rem;
-        text-transform: uppercase;
-        letter-spacing: 0.5px;
-        opacity: 1;
-        margin-top: 0.25rem;
-        font-weight: 700;
-    }
-    .sparkline-container {
-        height: 25px;
-        margin-top: 0.5rem;
-        opacity: 0.8;
-    }
-
-    /* Enhanced text visibility for lighter cards (yellow/late) */
-    .stat-late h3,
-    .stat-late .label {
-        text-shadow: 0 2px 6px rgba(0,0,0,0.25);
-    }
-
-    /* Branch Stats Table */
-    .branch-table {
-        border: none;
-        border-radius: 12px;
-        overflow: hidden;
-        box-shadow: 0 2px 15px rgba(0,0,0,0.05);
-    }
-    .branch-table .card-header {
-        background: linear-gradient(135deg, #f8f9fa 0%, #fff 100%);
-        border-bottom: 1px solid #eee;
-        padding: 1rem 1.25rem;
-        font-weight: 600;
-    }
-    .branch-table .table {
-        margin: 0;
-    }
-    .branch-table .table th {
-        border-top: none;
-        font-weight: 600;
-        font-size: 0.7rem;
-        text-transform: uppercase;
-        letter-spacing: 0.5px;
-        color: #6c757d;
-        padding: 0.75rem 1rem;
-        background: #fafbfc;
-    }
-    .branch-table .table td {
-        padding: 0.75rem 1rem;
-        vertical-align: middle;
-        border-color: #f3f3f3;
-    }
-    .branch-table .table tbody tr {
-        transition: background 0.2s ease;
-    }
-    .branch-table .table tbody tr:hover {
-        background: #f8f9fa;
-    }
-    .branch-table .badge {
-        padding: 0.4em 0.8em;
-        font-weight: 500;
-    }
-    .branch-table .progress {
-        height: 8px;
-        border-radius: 4px;
-        background: #e9ecef;
-    }
-
-    /* ========== NEW STYLES - First Check-in & Search ========== */
-    
-    /* Header Layout */
-    .dashboard-header {
-        display: grid;
-        grid-template-columns: 1fr auto 1fr;
-        align-items: center;
-        gap: 1.5rem;
-        margin-bottom: 1rem;
-    }
-    .header-left {
-        display: flex;
-        flex-direction: column;
-        gap: 0.5rem;
-    }
-    .header-center {
-        display: flex;
-        justify-content: center;
-    }
-    .header-right {
-        display: flex;
-        justify-content: flex-end;
-    }
-
-    /* First Check-in Card */
-    .first-checkin-card {
-        background: linear-gradient(135deg, #fff9e6 0%, #fff3cd 100%);
-        border: 1px solid rgba(255, 193, 7, 0.3);
-        border-radius: 12px;
-        padding: 0.75rem 1.25rem;
-        display: flex;
-        align-items: center;
-        gap: 0.75rem;
-        box-shadow: 0 4px 15px rgba(255, 193, 7, 0.15);
-        transition: all 0.3s ease;
-        min-width: 220px;
-    }
-    .first-checkin-card:hover {
-        transform: translateY(-2px);
-        box-shadow: 0 6px 20px rgba(255, 193, 7, 0.25);
-    }
-    .first-checkin-card.no-checkin {
-        background: linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%);
-        border: 1px solid #dee2e6;
-        box-shadow: 0 4px 15px rgba(0, 0, 0, 0.05);
-    }
-    .first-checkin-card.no-checkin:hover {
-        box-shadow: 0 6px 20px rgba(0, 0, 0, 0.1);
-    }
-    .trophy-icon {
-        width: 42px;
-        height: 42px;
-        border-radius: 50%;
-        background: linear-gradient(135deg, #ffc107 0%, #ff9800 100%);
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        box-shadow: 0 4px 12px rgba(255, 193, 7, 0.4);
-        flex-shrink: 0;
-    }
-    .trophy-icon i {
-        color: #fff;
-        font-size: 1.1rem;
-        text-shadow: 0 1px 2px rgba(0,0,0,0.2);
-    }
-    .first-checkin-card.no-checkin .trophy-icon {
-        background: linear-gradient(135deg, #adb5bd 0%, #6c757d 100%);
-        box-shadow: 0 4px 12px rgba(108, 117, 125, 0.3);
-    }
-    .first-checkin-info {
-        display: flex;
-        flex-direction: column;
-        min-width: 0;
-    }
-    .first-checkin-label {
-        font-size: 0.6rem;
-        text-transform: uppercase;
-        letter-spacing: 0.5px;
-        color: #b8860b;
-        font-weight: 700;
-        margin-bottom: 2px;
-    }
-    .first-checkin-card.no-checkin .first-checkin-label {
-        color: #6c757d;
-    }
-    .first-checkin-name {
-        font-size: 0.9rem;
-        font-weight: 700;
-        color: #333;
-        white-space: nowrap;
-        overflow: hidden;
-        text-overflow: ellipsis;
-        line-height: 1.2;
-    }
-    .first-checkin-details {
-        font-size: 0.7rem;
-        color: #666;
-        display: flex;
-        align-items: center;
-        gap: 0.5rem;
-        flex-wrap: wrap;
-    }
-    .first-checkin-details .branch {
-        background: rgba(255, 193, 7, 0.2);
-        padding: 1px 6px;
-        border-radius: 4px;
-        font-weight: 500;
-    }
-    .first-checkin-card.no-checkin .first-checkin-details .branch {
-        background: rgba(108, 117, 125, 0.15);
-    }
-    .first-checkin-time {
-        font-size: 0.75rem;
-        font-weight: 700;
-        color: #28a745;
-        display: flex;
-        align-items: center;
-        gap: 3px;
-    }
-    .first-checkin-time i {
-        font-size: 0.65rem;
-    }
-
-    /* Search Box */
-    .search-container {
-        position: relative;
-        width: 100%;
-        max-width: 280px;
-    }
-    .search-box {
-        width: 100%;
-        padding: 0.5rem 0.75rem 0.5rem 2.25rem;
-        border: 1px solid #e0e0e0;
-        border-radius: 8px;
-        font-size: 0.8rem;
-        background: linear-gradient(135deg, #fff 0%, #f8f9fa 100%);
-        transition: all 0.3s ease;
-        color: #333;
-    }
-    .search-box::placeholder {
-        color: #aaa;
-    }
-    .search-box:focus {
-        outline: none;
-        border-color: #667eea;
-        box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.15);
-        background: #fff;
-    }
-    .search-icon {
-        position: absolute;
-        left: 0.75rem;
-        top: 50%;
-        transform: translateY(-50%);
-        color: #aaa;
-        font-size: 0.8rem;
-        pointer-events: none;
-        transition: color 0.3s ease;
-    }
-    .search-box:focus + .search-icon,
-    .search-container:hover .search-icon {
-        color: #667eea;
-    }
-    
-    /* Search Results Dropdown */
-    .search-results {
-        position: absolute;
-        top: calc(100% + 5px);
-        left: 0;
-        right: 0;
-        background: #fff;
-        border-radius: 10px;
-        box-shadow: 0 10px 40px rgba(0,0,0,0.15);
-        border: 1px solid #eee;
-        max-height: 300px;
-        overflow-y: auto;
-        z-index: 1000;
-        display: none;
-    }
-    .search-results.active {
-        display: block;
-        animation: slideDown 0.2s ease;
-    }
-    @keyframes slideDown {
-        from {
-            opacity: 0;
-            transform: translateY(-10px);
-        }
-        to {
-            opacity: 1;
-            transform: translateY(0);
-        }
-    }
-    .search-result-item {
-        padding: 0.75rem 1rem;
-        display: flex;
-        align-items: center;
-        gap: 0.75rem;
-        cursor: pointer;
-        transition: background 0.2s ease;
-        border-bottom: 1px solid #f5f5f5;
-    }
-    .search-result-item:last-child {
-        border-bottom: none;
-    }
-    .search-result-item:hover {
-        background: #f8f9fa;
-    }
-    .search-result-avatar {
-        width: 36px;
-        height: 36px;
-        border-radius: 50%;
-        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        color: #fff;
-        font-weight: 600;
-        font-size: 0.8rem;
-        flex-shrink: 0;
-    }
-    .search-result-info {
-        flex: 1;
-        min-width: 0;
-    }
-    .search-result-name {
-        font-weight: 600;
-        font-size: 0.85rem;
-        color: #333;
-        white-space: nowrap;
-        overflow: hidden;
-        text-overflow: ellipsis;
-    }
-    .search-result-meta {
-        font-size: 0.7rem;
-        color: #888;
-        display: flex;
-        align-items: center;
-        gap: 0.5rem;
-    }
-    .search-result-status {
-        padding: 3px 8px;
-        border-radius: 12px;
-        font-size: 0.65rem;
-        font-weight: 600;
-        flex-shrink: 0;
-    }
-    .search-result-status.signed-in {
-        background: linear-gradient(135deg, #d4edda 0%, #c3e6cb 100%);
-        color: #155724;
-    }
-    .search-result-status.late {
-        background: linear-gradient(135deg, #fff3cd 0%, #ffeeba 100%);
-        color: #856404;
-    }
-    .search-result-status.absent {
-        background: linear-gradient(135deg, #f8d7da 0%, #f5c6cb 100%);
-        color: #721c24;
-    }
-    .search-no-results {
-        padding: 1.5rem;
-        text-align: center;
-        color: #888;
-        font-size: 0.85rem;
-    }
-    .search-no-results i {
-        font-size: 1.5rem;
-        margin-bottom: 0.5rem;
-        display: block;
-        opacity: 0.5;
-    }
-
-    /* Responsive */
-    @media (max-width: 1200px) {
-        .stat-card h3 {
-            font-size: 1.5rem;
-        }
-        .stat-card .icon-wrapper {
-            width: 36px;
-            height: 36px;
-        }
-        .dashboard-header {
-            grid-template-columns: 1fr;
-            gap: 1rem;
-        }
-        .header-center {
-            order: -1;
-            justify-content: flex-start;
-        }
-        .header-right {
-            justify-content: flex-start;
-        }
-    }
-    @media (max-width: 992px) {
-        .stats-row {
-            flex-wrap: wrap;
-        }
-        .stat-card-wrapper {
-            flex: 0 0 calc(33.333% - 0.5rem);
-        }
-    }
-    @media (max-width: 576px) {
-        .stat-card-wrapper {
-            flex: 0 0 calc(50% - 0.375rem);
-        }
-        .first-checkin-card {
-            min-width: auto;
-            width: 100%;
-        }
-    }
-</style>
-
-<!-- Dashboard Header with Search, First Check-in, and Clock -->
-<div class="dashboard-header">
-    <!-- Left: Title, Welcome, Search -->
-    <div class="header-left">
-        <div>
-            <h2 class="mb-1 fw-bold"><i class="fas fa-tachometer-alt me-2 text-primary"></i>Dashboard</h2>
-            <p class="welcome-text mb-0" id="welcomeMessage">
-                Good morning, <strong>{{ current_user.username }}</strong>
-            </p>
-        </div>
-        <div class="search-container">
-            <input type="text" class="search-box" id="staffSearch" placeholder="Search staff..." autocomplete="off">
-            <i class="fas fa-search search-icon"></i>
-            <div class="search-results" id="searchResults"></div>
-        </div>
-    </div>
-    
-    <!-- Center: First Check-in -->
-    <div class="header-center">
-        <div class="first-checkin-card no-checkin" id="firstCheckinCard">
-            <div class="trophy-icon">
-                <i class="fas fa-trophy"></i>
+<div class="dashboard-container">
+    <!-- Header Section -->
+    <div class="dashboard-header">
+        <div class="header-left">
+            <h1>📊 Dashboard</h1>
+            <div class="search-container">
+                <input type="text" id="staffSearch" class="staff-search" placeholder="Search staff... (Ctrl+K)">
+                <div id="searchResults" class="search-results"></div>
             </div>
-            <div class="first-checkin-info">
-                <span class="first-checkin-label">🏆 First Today</span>
-                <span class="first-checkin-name" id="firstCheckinName">No check-ins yet</span>
-                <div class="first-checkin-details">
-                    <span class="branch" id="firstCheckinBranch">Waiting...</span>
-                    <span id="firstCheckinDept"></span>
+        </div>
+        
+        <div class="header-center">
+            <div class="first-checkin-card" id="firstCheckinCard">
+                <div class="first-checkin-icon">🏆</div>
+                <div class="first-checkin-info">
+                    <span class="first-checkin-label">First Check-in Today</span>
+                    <span class="first-checkin-name" id="firstCheckinName">---</span>
+                    <span class="first-checkin-details" id="firstCheckinDetails">---</span>
                 </div>
+                <div class="first-checkin-time" id="firstCheckinTime">--:--</div>
             </div>
-            <div class="first-checkin-time" id="firstCheckinTime" style="display: none;">
-                <i class="fas fa-clock"></i>
-                <span id="firstCheckinTimeValue"></span>
+        </div>
+        
+        <div class="header-right">
+            <div class="greeting" id="greeting">Good morning</div>
+            <div class="clock-container">
+                <div class="analog-clock">
+                    <div class="clock-face">
+                        <div class="clock-hand hour-hand" id="hourHand"></div>
+                        <div class="clock-hand minute-hand" id="minuteHand"></div>
+                        <div class="clock-hand second-hand" id="secondHand"></div>
+                        <div class="clock-center"></div>
+                    </div>
+                </div>
+                <div class="digital-clock" id="digitalClock">00:00:00</div>
             </div>
         </div>
     </div>
-    
-    <!-- Right: Clock -->
-    <div class="header-right">
-        <div class="clock-container">
-            <div class="analog-clock">
-                <div class="clock-face">
-                    <div class="brand-dot"></div>
-                    <div class="hour-marks">
-                        {% for i in range(12) %}
-                        <div class="hour-mark {% if i % 3 == 0 %}main{% endif %}" style="transform: translateX(-50%) rotate({{ i * 30 }}deg);"></div>
-                        {% endfor %}
-                    </div>
-                    <div class="hand hour-hand" id="hourHand"></div>
-                    <div class="hand minute-hand" id="minuteHand"></div>
-                    <div class="hand second-hand" id="secondHand"></div>
-                    <div class="clock-center"></div>
-                </div>
-            </div>
-            <div class="digital-clock">
-                <div class="digital-time">
-                    <span id="digitalTime">12:00</span><span class="seconds" id="digitalSeconds">:00</span><span class="ampm" id="digitalAmpm">AM</span>
-                </div>
-                <div class="digital-date" id="digitalDate">Monday, January 1</div>
+
+    <!-- Live Activity Ticker -->
+    <div class="live-ticker-container">
+        <div class="live-badge">
+            <span class="live-dot"></span>
+            LIVE
+        </div>
+        <div class="ticker-wrapper">
+            <div class="ticker-content" id="tickerContent">
+                <span class="ticker-item">Loading activity...</span>
             </div>
         </div>
     </div>
-</div>
 
-<!-- Live Activity Ticker -->
-<div class="ticker-section">
-    <div class="ticker-header">
-        <span class="live-badge"><span class="live-dot"></span> Live</span>
-        <span class="ticker-label">Recent Activity</span>
-    </div>
-    <div class="ticker-wrapper">
-        <div class="ticker-track" id="tickerTrack">
-            <div class="ticker-item"><span class="check">✓</span><span class="name">System Ready</span><span class="time">Now</span></div>
-            <div class="ticker-item"><span class="check">✓</span><span class="name">Awaiting Check-ins</span><span class="time">Today</span></div>
-            <div class="ticker-item"><span class="check">✓</span><span class="name">System Ready</span><span class="time">Now</span></div>
-            <div class="ticker-item"><span class="check">✓</span><span class="name">Awaiting Check-ins</span><span class="time">Today</span></div>
+    <!-- Stats Cards -->
+    <div class="stats-grid">
+        <div class="stat-card stat-schools">
+            <div class="card-decoration"></div>
+            <div class="stat-icon">🏢</div>
+            <div class="stat-content">
+                <h3 class="counter" data-target="{{ total_schools }}">0</h3>
+                <p class="label">Branches</p>
+            </div>
+            <canvas class="sparkline" id="sparklineSchools"></canvas>
+        </div>
+        
+        <div class="stat-card stat-staff">
+            <div class="card-decoration"></div>
+            <div class="stat-icon">👥</div>
+            <div class="stat-content">
+                <h3 class="counter" data-target="{{ total_staff }}">0</h3>
+                <p class="label">Total Staff</p>
+            </div>
+            <canvas class="sparkline" id="sparklineStaff"></canvas>
+        </div>
+        
+        <div class="stat-card stat-present">
+            <div class="card-decoration"></div>
+            <div class="stat-icon">✅</div>
+            <div class="stat-content">
+                <h3 class="counter" data-target="{{ today_present }}">0</h3>
+                <p class="label">Present Today</p>
+            </div>
+            <canvas class="sparkline" id="sparklinePresent"></canvas>
+        </div>
+        
+        <div class="stat-card stat-late">
+            <div class="card-decoration"></div>
+            <div class="stat-icon">⏰</div>
+            <div class="stat-content">
+                <h3 class="counter" data-target="{{ today_late }}">0</h3>
+                <p class="label">Late Today</p>
+            </div>
+            <canvas class="sparkline" id="sparklineLate"></canvas>
+        </div>
+        
+        <div class="stat-card stat-absent">
+            <div class="card-decoration"></div>
+            <div class="stat-icon">❌</div>
+            <div class="stat-content">
+                <h3 class="counter" data-target="{{ today_absent }}">0</h3>
+                <p class="label">Absent Today</p>
+            </div>
+            <canvas class="sparkline" id="sparklineAbsent"></canvas>
         </div>
     </div>
-</div>
 
-<!-- Stats Cards - Compact & Beautiful -->
-<div class="stats-row">
-    <div class="stat-card-wrapper">
-        <a href="{{ url_for('schools') }}" class="text-decoration-none">
-            <div class="card stat-card stat-schools h-100">
-                <div class="decorative-circle"></div>
-                <div class="decorative-circle-2"></div>
-                <div class="card-body text-white">
-                    <div class="icon-wrapper">
-                        <i class="fas fa-building"></i>
-                    </div>
-                    <h3 class="counter" data-target="{{ total_schools }}">0</h3>
-                    <div class="label">Branches</div>
-                    <div class="sparkline-container">
-                        <canvas id="sparkBranches" height="25"></canvas>
-                    </div>
-                </div>
-            </div>
-        </a>
-    </div>
-    <div class="stat-card-wrapper">
-        <a href="{{ url_for('staff_list') }}" class="text-decoration-none">
-            <div class="card stat-card stat-staff h-100">
-                <div class="decorative-circle"></div>
-                <div class="decorative-circle-2"></div>
-                <div class="card-body text-white">
-                    <div class="icon-wrapper">
-                        <i class="fas fa-users"></i>
-                    </div>
-                    <h3 class="counter" data-target="{{ total_staff }}">0</h3>
-                    <div class="label">Total Staff</div>
-                    <div class="sparkline-container">
-                        <canvas id="sparkStaff" height="25"></canvas>
-                    </div>
-                </div>
-            </div>
-        </a>
-    </div>
-    <div class="stat-card-wrapper">
-        <a href="{{ url_for('attendance_report', today=1) }}" class="text-decoration-none">
-            <div class="card stat-card stat-present h-100">
-                <div class="decorative-circle"></div>
-                <div class="decorative-circle-2"></div>
-                <div class="card-body text-white">
-                    <div class="icon-wrapper">
-                        <i class="fas fa-user-check"></i>
-                    </div>
-                    <h3 class="counter" data-target="{{ today_attendance }}">0</h3>
-                    <div class="label">Present Today</div>
-                    <div class="sparkline-container">
-                        <canvas id="sparkPresent" height="25"></canvas>
-                    </div>
-                </div>
-            </div>
-        </a>
-    </div>
-    <div class="stat-card-wrapper">
-        <a href="{{ url_for('late_report', today=1) }}" class="text-decoration-none">
-            <div class="card stat-card stat-late h-100">
-                <div class="decorative-circle"></div>
-                <div class="decorative-circle-2"></div>
-                <div class="card-body text-white">
-                    <div class="icon-wrapper">
-                        <i class="fas fa-clock"></i>
-                    </div>
-                    <h3 class="counter" data-target="{{ late_today }}">0</h3>
-                    <div class="label">Late Today</div>
-                    <div class="sparkline-container">
-                        <canvas id="sparkLate" height="25"></canvas>
-                    </div>
-                </div>
-            </div>
-        </a>
-    </div>
-    <div class="stat-card-wrapper">
-        <a href="{{ url_for('absent_report', today=1) }}" class="text-decoration-none">
-            <div class="card stat-card stat-absent h-100">
-                <div class="decorative-circle"></div>
-                <div class="decorative-circle-2"></div>
-                <div class="card-body text-white">
-                    <div class="icon-wrapper">
-                        <i class="fas fa-user-times"></i>
-                    </div>
-                    <h3 class="counter" data-target="{{ absent_today }}">0</h3>
-                    <div class="label">Absent Today</div>
-                    <div class="sparkline-container">
-                        <canvas id="sparkAbsent" height="25"></canvas>
-                    </div>
-                </div>
-            </div>
-        </a>
-    </div>
-</div>
-
-<!-- Branch Statistics Table -->
-{% if school_stats %}
-<div class="card branch-table">
-    <div class="card-header">
-        <i class="fas fa-chart-bar me-2 text-primary"></i>Branch Statistics (Today)
-    </div>
-    <div class="card-body p-0">
-        <div class="table-responsive">
-            <table class="table table-hover mb-0">
+    <!-- Branch Statistics Table -->
+    <div class="branch-stats-container">
+        <div class="section-header">
+            <h2>📍 Branch Statistics</h2>
+            <span class="today-date">{{ today_date }}</span>
+        </div>
+        <div class="table-wrapper">
+            <table class="branch-table">
                 <thead>
                     <tr>
-                        <th>Branch</th>
+                        <th>Branch Name</th>
                         <th>Total Staff</th>
                         <th>Present</th>
                         <th>Late</th>
+                        <th>Absent</th>
                         <th>Attendance Rate</th>
+                        <th></th>
                     </tr>
                 </thead>
-                <tbody>
-                    {% for stat in school_stats %}
-                    <tr>
-                        <td>
-                            <strong>{{ stat.school.name }}</strong>
-                            {% if stat.school.short_name %}
-                            <br><small class="text-muted">{{ stat.school.short_name }}</small>
-                            {% endif %}
+                <tbody id="branchTableBody">
+                    {% for branch in branch_stats %}
+                    <tr class="branch-row" data-branch-id="{{ branch.id }}">
+                        <td class="branch-name">
+                            <span class="branch-icon">🏛️</span>
+                            {{ branch.name }}
                         </td>
-                        <td>{{ stat.total_staff }}</td>
-                        <td><span class="badge bg-success">{{ stat.present }}</span></td>
-                        <td><span class="badge bg-warning text-dark">{{ stat.late }}</span></td>
-                        <td style="min-width: 150px;">
-                            {% if stat.total_staff > 0 %}
-                            {% set rate = (stat.present / stat.total_staff * 100)|round(1) %}
-                            <div class="d-flex align-items-center gap-2">
-                                <div class="progress flex-grow-1">
-                                    <div class="progress-bar {% if rate >= 80 %}bg-success{% elif rate >= 50 %}bg-warning{% else %}bg-danger{% endif %}" style="width: {{ rate }}%"></div>
+                        <td>{{ branch.total_staff }}</td>
+                        <td class="present-count">{{ branch.present }}</td>
+                        <td class="late-count">{{ branch.late }}</td>
+                        <td class="absent-count">{{ branch.absent }}</td>
+                        <td>
+                            <div class="attendance-rate">
+                                <div class="rate-bar">
+                                    <div class="rate-fill" style="width: {{ branch.attendance_rate }}%"></div>
                                 </div>
-                                <small class="text-muted" style="width: 40px;">{{ rate }}%</small>
+                                <span class="rate-text">{{ branch.attendance_rate }}%</span>
                             </div>
-                            {% else %}
-                            <span class="text-muted">N/A</span>
-                            {% endif %}
+                        </td>
+                        <td class="expand-cell">
+                            <span class="expand-arrow">›</span>
+                        </td>
+                    </tr>
+                    <tr class="staff-expansion-row" data-branch-id="{{ branch.id }}">
+                        <td colspan="7">
+                            <div class="staff-expansion-content">
+                                <div class="staff-list-loader">
+                                    <div class="loader-spinner"></div>
+                                    <span>Loading staff...</span>
+                                </div>
+                                <div class="staff-list"></div>
+                            </div>
                         </td>
                     </tr>
                     {% endfor %}
@@ -941,274 +167,1188 @@
         </div>
     </div>
 </div>
-{% endif %}
+
+<style>
+/* ============================================
+   DASHBOARD CORE STYLES
+   ============================================ */
+.dashboard-container {
+    padding: 20px;
+    max-width: 1600px;
+    margin: 0 auto;
+    min-height: 100vh;
+}
+
+/* ============================================
+   HEADER SECTION
+   ============================================ */
+.dashboard-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 20px;
+    padding: 20px 25px;
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    border-radius: 16px;
+    color: white;
+    box-shadow: 0 10px 40px rgba(102, 126, 234, 0.3);
+}
+
+.header-left h1 {
+    margin: 0 0 10px 0;
+    font-size: 1.8rem;
+    font-weight: 700;
+}
+
+.header-left,
+.header-center,
+.header-right {
+    flex: 1;
+}
+
+.header-center {
+    display: flex;
+    justify-content: center;
+}
+
+.header-right {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-end;
+    gap: 8px;
+}
+
+/* Search Box */
+.search-container {
+    position: relative;
+}
+
+.staff-search {
+    padding: 10px 15px;
+    border: none;
+    border-radius: 25px;
+    width: 220px;
+    font-size: 0.9rem;
+    background: rgba(255, 255, 255, 0.2);
+    color: white;
+    transition: all 0.3s ease;
+}
+
+.staff-search::placeholder {
+    color: rgba(255, 255, 255, 0.7);
+}
+
+.staff-search:focus {
+    outline: none;
+    background: rgba(255, 255, 255, 0.3);
+    width: 260px;
+}
+
+.search-results {
+    position: absolute;
+    top: 100%;
+    left: 0;
+    right: 0;
+    background: white;
+    border-radius: 12px;
+    box-shadow: 0 10px 40px rgba(0,0,0,0.2);
+    margin-top: 8px;
+    max-height: 300px;
+    overflow-y: auto;
+    z-index: 1000;
+    display: none;
+}
+
+.search-results.active {
+    display: block;
+}
+
+.search-result-item {
+    padding: 12px 15px;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    cursor: pointer;
+    transition: background 0.2s;
+    color: #333;
+}
+
+.search-result-item:hover {
+    background: #f5f5f5;
+}
+
+.search-result-item:first-child {
+    border-radius: 12px 12px 0 0;
+}
+
+.search-result-item:last-child {
+    border-radius: 0 0 12px 12px;
+}
+
+.result-avatar {
+    width: 40px;
+    height: 40px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-weight: 600;
+    font-size: 0.9rem;
+    color: white;
+}
+
+.result-info {
+    flex: 1;
+}
+
+.result-name {
+    font-weight: 600;
+    font-size: 0.95rem;
+}
+
+.result-details {
+    font-size: 0.8rem;
+    color: #666;
+}
+
+.result-status {
+    padding: 4px 10px;
+    border-radius: 20px;
+    font-size: 0.75rem;
+    font-weight: 600;
+}
+
+.result-status.signed-in {
+    background: #d4edda;
+    color: #155724;
+}
+
+.result-status.late {
+    background: #fff3cd;
+    color: #856404;
+}
+
+.result-status.absent {
+    background: #f8d7da;
+    color: #721c24;
+}
+
+.no-results {
+    padding: 20px;
+    text-align: center;
+    color: #666;
+}
+
+/* First Check-in Card */
+.first-checkin-card {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    background: rgba(255, 255, 255, 0.15);
+    padding: 12px 20px;
+    border-radius: 12px;
+    backdrop-filter: blur(10px);
+}
+
+.first-checkin-icon {
+    font-size: 1.8rem;
+}
+
+.first-checkin-info {
+    display: flex;
+    flex-direction: column;
+}
+
+.first-checkin-label {
+    font-size: 0.7rem;
+    opacity: 0.8;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+}
+
+.first-checkin-name {
+    font-weight: 700;
+    font-size: 1rem;
+}
+
+.first-checkin-details {
+    font-size: 0.8rem;
+    opacity: 0.9;
+}
+
+.first-checkin-time {
+    font-size: 1.4rem;
+    font-weight: 700;
+    font-family: 'Courier New', monospace;
+    background: rgba(255, 255, 255, 0.2);
+    padding: 5px 12px;
+    border-radius: 8px;
+}
+
+/* Greeting */
+.greeting {
+    font-size: 1rem;
+    opacity: 0.9;
+}
+
+/* Clock Styles */
+.clock-container {
+    display: flex;
+    align-items: center;
+    gap: 15px;
+}
+
+.analog-clock {
+    width: 60px;
+    height: 60px;
+}
+
+.clock-face {
+    width: 100%;
+    height: 100%;
+    border-radius: 50%;
+    background: rgba(255, 255, 255, 0.2);
+    position: relative;
+    backdrop-filter: blur(10px);
+}
+
+.clock-hand {
+    position: absolute;
+    bottom: 50%;
+    left: 50%;
+    transform-origin: bottom center;
+    border-radius: 4px;
+}
+
+.hour-hand {
+    width: 3px;
+    height: 16px;
+    background: white;
+    margin-left: -1.5px;
+}
+
+.minute-hand {
+    width: 2px;
+    height: 22px;
+    background: rgba(255, 255, 255, 0.9);
+    margin-left: -1px;
+}
+
+.second-hand {
+    width: 1px;
+    height: 25px;
+    background: #ffd700;
+    margin-left: -0.5px;
+}
+
+.clock-center {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    width: 8px;
+    height: 8px;
+    background: #ffd700;
+    border-radius: 50%;
+    transform: translate(-50%, -50%);
+}
+
+.digital-clock {
+    font-family: 'Courier New', monospace;
+    font-size: 1.4rem;
+    font-weight: 700;
+    background: rgba(255, 255, 255, 0.15);
+    padding: 8px 15px;
+    border-radius: 8px;
+}
+
+/* ============================================
+   LIVE TICKER
+   ============================================ */
+.live-ticker-container {
+    display: flex;
+    align-items: center;
+    gap: 15px;
+    background: linear-gradient(135deg, #1a1a2e 0%, #16213e 100%);
+    padding: 12px 20px;
+    border-radius: 12px;
+    margin-bottom: 20px;
+    overflow: hidden;
+}
+
+.live-badge {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    background: #e74c3c;
+    color: white;
+    padding: 5px 12px;
+    border-radius: 20px;
+    font-size: 0.75rem;
+    font-weight: 700;
+    white-space: nowrap;
+}
+
+.live-dot {
+    width: 8px;
+    height: 8px;
+    background: white;
+    border-radius: 50%;
+    animation: pulse 1.5s infinite;
+}
+
+@keyframes pulse {
+    0%, 100% { opacity: 1; transform: scale(1); }
+    50% { opacity: 0.5; transform: scale(0.8); }
+}
+
+.ticker-wrapper {
+    flex: 1;
+    overflow: hidden;
+}
+
+.ticker-content {
+    display: flex;
+    gap: 50px;
+    animation: scroll 30s linear infinite;
+    white-space: nowrap;
+}
+
+.ticker-item {
+    color: #a0a0a0;
+    font-size: 0.9rem;
+}
+
+.ticker-item .name {
+    color: #4fc3f7;
+    font-weight: 600;
+}
+
+.ticker-item .time {
+    color: #81c784;
+}
+
+.ticker-item .branch {
+    color: #ffb74d;
+}
+
+@keyframes scroll {
+    0% { transform: translateX(0); }
+    100% { transform: translateX(-50%); }
+}
+
+/* ============================================
+   STATS CARDS
+   ============================================ */
+.stats-grid {
+    display: flex;
+    gap: 15px;
+    margin-bottom: 25px;
+}
+
+.stat-card {
+    flex: 1;
+    min-width: 0;
+    aspect-ratio: 1;
+    max-width: 180px;
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    border-radius: 16px;
+    padding: 15px;
+    position: relative;
+    overflow: hidden;
+    cursor: pointer;
+    transition: all 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+    display: flex;
+    flex-direction: column;
+    justify-content: space-between;
+}
+
+.stat-card:hover {
+    transform: translateY(-8px) scale(1.02);
+    box-shadow: 0 20px 40px rgba(0, 0, 0, 0.2);
+}
+
+.stat-card:hover .card-decoration {
+    transform: scale(1.3);
+    opacity: 0.25;
+}
+
+.card-decoration {
+    position: absolute;
+    top: -30px;
+    right: -30px;
+    width: 100px;
+    height: 100px;
+    background: rgba(255, 255, 255, 0.15);
+    border-radius: 50%;
+    transition: all 0.4s ease;
+}
+
+.stat-icon {
+    font-size: 1.5rem;
+    margin-bottom: 5px;
+}
+
+.stat-content {
+    position: relative;
+    z-index: 1;
+}
+
+.stat-content h3 {
+    font-size: 2rem;
+    font-weight: 700;
+    color: white;
+    margin: 0;
+    text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.2);
+}
+
+.stat-content .label {
+    font-size: 0.8rem;
+    color: white;
+    opacity: 1;
+    font-weight: 700;
+    margin: 3px 0 0 0;
+    text-shadow: 1px 1px 3px rgba(0, 0, 0, 0.2);
+}
+
+.sparkline {
+    width: 100%;
+    height: 35px;
+    margin-top: auto;
+}
+
+/* Card Color Variations */
+.stat-schools {
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+}
+
+.stat-staff {
+    background: linear-gradient(135deg, #11998e 0%, #38ef7d 100%);
+}
+
+.stat-present {
+    background: linear-gradient(135deg, #2193b0 0%, #6dd5ed 100%);
+}
+
+.stat-late {
+    background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
+}
+
+.stat-late .stat-content h3 {
+    text-shadow: 2px 2px 6px rgba(0, 0, 0, 0.3);
+}
+
+.stat-late .stat-content .label {
+    text-shadow: 1px 1px 4px rgba(0, 0, 0, 0.3);
+}
+
+.stat-absent {
+    background: linear-gradient(135deg, #fc4a1a 0%, #f7b733 100%);
+}
+
+.stat-absent .stat-content h3 {
+    text-shadow: 2px 2px 6px rgba(0, 0, 0, 0.3);
+}
+
+.stat-absent .stat-content .label {
+    text-shadow: 1px 1px 4px rgba(0, 0, 0, 0.3);
+}
+
+/* ============================================
+   BRANCH STATISTICS TABLE
+   ============================================ */
+.branch-stats-container {
+    background: white;
+    border-radius: 16px;
+    padding: 25px;
+    box-shadow: 0 5px 20px rgba(0, 0, 0, 0.08);
+}
+
+.section-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 20px;
+}
+
+.section-header h2 {
+    margin: 0;
+    font-size: 1.3rem;
+    color: #333;
+}
+
+.today-date {
+    color: #666;
+    font-size: 0.9rem;
+}
+
+.table-wrapper {
+    overflow-x: auto;
+}
+
+.branch-table {
+    width: 100%;
+    border-collapse: collapse;
+}
+
+.branch-table th {
+    text-align: left;
+    padding: 12px 15px;
+    background: #f8f9fa;
+    color: #555;
+    font-weight: 600;
+    font-size: 0.85rem;
+    border-bottom: 2px solid #eee;
+}
+
+.branch-table td {
+    padding: 15px;
+    border-bottom: 1px solid #eee;
+    color: #333;
+}
+
+.branch-row {
+    cursor: pointer;
+    transition: all 0.3s ease;
+}
+
+.branch-row:hover {
+    background: #f8f9ff;
+}
+
+.branch-row.expanded {
+    background: #f0f4ff;
+    box-shadow: 0 2px 8px rgba(102, 126, 234, 0.1);
+}
+
+.branch-name {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    font-weight: 600;
+}
+
+.branch-icon {
+    font-size: 1.2rem;
+}
+
+.present-count {
+    color: #27ae60;
+    font-weight: 600;
+}
+
+.late-count {
+    color: #e67e22;
+    font-weight: 600;
+}
+
+.absent-count {
+    color: #e74c3c;
+    font-weight: 600;
+}
+
+.attendance-rate {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+
+.rate-bar {
+    flex: 1;
+    height: 8px;
+    background: #eee;
+    border-radius: 4px;
+    overflow: hidden;
+    max-width: 120px;
+}
+
+.rate-fill {
+    height: 100%;
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    border-radius: 4px;
+    transition: width 0.6s ease;
+}
+
+.rate-text {
+    font-weight: 600;
+    font-size: 0.9rem;
+    color: #555;
+    min-width: 45px;
+}
+
+/* Expand Arrow */
+.expand-cell {
+    width: 40px;
+    text-align: center;
+}
+
+.expand-arrow {
+    display: inline-block;
+    font-size: 1.3rem;
+    color: #999;
+    transition: all 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+    font-weight: bold;
+}
+
+.branch-row:hover .expand-arrow {
+    color: #667eea;
+}
+
+.branch-row.expanded .expand-arrow {
+    transform: rotate(90deg);
+    color: #667eea;
+}
+
+/* ============================================
+   STAFF EXPANSION ROW
+   ============================================ */
+.staff-expansion-row {
+    display: none;
+}
+
+.staff-expansion-row.active {
+    display: table-row;
+}
+
+.staff-expansion-row td {
+    padding: 0;
+    background: #f8f9ff;
+    border-bottom: 2px solid #667eea;
+}
+
+.staff-expansion-content {
+    max-height: 0;
+    overflow: hidden;
+    transition: max-height 0.5s cubic-bezier(0.4, 0, 0.2, 1), 
+                padding 0.3s ease;
+}
+
+.staff-expansion-row.active .staff-expansion-content {
+    max-height: 500px;
+    padding: 20px;
+}
+
+/* Staff List Loader */
+.staff-list-loader {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 12px;
+    padding: 30px;
+    color: #666;
+}
+
+.staff-list-loader.hidden {
+    display: none;
+}
+
+.loader-spinner {
+    width: 24px;
+    height: 24px;
+    border: 3px solid #eee;
+    border-top-color: #667eea;
+    border-radius: 50%;
+    animation: spin 0.8s linear infinite;
+}
+
+@keyframes spin {
+    to { transform: rotate(360deg); }
+}
+
+/* Staff List */
+.staff-list {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+    gap: 12px;
+}
+
+.staff-item {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 12px 15px;
+    background: white;
+    border-radius: 10px;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.06);
+    opacity: 0;
+    transform: translateY(10px);
+    animation: staffFadeIn 0.4s ease forwards;
+}
+
+@keyframes staffFadeIn {
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+.staff-avatar {
+    width: 42px;
+    height: 42px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-weight: 700;
+    font-size: 0.95rem;
+    color: white;
+    flex-shrink: 0;
+}
+
+.staff-info {
+    flex: 1;
+    min-width: 0;
+}
+
+.staff-name {
+    font-weight: 600;
+    font-size: 0.95rem;
+    color: #333;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.staff-department {
+    font-size: 0.8rem;
+    color: #888;
+}
+
+.staff-status {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-end;
+    gap: 3px;
+}
+
+.status-badge {
+    padding: 4px 10px;
+    border-radius: 20px;
+    font-size: 0.7rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.3px;
+}
+
+.status-badge.signed-in {
+    background: linear-gradient(135deg, #d4edda 0%, #c3e6cb 100%);
+    color: #155724;
+}
+
+.status-badge.late {
+    background: linear-gradient(135deg, #fff3cd 0%, #ffeeba 100%);
+    color: #856404;
+}
+
+.status-badge.absent {
+    background: linear-gradient(135deg, #f8d7da 0%, #f5c6cb 100%);
+    color: #721c24;
+}
+
+.checkin-time {
+    font-size: 0.8rem;
+    color: #666;
+    font-family: 'Courier New', monospace;
+}
+
+/* Status dot pulse effect */
+.status-badge.signed-in::before,
+.status-badge.late::before,
+.status-badge.absent::before {
+    content: '';
+    display: inline-block;
+    width: 6px;
+    height: 6px;
+    border-radius: 50%;
+    margin-right: 5px;
+    animation: statusPulse 2s ease-in-out infinite;
+}
+
+.status-badge.signed-in::before {
+    background: #28a745;
+}
+
+.status-badge.late::before {
+    background: #ffc107;
+}
+
+.status-badge.absent::before {
+    background: #dc3545;
+}
+
+@keyframes statusPulse {
+    0%, 100% { opacity: 1; transform: scale(1); }
+    50% { opacity: 0.5; transform: scale(0.8); }
+}
+
+/* Empty State */
+.staff-empty {
+    text-align: center;
+    padding: 30px;
+    color: #888;
+    font-size: 0.95rem;
+}
+
+.staff-empty-icon {
+    font-size: 2.5rem;
+    margin-bottom: 10px;
+}
+</style>
 
 <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 <script>
-// Update greeting based on actual time
-function updateGreeting() {
-    const hour = new Date().getHours();
-    let greeting;
-    if (hour < 12) {
-        greeting = 'Good morning';
-    } else if (hour < 17) {
-        greeting = 'Good afternoon';
-    } else {
-        greeting = 'Good evening';
-    }
-    document.getElementById('welcomeMessage').innerHTML = greeting + ', <strong>{{ current_user.username }}</strong>';
-}
-updateGreeting();
-
-// Clock
-function updateClock() {
-    const now = new Date();
-    const hours = now.getHours();
-    const minutes = now.getMinutes();
-    const seconds = now.getSeconds();
-    
-    const hourDeg = (hours % 12) * 30 + minutes * 0.5;
-    const minuteDeg = minutes * 6 + seconds * 0.1;
-    const secondDeg = seconds * 6;
-    
-    document.getElementById('hourHand').style.transform = `translateX(-50%) rotate(${hourDeg}deg)`;
-    document.getElementById('minuteHand').style.transform = `translateX(-50%) rotate(${minuteDeg}deg)`;
-    document.getElementById('secondHand').style.transform = `translateX(-50%) rotate(${secondDeg}deg)`;
-    
-    const h = hours % 12 || 12;
-    const m = minutes.toString().padStart(2, '0');
-    const s = seconds.toString().padStart(2, '0');
-    const ampm = hours >= 12 ? 'PM' : 'AM';
-    
-    document.getElementById('digitalTime').textContent = `${h}:${m}`;
-    document.getElementById('digitalSeconds').textContent = `:${s}`;
-    document.getElementById('digitalAmpm').textContent = ampm;
-    
-    const options = { weekday: 'long', month: 'long', day: 'numeric' };
-    document.getElementById('digitalDate').textContent = now.toLocaleDateString('en-US', options);
-}
-updateClock();
-setInterval(updateClock, 1000);
-
-// Animated Counters (2 second duration with easing)
-function animateCounters() {
-    document.querySelectorAll('.counter').forEach(counter => {
-        const target = parseInt(counter.dataset.target) || 0;
-        const duration = 2000;
-        const startTime = performance.now();
-        const startValue = parseInt(counter.textContent) || 0;
+document.addEventListener('DOMContentLoaded', function() {
+    // ============================================
+    // CLOCK FUNCTIONALITY
+    // ============================================
+    function updateClock() {
+        const now = new Date();
+        const hours = now.getHours();
+        const minutes = now.getMinutes();
+        const seconds = now.getSeconds();
         
-        function animate(currentTime) {
-            const elapsed = currentTime - startTime;
-            const progress = Math.min(elapsed / duration, 1);
-            // Ease out cubic
-            const eased = 1 - Math.pow(1 - progress, 3);
-            counter.textContent = Math.floor(startValue + (target - startValue) * eased);
-            if (progress < 1) {
-                requestAnimationFrame(animate);
-            } else {
-                counter.textContent = target;
-            }
-        }
-        requestAnimationFrame(animate);
-    });
-}
-
-// Initial counter animation
-animateCounters();
-
-// Update First Check-in Card
-function updateFirstCheckin(data) {
-    const card = document.getElementById('firstCheckinCard');
-    const nameEl = document.getElementById('firstCheckinName');
-    const branchEl = document.getElementById('firstCheckinBranch');
-    const deptEl = document.getElementById('firstCheckinDept');
-    const timeContainer = document.getElementById('firstCheckinTime');
-    const timeValue = document.getElementById('firstCheckinTimeValue');
-    
-    if (data.first_checkin) {
-        card.classList.remove('no-checkin');
-        nameEl.textContent = data.first_checkin.name;
-        branchEl.textContent = data.first_checkin.branch;
-        deptEl.textContent = '• ' + data.first_checkin.department;
-        timeValue.textContent = data.first_checkin.time;
-        timeContainer.style.display = 'flex';
-    } else {
-        card.classList.add('no-checkin');
-        nameEl.textContent = 'No check-ins yet';
-        branchEl.textContent = 'Waiting...';
-        deptEl.textContent = '';
-        timeContainer.style.display = 'none';
+        // Analog clock
+        const hourDeg = (hours % 12) * 30 + minutes * 0.5;
+        const minuteDeg = minutes * 6;
+        const secondDeg = seconds * 6;
+        
+        document.getElementById('hourHand').style.transform = `rotate(${hourDeg}deg)`;
+        document.getElementById('minuteHand').style.transform = `rotate(${minuteDeg}deg)`;
+        document.getElementById('secondHand').style.transform = `rotate(${secondDeg}deg)`;
+        
+        // Digital clock
+        const timeString = [hours, minutes, seconds]
+            .map(n => n.toString().padStart(2, '0'))
+            .join(':');
+        document.getElementById('digitalClock').textContent = timeString;
+        
+        // Greeting
+        let greeting = 'Good evening';
+        if (hours < 12) greeting = 'Good morning';
+        else if (hours < 17) greeting = 'Good afternoon';
+        document.getElementById('greeting').textContent = greeting;
     }
-}
+    
+    updateClock();
+    setInterval(updateClock, 1000);
 
-// Auto-refresh dashboard stats every 15 seconds
-function refreshDashboard() {
-    fetch('/api/dashboard-stats')
-        .then(response => response.json())
-        .then(data => {
-            // Update data targets
-            const counters = document.querySelectorAll('.counter');
-            const keys = ['total_schools', 'total_staff', 'today_attendance', 'late_today', 'absent_today'];
-            counters.forEach((counter, index) => {
-                counter.dataset.target = data[keys[index]];
-            });
+    // ============================================
+    // ANIMATED COUNTERS
+    // ============================================
+    function animateCounters() {
+        const counters = document.querySelectorAll('.counter');
+        counters.forEach(counter => {
+            const target = parseInt(counter.getAttribute('data-target'));
+            const duration = 2000;
+            const startTime = performance.now();
             
-            // Re-animate counters
-            animateCounters();
-            
-            // Update first check-in
-            updateFirstCheckin(data);
-            
-            // Update ticker with recent activity
-            if (data.recent_activity && data.recent_activity.length > 0) {
-                let tickerHTML = '';
-                // Duplicate for seamless scrolling
-                for (let i = 0; i < 2; i++) {
-                    data.recent_activity.forEach(activity => {
-                        tickerHTML += `
-                            <div class="ticker-item">
-                                <span class="check">✓</span>
-                                <span class="name">${activity.name}</span>
-                                <span class="time">${activity.time}</span>
-                                <span class="branch">${activity.branch}</span>
-                            </div>
-                        `;
-                    });
+            function updateCounter(currentTime) {
+                const elapsed = currentTime - startTime;
+                const progress = Math.min(elapsed / duration, 1);
+                const easeOut = 1 - Math.pow(1 - progress, 3);
+                const current = Math.floor(easeOut * target);
+                counter.textContent = current;
+                
+                if (progress < 1) {
+                    requestAnimationFrame(updateCounter);
+                } else {
+                    counter.textContent = target;
                 }
-                document.getElementById('tickerTrack').innerHTML = tickerHTML;
             }
-        })
-        .catch(error => console.log('Dashboard refresh error:', error));
-}
-
-// Initial load and set interval
-setTimeout(refreshDashboard, 1000);
-setInterval(refreshDashboard, 15000);
-
-// Staff Search Functionality
-const searchInput = document.getElementById('staffSearch');
-const searchResults = document.getElementById('searchResults');
-let searchTimeout;
-
-searchInput.addEventListener('input', function() {
-    const query = this.value.trim();
-    
-    clearTimeout(searchTimeout);
-    
-    if (query.length < 2) {
-        searchResults.classList.remove('active');
-        return;
+            
+            requestAnimationFrame(updateCounter);
+        });
     }
     
-    searchTimeout = setTimeout(() => {
-        fetch(`/api/search-staff?q=${encodeURIComponent(query)}`)
+    animateCounters();
+
+    // ============================================
+    // SPARKLINE CHARTS
+    // ============================================
+    function createSparkline(canvasId, color, data) {
+        const ctx = document.getElementById(canvasId);
+        if (!ctx) return;
+        
+        new Chart(ctx, {
+            type: 'line',
+            data: {
+                labels: data.map((_, i) => i),
+                datasets: [{
+                    data: data,
+                    borderColor: 'rgba(255,255,255,0.8)',
+                    borderWidth: 2,
+                    fill: true,
+                    backgroundColor: 'rgba(255,255,255,0.1)',
+                    tension: 0.4,
+                    pointRadius: 0
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: { legend: { display: false } },
+                scales: {
+                    x: { display: false },
+                    y: { display: false }
+                },
+                animation: {
+                    duration: 1500,
+                    easing: 'easeOutQuart'
+                }
+            }
+        });
+    }
+    
+    // Generate sample sparkline data
+    const generateData = () => Array.from({length: 7}, () => Math.floor(Math.random() * 50) + 20);
+    
+    createSparkline('sparklineSchools', '#667eea', generateData());
+    createSparkline('sparklineStaff', '#11998e', generateData());
+    createSparkline('sparklinePresent', '#2193b0', generateData());
+    createSparkline('sparklineLate', '#f093fb', generateData());
+    createSparkline('sparklineAbsent', '#fc4a1a', generateData());
+
+    // ============================================
+    // DASHBOARD AUTO-REFRESH
+    // ============================================
+    function refreshDashboard() {
+        fetch('/api/dashboard-stats')
             .then(response => response.json())
             .then(data => {
-                if (data.results && data.results.length > 0) {
-                    let html = '';
-                    data.results.forEach(staff => {
-                        const initials = staff.name.split(' ').map(n => n[0]).join('').substring(0, 2).toUpperCase();
-                        let statusClass = 'absent';
-                        let statusText = 'Absent';
-                        
-                        if (staff.status === 'signed_in') {
-                            statusClass = 'signed-in';
-                            statusText = staff.time ? `In ${staff.time}` : 'Signed In';
-                        } else if (staff.status === 'late') {
-                            statusClass = 'late';
-                            statusText = staff.time ? `Late ${staff.time}` : 'Late';
-                        }
-                        
-                        html += `
-                            <div class="search-result-item" data-staff-id="${staff.id}">
-                                <div class="search-result-avatar">${initials}</div>
-                                <div class="search-result-info">
-                                    <div class="search-result-name">${staff.name}</div>
-                                    <div class="search-result-meta">
-                                        <span>${staff.branch}</span>
-                                        <span>•</span>
-                                        <span>${staff.department}</span>
-                                    </div>
-                                </div>
-                                <span class="search-result-status ${statusClass}">${statusText}</span>
-                            </div>
-                        `;
-                    });
-                    searchResults.innerHTML = html;
-                    searchResults.classList.add('active');
+                // Update counters
+                updateCounterValue('.stat-schools .counter', data.total_schools);
+                updateCounterValue('.stat-staff .counter', data.total_staff);
+                updateCounterValue('.stat-present .counter', data.today_attendance);
+                updateCounterValue('.stat-late .counter', data.late_today);
+                updateCounterValue('.stat-absent .counter', data.absent_today);
+                
+                // Update first check-in
+                if (data.first_checkin) {
+                    document.getElementById('firstCheckinName').textContent = data.first_checkin.name;
+                    document.getElementById('firstCheckinDetails').textContent = 
+                        `${data.first_checkin.branch} • ${data.first_checkin.department}`;
+                    document.getElementById('firstCheckinTime').textContent = data.first_checkin.time;
                 } else {
-                    searchResults.innerHTML = `
-                        <div class="search-no-results">
-                            <i class="fas fa-search"></i>
-                            No staff found matching "${query}"
+                    document.getElementById('firstCheckinName').textContent = 'No check-ins yet';
+                    document.getElementById('firstCheckinDetails').textContent = '---';
+                    document.getElementById('firstCheckinTime').textContent = '--:--';
+                }
+                
+                // Update ticker
+                if (data.recent_activity && data.recent_activity.length > 0) {
+                    updateTicker(data.recent_activity);
+                }
+            })
+            .catch(error => console.error('Error refreshing dashboard:', error));
+    }
+    
+    function updateCounterValue(selector, newValue) {
+        const counter = document.querySelector(selector);
+        if (counter) {
+            const currentValue = parseInt(counter.textContent);
+            if (currentValue !== newValue) {
+                counter.setAttribute('data-target', newValue);
+                animateSingleCounter(counter, currentValue, newValue);
+            }
+        }
+    }
+    
+    function animateSingleCounter(counter, from, to) {
+        const duration = 1000;
+        const startTime = performance.now();
+        
+        function update(currentTime) {
+            const elapsed = currentTime - startTime;
+            const progress = Math.min(elapsed / duration, 1);
+            const easeOut = 1 - Math.pow(1 - progress, 3);
+            const current = Math.floor(from + (to - from) * easeOut);
+            counter.textContent = current;
+            
+            if (progress < 1) {
+                requestAnimationFrame(update);
+            } else {
+                counter.textContent = to;
+            }
+        }
+        
+        requestAnimationFrame(update);
+    }
+    
+    function updateTicker(activities) {
+        const ticker = document.getElementById('tickerContent');
+        if (!ticker || activities.length === 0) return;
+        
+        const tickerHTML = activities.map(a => 
+            `<span class="ticker-item">
+                <span class="name">${a.name}</span> checked in at 
+                <span class="time">${a.time}</span> • 
+                <span class="branch">${a.branch}</span>
+            </span>`
+        ).join('');
+        
+        ticker.innerHTML = tickerHTML + tickerHTML;
+    }
+    
+    // Refresh every 15 seconds
+    setInterval(refreshDashboard, 15000);
+    refreshDashboard(); // Initial load
+
+    // ============================================
+    // STAFF SEARCH
+    // ============================================
+    const searchInput = document.getElementById('staffSearch');
+    const searchResults = document.getElementById('searchResults');
+    let searchTimeout;
+    
+    searchInput.addEventListener('input', function() {
+        clearTimeout(searchTimeout);
+        const query = this.value.trim();
+        
+        if (query.length < 2) {
+            searchResults.classList.remove('active');
+            return;
+        }
+        
+        searchTimeout = setTimeout(() => {
+            fetch(`/api/search-staff?q=${encodeURIComponent(query)}`)
+                .then(response => response.json())
+                .then(data => {
+                    if (data.length === 0) {
+                        searchResults.innerHTML = '<div class="no-results">No staff found</div>';
+                    } else {
+                        searchResults.innerHTML = data.map(staff => `
+                            <div class="search-result-item">
+                                <div class="result-avatar" style="background: ${staff.color}">${staff.initials}</div>
+                                <div class="result-info">
+                                    <div class="result-name">${staff.name}</div>
+                                    <div class="result-details">${staff.branch} • ${staff.department}</div>
+                                </div>
+                                <span class="result-status ${staff.status}">${staff.status_text}</span>
+                            </div>
+                        `).join('');
+                    }
+                    searchResults.classList.add('active');
+                })
+                .catch(error => {
+                    console.error('Search error:', error);
+                    searchResults.classList.remove('active');
+                });
+        }, 300);
+    });
+    
+    // Close search results when clicking outside
+    document.addEventListener('click', function(e) {
+        if (!searchInput.contains(e.target) && !searchResults.contains(e.target)) {
+            searchResults.classList.remove('active');
+        }
+    });
+    
+    // Keyboard shortcut Ctrl+K
+    document.addEventListener('keydown', function(e) {
+        if (e.ctrlKey && e.key === 'k') {
+            e.preventDefault();
+            searchInput.focus();
+        }
+    });
+
+    // ============================================
+    // EXPANDABLE BRANCH ROWS
+    // ============================================
+    const branchRows = document.querySelectorAll('.branch-row');
+    let currentExpandedBranch = null;
+    
+    branchRows.forEach(row => {
+        row.addEventListener('click', function() {
+            const branchId = this.getAttribute('data-branch-id');
+            const expansionRow = document.querySelector(`.staff-expansion-row[data-branch-id="${branchId}"]`);
+            
+            // If clicking the same row, just collapse it
+            if (currentExpandedBranch === branchId) {
+                collapseRow(this, expansionRow);
+                currentExpandedBranch = null;
+                return;
+            }
+            
+            // Collapse any currently expanded row
+            if (currentExpandedBranch) {
+                const prevRow = document.querySelector(`.branch-row[data-branch-id="${currentExpandedBranch}"]`);
+                const prevExpansion = document.querySelector(`.staff-expansion-row[data-branch-id="${currentExpandedBranch}"]`);
+                if (prevRow && prevExpansion) {
+                    collapseRow(prevRow, prevExpansion);
+                }
+            }
+            
+            // Expand the clicked row
+            expandRow(this, expansionRow, branchId);
+            currentExpandedBranch = branchId;
+        });
+    });
+    
+    function expandRow(row, expansionRow, branchId) {
+        row.classList.add('expanded');
+        expansionRow.classList.add('active');
+        
+        // Show loader and fetch staff data
+        const loader = expansionRow.querySelector('.staff-list-loader');
+        const staffList = expansionRow.querySelector('.staff-list');
+        
+        loader.classList.remove('hidden');
+        staffList.innerHTML = '';
+        
+        // Fetch staff data for this branch
+        fetch(`/api/branch-staff/${branchId}`)
+            .then(response => response.json())
+            .then(data => {
+                loader.classList.add('hidden');
+                
+                if (data.staff && data.staff.length > 0) {
+                    staffList.innerHTML = data.staff.map((staff, index) => `
+                        <div class="staff-item" style="animation-delay: ${index * 0.05}s">
+                            <div class="staff-avatar" style="background: ${staff.color}">${staff.initials}</div>
+                            <div class="staff-info">
+                                <div class="staff-name">${staff.name}</div>
+                                <div class="staff-department">${staff.department}</div>
+                            </div>
+                            <div class="staff-status">
+                                <span class="status-badge ${staff.status}">${staff.status_text}</span>
+                                ${staff.checkin_time ? `<span class="checkin-time">${staff.checkin_time}</span>` : ''}
+                            </div>
+                        </div>
+                    `).join('');
+                } else {
+                    staffList.innerHTML = `
+                        <div class="staff-empty">
+                            <div class="staff-empty-icon">👥</div>
+                            <p>No staff assigned to this branch</p>
                         </div>
                     `;
-                    searchResults.classList.add('active');
                 }
             })
             .catch(error => {
-                console.log('Search error:', error);
-                searchResults.classList.remove('active');
+                console.error('Error fetching staff:', error);
+                loader.classList.add('hidden');
+                staffList.innerHTML = `
+                    <div class="staff-empty">
+                        <div class="staff-empty-icon">⚠️</div>
+                        <p>Error loading staff data</p>
+                    </div>
+                `;
             });
-    }, 300);
-});
-
-// Close search results when clicking outside
-document.addEventListener('click', function(e) {
-    if (!searchInput.contains(e.target) && !searchResults.contains(e.target)) {
-        searchResults.classList.remove('active');
+    }
+    
+    function collapseRow(row, expansionRow) {
+        row.classList.remove('expanded');
+        
+        // Wait for animation before hiding
+        const content = expansionRow.querySelector('.staff-expansion-content');
+        content.style.maxHeight = '0';
+        content.style.padding = '0 20px';
+        
+        setTimeout(() => {
+            expansionRow.classList.remove('active');
+            content.style.maxHeight = '';
+            content.style.padding = '';
+        }, 500);
     }
 });
-
-// Focus search on keyboard shortcut (Ctrl+K or Cmd+K)
-document.addEventListener('keydown', function(e) {
-    if ((e.ctrlKey || e.metaKey) && e.key === 'k') {
-        e.preventDefault();
-        searchInput.focus();
-    }
-    // Close on Escape
-    if (e.key === 'Escape') {
-        searchResults.classList.remove('active');
-        searchInput.blur();
-    }
-});
-
-// Sparklines
-function createSparkline(canvasId) {
-    const ctx = document.getElementById(canvasId);
-    if (!ctx) return;
-    const data = Array.from({length: 7}, () => Math.floor(Math.random() * 40) + 60);
-    new Chart(ctx, {
-        type: 'line',
-        data: {
-            labels: ['', '', '', '', '', '', ''],
-            datasets: [{
-                data: data,
-                borderColor: 'rgba(255,255,255,0.8)',
-                borderWidth: 1.5,
-                fill: true,
-                backgroundColor: 'rgba(255,255,255,0.2)',
-                tension: 0.4,
-                pointRadius: 0
-            }]
-        },
-        options: {
-            responsive: true,
-            maintainAspectRatio: false,
-            plugins: { legend: { display: false } },
-            scales: { x: { display: false }, y: { display: false } },
-            animation: {
-                duration: 1500,
-                easing: 'easeOutQuart'
-            }
-        }
-    });
-}
-createSparkline('sparkBranches');
-createSparkline('sparkStaff');
-createSparkline('sparkPresent');
-createSparkline('sparkLate');
-createSparkline('sparkAbsent');
 </script>
 {% endblock %}
