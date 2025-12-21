@@ -159,7 +159,7 @@
         color: #333;
     }
 
-    /* Activity Ticker - GREEN ACCENT BACKGROUND */
+    /* Activity Ticker - GREEN BACKGROUND */
     .ticker-section {
         margin-bottom: 1.5rem;
     }
@@ -257,11 +257,12 @@
         font-size: 0.75rem;
     }
     .ticker-item .branch {
-        background: rgba(255, 255, 255, 0.2);
+        background: rgba(110, 231, 183, 0.3);
         padding: 2px 8px;
         border-radius: 4px;
         font-size: 0.7rem;
-        color: #fff;
+        color: #d1fae5;
+        font-weight: 500;
     }
 
     /* Stat Cards - Compact, Beautiful, Fits in One Row */
@@ -409,7 +410,7 @@
         background: #e9ecef;
     }
 
-    /* ========== NEW STYLES - First Check-in & Search ========== */
+    /* ========== First Check-in & Search ========== */
     
     /* Header Layout */
     .dashboard-header {
@@ -433,22 +434,22 @@
         justify-content: flex-end;
     }
 
-    /* First Check-in Card */
+    /* First Check-in Card - YELLOW/GOLD (Original) */
     .first-checkin-card {
-        background: linear-gradient(135deg, #ecfdf5 0%, #d1fae5 100%);
-        border: 1px solid rgba(16, 185, 129, 0.3);
+        background: linear-gradient(135deg, #fff9e6 0%, #fff3cd 100%);
+        border: 1px solid rgba(255, 193, 7, 0.3);
         border-radius: 12px;
         padding: 0.75rem 1.25rem;
         display: flex;
         align-items: center;
         gap: 0.75rem;
-        box-shadow: 0 4px 15px rgba(16, 185, 129, 0.15);
+        box-shadow: 0 4px 15px rgba(255, 193, 7, 0.15);
         transition: all 0.3s ease;
         min-width: 220px;
     }
     .first-checkin-card:hover {
         transform: translateY(-2px);
-        box-shadow: 0 6px 20px rgba(16, 185, 129, 0.25);
+        box-shadow: 0 6px 20px rgba(255, 193, 7, 0.25);
     }
     .first-checkin-card.no-checkin {
         background: linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%);
@@ -462,11 +463,11 @@
         width: 42px;
         height: 42px;
         border-radius: 50%;
-        background: linear-gradient(135deg, #10b981 0%, #059669 100%);
+        background: linear-gradient(135deg, #ffc107 0%, #ff9800 100%);
         display: flex;
         align-items: center;
         justify-content: center;
-        box-shadow: 0 4px 12px rgba(16, 185, 129, 0.4);
+        box-shadow: 0 4px 12px rgba(255, 193, 7, 0.4);
         flex-shrink: 0;
     }
     .trophy-icon i {
@@ -487,7 +488,7 @@
         font-size: 0.6rem;
         text-transform: uppercase;
         letter-spacing: 0.5px;
-        color: #059669;
+        color: #b8860b;
         font-weight: 700;
         margin-bottom: 2px;
     }
@@ -512,7 +513,7 @@
         flex-wrap: wrap;
     }
     .first-checkin-details .branch {
-        background: rgba(16, 185, 129, 0.2);
+        background: rgba(255, 193, 7, 0.2);
         padding: 1px 6px;
         border-radius: 4px;
         font-weight: 500;
@@ -523,7 +524,7 @@
     .first-checkin-time {
         font-size: 0.75rem;
         font-weight: 700;
-        color: #10b981;
+        color: #28a745;
         display: flex;
         align-items: center;
         gap: 3px;
@@ -1005,7 +1006,6 @@ function animateCounters() {
         function animate(currentTime) {
             const elapsed = currentTime - startTime;
             const progress = Math.min(elapsed / duration, 1);
-            // Ease out cubic
             const eased = 1 - Math.pow(1 - progress, 3);
             counter.textContent = Math.floor(startValue + (target - startValue) * eased);
             if (progress < 1) {
@@ -1018,7 +1018,6 @@ function animateCounters() {
     });
 }
 
-// Initial counter animation
 animateCounters();
 
 // Update First Check-in Card
@@ -1051,23 +1050,17 @@ function refreshDashboard() {
     fetch('/api/dashboard-stats')
         .then(response => response.json())
         .then(data => {
-            // Update data targets
             const counters = document.querySelectorAll('.counter');
             const keys = ['total_schools', 'total_staff', 'today_attendance', 'late_today', 'absent_today'];
             counters.forEach((counter, index) => {
                 counter.dataset.target = data[keys[index]];
             });
             
-            // Re-animate counters
             animateCounters();
-            
-            // Update first check-in
             updateFirstCheckin(data);
             
-            // Update ticker with recent activity
             if (data.recent_activity && data.recent_activity.length > 0) {
                 let tickerHTML = '';
-                // Duplicate for seamless scrolling
                 for (let i = 0; i < 2; i++) {
                     data.recent_activity.forEach(activity => {
                         tickerHTML += `
@@ -1086,7 +1079,6 @@ function refreshDashboard() {
         .catch(error => console.log('Dashboard refresh error:', error));
 }
 
-// Initial load and set interval
 setTimeout(refreshDashboard, 1000);
 setInterval(refreshDashboard, 15000);
 
@@ -1158,20 +1150,17 @@ searchInput.addEventListener('input', function() {
     }, 300);
 });
 
-// Close search results when clicking outside
 document.addEventListener('click', function(e) {
     if (!searchInput.contains(e.target) && !searchResults.contains(e.target)) {
         searchResults.classList.remove('active');
     }
 });
 
-// Focus search on keyboard shortcut (Ctrl+K or Cmd+K)
 document.addEventListener('keydown', function(e) {
     if ((e.ctrlKey || e.metaKey) && e.key === 'k') {
         e.preventDefault();
         searchInput.focus();
     }
-    // Close on Escape
     if (e.key === 'Escape') {
         searchResults.classList.remove('active');
         searchInput.blur();
