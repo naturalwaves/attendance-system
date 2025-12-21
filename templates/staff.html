@@ -4,31 +4,40 @@
 
 {% block content %}
 <div class="d-flex justify-content-between align-items-center mb-4">
-    <h2><i class="fas fa-users me-2"></i>Staff List</h2>
-    {% if current_user.role in ['super_admin', 'school_admin'] %}
+    <h2>Staff List</h2>
     <div>
+        {% if current_user.role == 'super_admin' or current_user.role == 'school_admin' %}
         <a href="{{ url_for('bulk_upload') }}" class="btn btn-outline-primary me-2">
-            <i class="fas fa-file-upload me-2"></i>Bulk Upload
+            <i class="fas fa-upload me-2"></i>Bulk Upload
         </a>
         <a href="{{ url_for('add_staff') }}" class="btn btn-primary">
             <i class="fas fa-plus me-2"></i>Add Staff
         </a>
+        {% endif %}
     </div>
-    {% endif %}
 </div>
 
-<!-- Search Box -->
+<!-- Filters -->
 <div class="card mb-4">
-    <div class="card-body py-2">
-        <div class="row align-items-center">
-            <div class="col-md-6">
-                <div class="input-group">
-                    <span class="input-group-text bg-white"><i class="fas fa-search text-muted"></i></span>
-                    <input type="text" id="staffSearch" class="form-control border-start-0" placeholder="Search by name, ID, department, or school...">
-                </div>
+    <div class="card-body">
+        <div class="row g-3 align-items-end">
+            {% if current_user.role == 'super_admin' %}
+            <div class="col-md-4">
+                <label class="form-label">Filter by Organization</label>
+                <select id="organizationFilter" class="form-select" onchange="filterByOrganization()">
+                    <option value="">All Organizations</option>
+                    {% for org in organizations %}
+                    <option value="{{ org.id }}" {% if selected_organization == org.id %}selected{% endif %}>{{ org.name }}</option>
+                    {% endfor %}
+                </select>
             </div>
-            <div class="col-md-6 text-md-end mt-2 mt-md-0">
-                <span class="text-muted" id="searchResults">Showing {{ staff_with_status|length }} staff members</span>
+            {% endif %}
+            <div class="col-md-4">
+                <label class="form-label">Search Staff</label>
+                <input type="text" id="searchInput" class="form-control" placeholder="Search by name or ID..." onkeyup="searchStaff()">
+            </div>
+            <div class="col-md-4">
+                <span class="text-muted" id="staffCount">Showing {{ staff|length }} staff</span>
             </div>
         </div>
     </div>
@@ -45,107 +54,95 @@
                         <th>Branch</th>
                         <th>Department</th>
                         <th>Status</th>
-                        <th>Active</th>
-                        {% if current_user.role in ['super_admin', 'school_admin'] %}
                         <th>Actions</th>
-                        {% endif %}
                     </tr>
                 </thead>
                 <tbody>
-                    {% for item in staff_with_status %}
-                    <tr class="staff-row"
-                        data-id="{{ item.staff.id }}"
-                        data-staff-id="{{ item.staff.staff_id }}"
-                        data-name="{{ item.staff.name }}"
-                        data-department="{{ item.staff.department }}"
-                        data-school-id="{{ item.staff.school_id }}"
-                        data-is-active="{{ 'true' if item.staff.is_active else 'false' }}">
-                        <td class="staff-id">{{ item.staff.staff_id }}</td>
-                        <td class="staff-name">{{ item.staff.name }}</td>
-                        <td class="staff-school">{{ item.staff.school.short_name or item.staff.school.name }}</td>
-                        <td class="staff-dept">{{ item.staff.department }}</td>
-                        <td><span class="badge bg-{{ item.status_color }}">{{ item.status }}</span></td>
+                    {% for s in staff %}
+                    <tr data-name="{{ s.name|lower }}" data-id="{{ s.staff_id|lower }}" data-org="{{ s.school.organization_id }}">
+                        <td>{{ s.staff_id }}</td>
+                        <td>{{ s.name }}</td>
+                        <td>{{ s.school.name }}</td>
+                        <td>{{ s.department or '-' }}</td>
                         <td>
-                            <span class="badge bg-{{ 'success' if item.staff.is_active else 'secondary' }}">
-                                {{ 'Yes' if item.staff.is_active else 'No' }}
-                            </span>
-                        </td>
-                        {% if current_user.role in ['super_admin', 'school_admin'] %}
-                        <td>
-                            <button type="button" class="btn btn-sm btn-outline-primary edit-btn" title="Edit">
-                                <i class="fas fa-edit"></i>
-                            </button>
-                            <a href="{{ url_for('toggle_staff', id=item.staff.id) }}" class="btn btn-sm btn-outline-{{ 'warning' if item.staff.is_active else 'success' }}" title="{{ 'Deactivate' if item.staff.is_active else 'Activate' }}">
-                                <i class="fas fa-{{ 'pause' if item.staff.is_active else 'play' }}"></i>
-                            </a>
-                            {% if current_user.role == 'super_admin' %}
-                            <a href="{{ url_for('delete_staff', id=item.staff.id) }}" class="btn btn-sm btn-outline-danger" onclick="return confirm('Delete this staff member?')" title="Delete">
-                                <i class="fas fa-trash"></i>
-                            </a>
+                            {% if s.is_active %}
+                            <span class="badge bg-success">Active</span>
+                            {% else %}
+                            <span class="badge bg-secondary">Inactive</span>
                             {% endif %}
                         </td>
-                        {% endif %}
+                        <td>
+                            <button class="btn btn-sm btn-outline-primary me-1" onclick="editStaff({{ s.id }}, '{{ s.staff_id }}', '{{ s.name }}', '{{ s.department }}', {{ s.school_id }}, {{ s.school.organization_id }}, {{ s.is_active|lower }})" title="Edit">
+                                <i class="fas fa-edit"></i>
+                            </button>
+                            <a href="{{ url_for('toggle_staff', id=s.id) }}" class="btn btn-sm btn-outline-warning me-1" title="{% if s.is_active %}Deactivate{% else %}Activate{% endif %}">
+                                <i class="fas fa-{% if s.is_active %}ban{% else %}check{% endif %}"></i>
+                            </a>
+                            <a href="{{ url_for('delete_staff', id=s.id) }}" class="btn btn-sm btn-outline-danger" onclick="return confirm('Are you sure you want to delete this staff?')" title="Delete">
+                                <i class="fas fa-trash"></i>
+                            </a>
+                        </td>
                     </tr>
                     {% endfor %}
                 </tbody>
             </table>
         </div>
-        
-        <div class="text-center py-4 d-none" id="noResults">
-            <i class="fas fa-search fa-3x text-muted mb-3"></i>
-            <p class="text-muted">No staff members found matching your search.</p>
-        </div>
     </div>
 </div>
 
-<!-- Edit Staff Modal -->
-<div class="modal fade" id="editModal" tabindex="-1" aria-labelledby="editModalLabel" aria-hidden="true">
+<!-- Edit Modal -->
+<div class="modal fade" id="editModal" tabindex="-1">
     <div class="modal-dialog">
         <div class="modal-content">
             <div class="modal-header">
-                <h5 class="modal-title" id="editModalLabel"><i class="fas fa-edit me-2"></i>Edit Staff</h5>
-                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                <h5 class="modal-title">Edit Staff</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
             </div>
             <form id="editForm" method="POST">
                 <div class="modal-body">
                     <div class="mb-3">
-                        <label for="editStaffId" class="form-label">Staff ID</label>
-                        <input type="text" class="form-control" id="editStaffId" name="staff_sid" required>
+                        <label class="form-label">Staff ID</label>
+                        <input type="text" name="staff_id" id="editStaffId" class="form-control" required>
                     </div>
-                    
                     <div class="mb-3">
-                        <label for="editName" class="form-label">Name</label>
-                        <input type="text" class="form-control" id="editName" name="name" required>
+                        <label class="form-label">Name</label>
+                        <input type="text" name="name" id="editName" class="form-control" required>
                     </div>
-                    
+                    {% if current_user.role == 'super_admin' %}
                     <div class="mb-3">
-                        <label for="editSchool" class="form-label">Branch</label>
-                        <select class="form-select" id="editSchool" name="school_id" required>
-                            {% for school in schools %}
-                            <option value="{{ school.id }}">{{ school.name }}</option>
+                        <label class="form-label">Organization</label>
+                        <select id="editOrganization" class="form-select" onchange="loadBranchesForEdit()" required>
+                            <option value="">Select Organization...</option>
+                            {% for org in organizations %}
+                            <option value="{{ org.id }}">{{ org.name }}</option>
                             {% endfor %}
                         </select>
-                        <small class="text-muted">Changing branch will update available departments</small>
                     </div>
-                    
+                    {% endif %}
                     <div class="mb-3">
-                        <label for="editDepartment" class="form-label">Department</label>
-                        <select class="form-select" id="editDepartment" name="department" required>
-                            <option value="">Loading departments...</option>
+                        <label class="form-label">Branch</label>
+                        <select name="school_id" id="editSchool" class="form-select" onchange="loadDepartmentsForEdit()" required>
+                            <option value="">Select Branch...</option>
+                            {% for school in schools %}
+                            <option value="{{ school.id }}" data-org="{{ school.organization_id }}">{{ school.name }}</option>
+                            {% endfor %}
+                        </select>
+                        <small class="text-muted">Select {% if current_user.role == 'super_admin' %}organization then {% endif %}branch to load departments</small>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Department</label>
+                        <select name="department" id="editDepartment" class="form-select" required>
+                            <option value="">Select department...</option>
                         </select>
                     </div>
-                    
-                    <div class="mb-3">
-                        <label for="editActive" class="form-label">Status</label>
-                        <select class="form-select" id="editActive" name="is_active">
-                            <option value="true">Active</option>
-                            <option value="false">Inactive</option>
-                        </select>
+                    <div class="mb-3 form-check">
+                        <input type="checkbox" name="is_active" id="editActive" class="form-check-input">
+                        <label class="form-check-label" for="editActive">Active</label>
                     </div>
                 </div>
                 <div class="modal-footer">
                     <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
-                    <button type="submit" class="btn btn-primary"><i class="fas fa-save me-2"></i>Save Changes</button>
+                    <button type="submit" class="btn btn-primary">Save Changes</button>
                 </div>
             </form>
         </div>
@@ -153,110 +150,199 @@
 </div>
 
 <script>
-// Search functionality
-document.getElementById('staffSearch').addEventListener('input', function() {
-    const searchTerm = this.value.toLowerCase();
-    const rows = document.querySelectorAll('.staff-row');
+// Store all branches for filtering
+const allBranches = [
+    {% for school in schools %}
+    { id: {{ school.id }}, name: "{{ school.name }}", org_id: {{ school.organization_id }} },
+    {% endfor %}
+];
+
+function filterByOrganization() {
+    const orgId = document.getElementById('organizationFilter').value;
+    const currentUrl = new URL(window.location.href);
+    
+    if (orgId) {
+        currentUrl.searchParams.set('organization_id', orgId);
+    } else {
+        currentUrl.searchParams.delete('organization_id');
+    }
+    
+    window.location.href = currentUrl.toString();
+}
+
+function searchStaff() {
+    const input = document.getElementById('searchInput').value.toLowerCase();
+    const rows = document.querySelectorAll('#staffTable tbody tr');
     let visibleCount = 0;
     
     rows.forEach(row => {
-        const id = row.querySelector('.staff-id').textContent.toLowerCase();
-        const name = row.querySelector('.staff-name').textContent.toLowerCase();
-        const school = row.querySelector('.staff-school').textContent.toLowerCase();
-        const dept = row.querySelector('.staff-dept').textContent.toLowerCase();
+        const name = row.getAttribute('data-name');
+        const id = row.getAttribute('data-id');
         
-        const matches = id.includes(searchTerm) || 
-                       name.includes(searchTerm) || 
-                       school.includes(searchTerm) || 
-                       dept.includes(searchTerm);
-        
-        row.style.display = matches ? '' : 'none';
-        if (matches) visibleCount++;
+        if (name.includes(input) || id.includes(input)) {
+            row.style.display = '';
+            visibleCount++;
+        } else {
+            row.style.display = 'none';
+        }
     });
     
-    document.getElementById('searchResults').textContent = 
-        visibleCount === {{ staff_with_status|length }} 
-            ? 'Showing {{ staff_with_status|length }} staff members'
-            : 'Showing ' + visibleCount + ' of {{ staff_with_status|length }} staff members';
-    
-    document.getElementById('noResults').classList.toggle('d-none', visibleCount > 0);
-    document.getElementById('staffTable').classList.toggle('d-none', visibleCount === 0);
-});
+    document.getElementById('staffCount').textContent = `Showing ${visibleCount} staff`;
+}
 
-// Load departments for a branch
-function loadDepartments(branchId, currentDepartment = null) {
+function editStaff(id, staffId, name, department, schoolId, orgId, isActive) {
+    document.getElementById('editForm').action = `/staff/edit/${id}`;
+    document.getElementById('editStaffId').value = staffId;
+    document.getElementById('editName').value = name;
+    document.getElementById('editActive').checked = isActive;
+    
+    {% if current_user.role == 'super_admin' %}
+    // Set organization first
+    const orgSelect = document.getElementById('editOrganization');
+    orgSelect.value = orgId;
+    
+    // Filter branches by organization
+    loadBranchesForEdit(schoolId);
+    {% else %}
+    document.getElementById('editSchool').value = schoolId;
+    loadDepartmentsForEdit(department);
+    {% endif %}
+    
+    new bootstrap.Modal(document.getElementById('editModal')).show();
+}
+
+{% if current_user.role == 'super_admin' %}
+function loadBranchesForEdit(preselectedBranchId = null) {
+    const orgId = document.getElementById('editOrganization').value;
+    const branchSelect = document.getElementById('editSchool');
     const deptSelect = document.getElementById('editDepartment');
-    deptSelect.innerHTML = '<option value="">Loading...</option>';
+    
+    // Clear current options
+    branchSelect.innerHTML = '<option value="">Select Branch...</option>';
+    deptSelect.innerHTML = '<option value="">Select department...</option>';
+    
+    if (!orgId) return;
+    
+    // Filter branches by organization
+    const filteredBranches = allBranches.filter(b => b.org_id == orgId);
+    
+    filteredBranches.forEach(branch => {
+        const option = document.createElement('option');
+        option.value = branch.id;
+        option.textContent = branch.name;
+        option.setAttribute('data-org', branch.org_id);
+        branchSelect.appendChild(option);
+    });
+    
+    // Preselect branch if provided
+    if (preselectedBranchId) {
+        branchSelect.value = preselectedBranchId;
+        loadDepartmentsForEdit();
+    }
+}
+{% endif %}
+
+function loadDepartmentsForEdit(preselectedDept = null) {
+    const branchId = document.getElementById('editSchool').value;
+    const deptSelect = document.getElementById('editDepartment');
+    
+    if (!branchId) {
+        deptSelect.innerHTML = '<option value="">Select department...</option>';
+        return;
+    }
     
     fetch(`/api/branch-departments/${branchId}`)
         .then(response => response.json())
         .then(departments => {
-            if (departments.length > 0) {
-                deptSelect.innerHTML = departments.map(dept => 
-                    `<option value="${dept.name}" ${dept.name === currentDepartment ? 'selected' : ''}>${dept.name}</option>`
-                ).join('');
-                
-                // If current department not in list, add it as selected
-                if (currentDepartment && !departments.find(d => d.name === currentDepartment)) {
-                    deptSelect.innerHTML = `<option value="${currentDepartment}" selected>${currentDepartment}</option>` + deptSelect.innerHTML;
-                }
-            } else {
-                deptSelect.innerHTML = '<option value="">No departments found</option>';
+            deptSelect.innerHTML = '<option value="">Select department...</option>';
+            departments.forEach(dept => {
+                const option = document.createElement('option');
+                option.value = dept.name;
+                option.textContent = dept.name;
+                deptSelect.appendChild(option);
+            });
+            
+            // Preselect department if provided
+            if (preselectedDept) {
+                deptSelect.value = preselectedDept;
             }
-        })
-        .catch(error => {
-            console.error('Error loading departments:', error);
-            deptSelect.innerHTML = '<option value="">Error loading departments</option>';
         });
 }
 
-// Branch change in edit modal - reload departments
-document.getElementById('editSchool').addEventListener('change', function() {
-    loadDepartments(this.value);
-});
+// For edit modal - need to capture the department to preselect
+let currentEditDepartment = '';
 
-// Edit button click
-document.querySelectorAll('.edit-btn').forEach(btn => {
-    btn.addEventListener('click', function() {
-        const row = this.closest('tr');
-        const id = row.dataset.id;
-        const staffId = row.dataset.staffId;
-        const name = row.dataset.name;
-        const department = row.dataset.department;
-        const schoolId = row.dataset.schoolId;
-        const isActive = row.dataset.isActive;
-        
-        // Fill the form with current values
-        document.getElementById('editStaffId').value = staffId;
-        document.getElementById('editName').value = name;
-        
-        // Set school dropdown
-        const schoolSelect = document.getElementById('editSchool');
-        for (let i = 0; i < schoolSelect.options.length; i++) {
-            if (schoolSelect.options[i].value === schoolId) {
-                schoolSelect.selectedIndex = i;
-                break;
-            }
-        }
-        
-        // Load departments for the selected branch, then select current department
-        loadDepartments(schoolId, department);
-        
-        // Set active dropdown
-        const activeSelect = document.getElementById('editActive');
-        if (isActive === 'true') {
-            activeSelect.selectedIndex = 0;
-        } else {
-            activeSelect.selectedIndex = 1;
-        }
-        
-        // Set form action
-        document.getElementById('editForm').action = '/staff/edit/' + id;
-        
-        // Show modal
-        const modal = new bootstrap.Modal(document.getElementById('editModal'));
-        modal.show();
+function editStaff(id, staffId, name, department, schoolId, orgId, isActive) {
+    document.getElementById('editForm').action = `/staff/edit/${id}`;
+    document.getElementById('editStaffId').value = staffId;
+    document.getElementById('editName').value = name;
+    document.getElementById('editActive').checked = isActive;
+    currentEditDepartment = department;
+    
+    {% if current_user.role == 'super_admin' %}
+    const orgSelect = document.getElementById('editOrganization');
+    orgSelect.value = orgId;
+    loadBranchesForEditWithDept(schoolId, department);
+    {% else %}
+    document.getElementById('editSchool').value = schoolId;
+    loadDepartmentsForEditWithDept(department);
+    {% endif %}
+    
+    new bootstrap.Modal(document.getElementById('editModal')).show();
+}
+
+{% if current_user.role == 'super_admin' %}
+function loadBranchesForEditWithDept(preselectedBranchId, department) {
+    const orgId = document.getElementById('editOrganization').value;
+    const branchSelect = document.getElementById('editSchool');
+    const deptSelect = document.getElementById('editDepartment');
+    
+    branchSelect.innerHTML = '<option value="">Select Branch...</option>';
+    deptSelect.innerHTML = '<option value="">Select department...</option>';
+    
+    if (!orgId) return;
+    
+    const filteredBranches = allBranches.filter(b => b.org_id == orgId);
+    
+    filteredBranches.forEach(branch => {
+        const option = document.createElement('option');
+        option.value = branch.id;
+        option.textContent = branch.name;
+        option.setAttribute('data-org', branch.org_id);
+        branchSelect.appendChild(option);
     });
-});
+    
+    if (preselectedBranchId) {
+        branchSelect.value = preselectedBranchId;
+        loadDepartmentsForEditWithDept(department);
+    }
+}
+{% endif %}
+
+function loadDepartmentsForEditWithDept(department) {
+    const branchId = document.getElementById('editSchool').value;
+    const deptSelect = document.getElementById('editDepartment');
+    
+    if (!branchId) {
+        deptSelect.innerHTML = '<option value="">Select department...</option>';
+        return;
+    }
+    
+    fetch(`/api/branch-departments/${branchId}`)
+        .then(response => response.json())
+        .then(departments => {
+            deptSelect.innerHTML = '<option value="">Select department...</option>';
+            departments.forEach(dept => {
+                const option = document.createElement('option');
+                option.value = dept.name;
+                option.textContent = dept.name;
+                deptSelect.appendChild(option);
+            });
+            
+            if (department) {
+                deptSelect.value = department;
+            }
+        });
+}
 </script>
 {% endblock %}
