@@ -53,7 +53,12 @@
                 </thead>
                 <tbody>
                     {% for item in staff_with_status %}
-                    <tr class="staff-row">
+                    <tr class="staff-row" data-staff-id="{{ item.staff.id }}" 
+                        data-staff-sid="{{ item.staff.staff_id }}"
+                        data-staff-name="{{ item.staff.name }}"
+                        data-staff-department="{{ item.staff.department }}"
+                        data-staff-school="{{ item.staff.school_id }}"
+                        data-staff-active="{{ 'true' if item.staff.is_active else 'false' }}">
                         <td class="staff-id">{{ item.staff.staff_id }}</td>
                         <td class="staff-name">{{ item.staff.name }}</td>
                         <td class="staff-school">{{ item.staff.school.short_name or item.staff.school.name }}</td>
@@ -66,6 +71,9 @@
                         </td>
                         {% if current_user.role in ['super_admin', 'school_admin'] %}
                         <td>
+                            <button type="button" class="btn btn-sm btn-outline-primary edit-staff-btn" title="Edit">
+                                <i class="fas fa-edit"></i>
+                            </button>
                             <a href="{{ url_for('toggle_staff', id=item.staff.id) }}" class="btn btn-sm btn-outline-{{ 'warning' if item.staff.is_active else 'success' }}" title="{{ 'Deactivate' if item.staff.is_active else 'Activate' }}">
                                 <i class="fas fa-{{ 'pause' if item.staff.is_active else 'play' }}"></i>
                             </a>
@@ -89,7 +97,61 @@
     </div>
 </div>
 
+<!-- Edit Staff Modal -->
+<div class="modal fade" id="editStaffModal" tabindex="-1" aria-labelledby="editStaffModalLabel" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="editStaffModalLabel"><i class="fas fa-edit me-2"></i>Edit Staff</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <form id="editStaffForm" method="POST">
+                <div class="modal-body">
+                    <input type="hidden" id="editStaffId" name="staff_id">
+                    
+                    <div class="mb-3">
+                        <label for="editStaffSid" class="form-label">Staff ID</label>
+                        <input type="text" class="form-control" id="editStaffSid" name="staff_sid" required>
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label for="editStaffName" class="form-label">Name</label>
+                        <input type="text" class="form-control" id="editStaffName" name="name" required>
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label for="editStaffDepartment" class="form-label">Department</label>
+                        <input type="text" class="form-control" id="editStaffDepartment" name="department">
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label for="editStaffSchool" class="form-label">Branch</label>
+                        <select class="form-select" id="editStaffSchool" name="school_id" required>
+                            {% for school in schools %}
+                            <option value="{{ school.id }}">{{ school.name }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label for="editStaffActive" class="form-label">Status</label>
+                        <select class="form-select" id="editStaffActive" name="is_active">
+                            <option value="true">Active</option>
+                            <option value="false">Inactive</option>
+                        </select>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                    <button type="submit" class="btn btn-primary"><i class="fas fa-save me-2"></i>Save Changes</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
 <script>
+// Search functionality
 document.getElementById('staffSearch').addEventListener('input', function() {
     const searchTerm = this.value.toLowerCase();
     const rows = document.querySelectorAll('.staff-row');
@@ -117,6 +179,25 @@ document.getElementById('staffSearch').addEventListener('input', function() {
     
     document.getElementById('noResults').classList.toggle('d-none', visibleCount > 0);
     document.getElementById('staffTable').classList.toggle('d-none', visibleCount === 0);
+});
+
+// Edit staff modal
+document.querySelectorAll('.edit-staff-btn').forEach(btn => {
+    btn.addEventListener('click', function() {
+        const row = this.closest('tr');
+        
+        document.getElementById('editStaffId').value = row.dataset.staffId;
+        document.getElementById('editStaffSid').value = row.dataset.staffSid;
+        document.getElementById('editStaffName').value = row.dataset.staffName;
+        document.getElementById('editStaffDepartment').value = row.dataset.staffDepartment;
+        document.getElementById('editStaffSchool').value = row.dataset.staffSchool;
+        document.getElementById('editStaffActive').value = row.dataset.staffActive;
+        
+        document.getElementById('editStaffForm').action = '/staff/edit/' + row.dataset.staffId;
+        
+        const modal = new bootstrap.Modal(document.getElementById('editStaffModal'));
+        modal.show();
+    });
 });
 </script>
 {% endblock %}
