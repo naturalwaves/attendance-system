@@ -53,12 +53,13 @@
                 </thead>
                 <tbody>
                     {% for item in staff_with_status %}
-                    <tr class="staff-row" data-staff-id="{{ item.staff.id }}" 
-                        data-staff-sid="{{ item.staff.staff_id }}"
-                        data-staff-name="{{ item.staff.name }}"
-                        data-staff-department="{{ item.staff.department }}"
-                        data-staff-school="{{ item.staff.school_id }}"
-                        data-staff-active="{{ 'true' if item.staff.is_active else 'false' }}">
+                    <tr class="staff-row"
+                        data-id="{{ item.staff.id }}"
+                        data-staff-id="{{ item.staff.staff_id }}"
+                        data-name="{{ item.staff.name }}"
+                        data-department="{{ item.staff.department }}"
+                        data-school-id="{{ item.staff.school_id }}"
+                        data-is-active="{{ 'true' if item.staff.is_active else 'false' }}">
                         <td class="staff-id">{{ item.staff.staff_id }}</td>
                         <td class="staff-name">{{ item.staff.name }}</td>
                         <td class="staff-school">{{ item.staff.school.short_name or item.staff.school.name }}</td>
@@ -71,7 +72,7 @@
                         </td>
                         {% if current_user.role in ['super_admin', 'school_admin'] %}
                         <td>
-                            <button type="button" class="btn btn-sm btn-outline-primary edit-staff-btn" title="Edit">
+                            <button type="button" class="btn btn-sm btn-outline-primary edit-btn" title="Edit">
                                 <i class="fas fa-edit"></i>
                             </button>
                             <a href="{{ url_for('toggle_staff', id=item.staff.id) }}" class="btn btn-sm btn-outline-{{ 'warning' if item.staff.is_active else 'success' }}" title="{{ 'Deactivate' if item.staff.is_active else 'Activate' }}">
@@ -98,35 +99,38 @@
 </div>
 
 <!-- Edit Staff Modal -->
-<div class="modal fade" id="editStaffModal" tabindex="-1" aria-labelledby="editStaffModalLabel" aria-hidden="true">
+<div class="modal fade" id="editModal" tabindex="-1" aria-labelledby="editModalLabel" aria-hidden="true">
     <div class="modal-dialog">
         <div class="modal-content">
             <div class="modal-header">
-                <h5 class="modal-title" id="editStaffModalLabel"><i class="fas fa-edit me-2"></i>Edit Staff</h5>
+                <h5 class="modal-title" id="editModalLabel"><i class="fas fa-edit me-2"></i>Edit Staff</h5>
                 <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
             </div>
-            <form id="editStaffForm" method="POST">
+            <form id="editForm" method="POST">
                 <div class="modal-body">
-                    <input type="hidden" id="editStaffId" name="staff_id">
-                    
                     <div class="mb-3">
-                        <label for="editStaffSid" class="form-label">Staff ID</label>
-                        <input type="text" class="form-control" id="editStaffSid" name="staff_sid" required>
+                        <label for="editStaffId" class="form-label">Staff ID</label>
+                        <input type="text" class="form-control" id="editStaffId" name="staff_sid" required>
                     </div>
                     
                     <div class="mb-3">
-                        <label for="editStaffName" class="form-label">Name</label>
-                        <input type="text" class="form-control" id="editStaffName" name="name" required>
+                        <label for="editName" class="form-label">Name</label>
+                        <input type="text" class="form-control" id="editName" name="name" required>
                     </div>
                     
                     <div class="mb-3">
-                        <label for="editStaffDepartment" class="form-label">Department</label>
-                        <input type="text" class="form-control" id="editStaffDepartment" name="department">
+                        <label for="editDepartment" class="form-label">Department</label>
+                        <select class="form-select" id="editDepartment" name="department" required>
+                            <option value="Academic">Academic</option>
+                            <option value="Admin">Admin</option>
+                            <option value="Non-Academic">Non-Academic</option>
+                            <option value="Management">Management</option>
+                        </select>
                     </div>
                     
                     <div class="mb-3">
-                        <label for="editStaffSchool" class="form-label">Branch</label>
-                        <select class="form-select" id="editStaffSchool" name="school_id" required>
+                        <label for="editSchool" class="form-label">Branch</label>
+                        <select class="form-select" id="editSchool" name="school_id" required>
                             {% for school in schools %}
                             <option value="{{ school.id }}">{{ school.name }}</option>
                             {% endfor %}
@@ -134,8 +138,8 @@
                     </div>
                     
                     <div class="mb-3">
-                        <label for="editStaffActive" class="form-label">Status</label>
-                        <select class="form-select" id="editStaffActive" name="is_active">
+                        <label for="editActive" class="form-label">Status</label>
+                        <select class="form-select" id="editActive" name="is_active">
                             <option value="true">Active</option>
                             <option value="false">Inactive</option>
                         </select>
@@ -181,21 +185,52 @@ document.getElementById('staffSearch').addEventListener('input', function() {
     document.getElementById('staffTable').classList.toggle('d-none', visibleCount === 0);
 });
 
-// Edit staff modal
-document.querySelectorAll('.edit-staff-btn').forEach(btn => {
+// Edit button click
+document.querySelectorAll('.edit-btn').forEach(btn => {
     btn.addEventListener('click', function() {
         const row = this.closest('tr');
+        const id = row.dataset.id;
+        const staffId = row.dataset.staffId;
+        const name = row.dataset.name;
+        const department = row.dataset.department;
+        const schoolId = row.dataset.schoolId;
+        const isActive = row.dataset.isActive;
         
-        document.getElementById('editStaffId').value = row.dataset.staffId;
-        document.getElementById('editStaffSid').value = row.dataset.staffSid;
-        document.getElementById('editStaffName').value = row.dataset.staffName;
-        document.getElementById('editStaffDepartment').value = row.dataset.staffDepartment;
-        document.getElementById('editStaffSchool').value = row.dataset.staffSchool;
-        document.getElementById('editStaffActive').value = row.dataset.staffActive;
+        // Fill the form with current values
+        document.getElementById('editStaffId').value = staffId;
+        document.getElementById('editName').value = name;
         
-        document.getElementById('editStaffForm').action = '/staff/edit/' + row.dataset.staffId;
+        // Set department dropdown - loop through options to find match
+        const deptSelect = document.getElementById('editDepartment');
+        for (let i = 0; i < deptSelect.options.length; i++) {
+            if (deptSelect.options[i].value === department) {
+                deptSelect.selectedIndex = i;
+                break;
+            }
+        }
         
-        const modal = new bootstrap.Modal(document.getElementById('editStaffModal'));
+        // Set school dropdown - loop through options to find match
+        const schoolSelect = document.getElementById('editSchool');
+        for (let i = 0; i < schoolSelect.options.length; i++) {
+            if (schoolSelect.options[i].value === schoolId) {
+                schoolSelect.selectedIndex = i;
+                break;
+            }
+        }
+        
+        // Set active dropdown
+        const activeSelect = document.getElementById('editActive');
+        if (isActive === 'true') {
+            activeSelect.selectedIndex = 0;
+        } else {
+            activeSelect.selectedIndex = 1;
+        }
+        
+        // Set form action
+        document.getElementById('editForm').action = '/staff/edit/' + id;
+        
+        // Show modal
+        const modal = new bootstrap.Modal(document.getElementById('editModal'));
         modal.show();
     });
 });
