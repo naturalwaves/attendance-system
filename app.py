@@ -1204,29 +1204,30 @@ def internal_error(error):
 # DATABASE INIT
 # ============================================
 
+def run_migrations():
+    try:
+        from sqlalchemy import text
+        db.session.execute(text("ALTER TABLE school ADD COLUMN IF NOT EXISTS expected_start_time VARCHAR(10) DEFAULT '09:00'"))
+        db.session.execute(text("ALTER TABLE school ADD COLUMN IF NOT EXISTS expected_end_time VARCHAR(10) DEFAULT '17:00'"))
+        db.session.execute(text("ALTER TABLE school ADD COLUMN IF NOT EXISTS created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP"))
+        db.session.commit()
+    except:
+        db.session.rollback()
+
 def init_db():
     with app.app_context():
         db.create_all()
+        run_migrations()
         
-        # Fix missing columns
-        try:
-            from sqlalchemy import text
-            db.session.execute(text("ALTER TABLE school ADD COLUMN IF NOT EXISTS expected_start_time VARCHAR(10) DEFAULT '09:00'"))
-            db.session.execute(text("ALTER TABLE school ADD COLUMN IF NOT EXISTS expected_end_time VARCHAR(10) DEFAULT '17:00'"))
-            db.session.commit()
-        except:
-            db.session.rollback()
-        
-        # Create admin
         if not User.query.filter_by(username='admin').first():
             admin = User(username='admin', email='admin@example.com', role='super_admin')
             admin.set_password('admin123')
             db.session.add(admin)
             db.session.commit()
 
-# ============================================
-# MAIN
-# ============================================
+# This runs on Render startup
+with app.app_context():
+    run_migrations()
 
 if __name__ == '__main__':
     init_db()
