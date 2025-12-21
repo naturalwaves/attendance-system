@@ -26,8 +26,9 @@
             
             <div class="row">
                 <div class="col-md-6 mb-3">
-                    <label class="form-label">School</label>
-                    <select name="school_id" class="form-select" required>
+                    <label class="form-label">Branch</label>
+                    <select name="school_id" id="schoolSelect" class="form-select" required>
+                        <option value="">Select a branch...</option>
                         {% for school in schools %}
                         <option value="{{ school.id }}">{{ school.name }}</option>
                         {% endfor %}
@@ -35,11 +36,10 @@
                 </div>
                 <div class="col-md-6 mb-3">
                     <label class="form-label">Department</label>
-                    <select name="department" class="form-select" required>
-                        {% for dept in departments %}
-                        <option value="{{ dept }}">{{ dept }}</option>
-                        {% endfor %}
+                    <select name="department" id="departmentSelect" class="form-select" required>
+                        <option value="">Select a branch first...</option>
                     </select>
+                    <small class="text-muted" id="deptHint">Departments are loaded based on the selected branch's organization</small>
                 </div>
             </div>
             
@@ -52,5 +52,34 @@
         </form>
     </div>
 </div>
-{% endblock %}
 
+<script>
+document.getElementById('schoolSelect').addEventListener('change', function() {
+    const branchId = this.value;
+    const deptSelect = document.getElementById('departmentSelect');
+    
+    if (!branchId) {
+        deptSelect.innerHTML = '<option value="">Select a branch first...</option>';
+        return;
+    }
+    
+    deptSelect.innerHTML = '<option value="">Loading departments...</option>';
+    
+    fetch(`/api/branch-departments/${branchId}`)
+        .then(response => response.json())
+        .then(departments => {
+            if (departments.length > 0) {
+                deptSelect.innerHTML = departments.map(dept => 
+                    `<option value="${dept.name}">${dept.name}</option>`
+                ).join('');
+            } else {
+                deptSelect.innerHTML = '<option value="">No departments found</option>';
+            }
+        })
+        .catch(error => {
+            console.error('Error loading departments:', error);
+            deptSelect.innerHTML = '<option value="">Error loading departments</option>';
+        });
+});
+</script>
+{% endblock %}
