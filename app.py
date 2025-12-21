@@ -54,7 +54,6 @@ class School(db.Model):
     staff = db.relationship('Staff', backref='school', lazy=True, cascade='all, delete-orphan')
     attendance_records = db.relationship('Attendance', backref='school', lazy=True, cascade='all, delete-orphan')
 
-# Association table for User-School many-to-many relationship
 user_schools = db.Table('user_schools',
     db.Column('user_id', db.Integer, db.ForeignKey('user.id'), primary_key=True),
     db.Column('school_id', db.Integer, db.ForeignKey('school.id'), primary_key=True)
@@ -1463,6 +1462,24 @@ def init_db():
     with app.app_context():
         db.create_all()
         
+        # Add missing columns to existing database
+        from sqlalchemy import text
+        migrations = [
+            "ALTER TABLE school ADD COLUMN IF NOT EXISTS expected_start_time VARCHAR(10) DEFAULT '09:00';",
+            "ALTER TABLE school ADD COLUMN IF NOT EXISTS expected_end_time VARCHAR(10) DEFAULT '17:00';",
+            "ALTER TABLE school ADD COLUMN IF NOT EXISTS created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP;",
+        ]
+        
+        for sql in migrations:
+            try:
+                db.session.execute(text(sql))
+            except Exception:
+                pass
+        
+        db.session.commit()
+        print("Database migrations complete!")
+        
+        # Create default super admin if not exists
         if not User.query.filter_by(username='admin').first():
             admin = User(
                 username='admin',
