@@ -601,6 +601,13 @@ def regenerate_api_key(id):
     flash('API key regenerated successfully!', 'success')
     return redirect(url_for('schools'))
 
+@app.route('/branches')
+@login_required
+@role_required('super_admin')
+def branches():
+    all_schools = School.query.all()
+    return render_template('schools.html', schools=all_schools)
+
 @app.route('/staff')
 @login_required
 def staff_list():
@@ -662,6 +669,35 @@ def add_staff():
         schools = [current_user.school]
     departments = ['Academic', 'Admin', 'Non-Academic', 'Management']
     return render_template('add_staff.html', schools=schools, departments=departments)
+
+@app.route('/staff/edit/<int:id>', methods=['POST'])
+@login_required
+@role_required('super_admin', 'school_admin')
+def edit_staff(id):
+    staff = Staff.query.get_or_404(id)
+    
+    # School admin can only edit staff in their school
+    if current_user.role == 'school_admin' and staff.school_id != current_user.school_id:
+        flash('You do not have permission to edit this staff.', 'danger')
+        return redirect(url_for('staff_list'))
+    
+    # Check if new staff_id already exists (if changed)
+    new_staff_id = request.form.get('staff_sid')
+    if new_staff_id != staff.staff_id:
+        existing = Staff.query.filter_by(staff_id=new_staff_id).first()
+        if existing:
+            flash('Staff ID already exists!', 'danger')
+            return redirect(url_for('staff_list'))
+    
+    staff.staff_id = new_staff_id
+    staff.name = request.form.get('name')
+    staff.department = request.form.get('department')
+    staff.school_id = request.form.get('school_id')
+    staff.is_active = request.form.get('is_active') == 'true'
+    
+    db.session.commit()
+    flash(f'Staff "{staff.name}" updated successfully!', 'success')
+    return redirect(url_for('staff_list'))
 
 @app.route('/staff/toggle/<int:id>')
 @login_required
@@ -809,6 +845,11 @@ def delete_user(id):
     db.session.commit()
     flash('User deleted successfully!', 'success')
     return redirect(url_for('users'))
+
+@app.route('/reports')
+@login_required
+def reports():
+    return render_template('reports.html')
 
 @app.route('/reports/attendance')
 @login_required
