@@ -28,7 +28,9 @@
                 <div class="col-md-6 mb-3">
                     <label class="form-label">Branch</label>
                     <select name="school_id" id="schoolSelect" class="form-select" required>
+                        {% if schools|length > 1 %}
                         <option value="">Select a branch...</option>
+                        {% endif %}
                         {% for school in schools %}
                         <option value="{{ school.id }}">{{ school.name }}</option>
                         {% endfor %}
@@ -80,6 +82,14 @@ document.getElementById('schoolSelect').addEventListener('change', function() {
             console.error('Error loading departments:', error);
             deptSelect.innerHTML = '<option value="">Error loading departments</option>';
         });
+});
+
+// Auto-load departments if a branch is already selected on page load
+window.addEventListener('DOMContentLoaded', function() {
+    const schoolSelect = document.getElementById('schoolSelect');
+    if (schoolSelect.value) {
+        schoolSelect.dispatchEvent(new Event('change'));
+    }
 });
 </script>
 {% endblock %}
