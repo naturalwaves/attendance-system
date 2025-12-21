@@ -25,9 +25,34 @@
             </div>
             
             <div class="row">
+                {% if current_user.role == 'super_admin' %}
+                <div class="col-md-4 mb-3">
+                    <label class="form-label">Organization</label>
+                    <select id="organizationSelect" class="form-select" onchange="loadBranches()" required>
+                        <option value="">Select Organization...</option>
+                        {% for org in organizations %}
+                        <option value="{{ org.id }}">{{ org.name }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+                <div class="col-md-4 mb-3">
+                    <label class="form-label">Branch</label>
+                    <select name="school_id" id="schoolSelect" class="form-select" onchange="loadDepartments()" required>
+                        <option value="">Select Organization first...</option>
+                    </select>
+                    <small class="text-muted">Select organization to load branches</small>
+                </div>
+                <div class="col-md-4 mb-3">
+                    <label class="form-label">Department</label>
+                    <select name="department" id="departmentSelect" class="form-select" required>
+                        <option value="">Select Branch first...</option>
+                    </select>
+                    <small class="text-muted">Select branch to load departments</small>
+                </div>
+                {% else %}
                 <div class="col-md-6 mb-3">
                     <label class="form-label">Branch</label>
-                    <select name="school_id" id="schoolSelect" class="form-select" required>
+                    <select name="school_id" id="schoolSelect" class="form-select" onchange="loadDepartments()" required>
                         {% if schools|length > 1 %}
                         <option value="">Select a branch...</option>
                         {% endif %}
@@ -39,10 +64,11 @@
                 <div class="col-md-6 mb-3">
                     <label class="form-label">Department</label>
                     <select name="department" id="departmentSelect" class="form-select" required>
-                        <option value="">Select a branch first...</option>
+                        <option value="">Select Branch first...</option>
                     </select>
-                    <small class="text-muted" id="deptHint">Departments are loaded based on the selected branch's organization</small>
+                    <small class="text-muted">Select branch to load departments</small>
                 </div>
+                {% endif %}
             </div>
             
             <div class="mt-4">
@@ -56,39 +82,58 @@
 </div>
 
 <script>
-document.getElementById('schoolSelect').addEventListener('change', function() {
-    const branchId = this.value;
+{% if current_user.role == 'super_admin' %}
+function loadBranches() {
+    const orgId = document.getElementById('organizationSelect').value;
+    const branchSelect = document.getElementById('schoolSelect');
+    const deptSelect = document.getElementById('departmentSelect');
+    
+    // Reset dropdowns
+    branchSelect.innerHTML = '<option value="">Select Branch...</option>';
+    deptSelect.innerHTML = '<option value="">Select Branch first...</option>';
+    
+    if (!orgId) return;
+    
+    fetch(`/api/organization-branches/${orgId}`)
+        .then(response => response.json())
+        .then(branches => {
+            branches.forEach(branch => {
+                const option = document.createElement('option');
+                option.value = branch.id;
+                option.textContent = branch.name;
+                branchSelect.appendChild(option);
+            });
+        });
+}
+{% endif %}
+
+function loadDepartments() {
+    const branchId = document.getElementById('schoolSelect').value;
     const deptSelect = document.getElementById('departmentSelect');
     
     if (!branchId) {
-        deptSelect.innerHTML = '<option value="">Select a branch first...</option>';
+        deptSelect.innerHTML = '<option value="">Select Branch first...</option>';
         return;
     }
-    
-    deptSelect.innerHTML = '<option value="">Loading departments...</option>';
     
     fetch(`/api/branch-departments/${branchId}`)
         .then(response => response.json())
         .then(departments => {
-            if (departments.length > 0) {
-                deptSelect.innerHTML = departments.map(dept => 
-                    `<option value="${dept.name}">${dept.name}</option>`
-                ).join('');
-            } else {
-                deptSelect.innerHTML = '<option value="">No departments found</option>';
-            }
-        })
-        .catch(error => {
-            console.error('Error loading departments:', error);
-            deptSelect.innerHTML = '<option value="">Error loading departments</option>';
+            deptSelect.innerHTML = '<option value="">Select Department...</option>';
+            departments.forEach(dept => {
+                const option = document.createElement('option');
+                option.value = dept.name;
+                option.textContent = dept.name;
+                deptSelect.appendChild(option);
+            });
         });
-});
+}
 
-// Auto-load departments if a branch is already selected on page load
+// Auto-load departments if branch is pre-selected (for non-super admin with single branch)
 window.addEventListener('DOMContentLoaded', function() {
     const schoolSelect = document.getElementById('schoolSelect');
     if (schoolSelect.value) {
-        schoolSelect.dispatchEvent(new Event('change'));
+        loadDepartments();
     }
 });
 </script>
