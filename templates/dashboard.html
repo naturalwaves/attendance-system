@@ -405,6 +405,277 @@
         background: #e9ecef;
     }
 
+    /* ========== NEW STYLES - First Check-in & Search ========== */
+    
+    /* Header Layout */
+    .dashboard-header {
+        display: grid;
+        grid-template-columns: 1fr auto 1fr;
+        align-items: center;
+        gap: 1.5rem;
+        margin-bottom: 1rem;
+    }
+    .header-left {
+        display: flex;
+        flex-direction: column;
+        gap: 0.5rem;
+    }
+    .header-center {
+        display: flex;
+        justify-content: center;
+    }
+    .header-right {
+        display: flex;
+        justify-content: flex-end;
+    }
+
+    /* First Check-in Card */
+    .first-checkin-card {
+        background: linear-gradient(135deg, #fff9e6 0%, #fff3cd 100%);
+        border: 1px solid rgba(255, 193, 7, 0.3);
+        border-radius: 12px;
+        padding: 0.75rem 1.25rem;
+        display: flex;
+        align-items: center;
+        gap: 0.75rem;
+        box-shadow: 0 4px 15px rgba(255, 193, 7, 0.15);
+        transition: all 0.3s ease;
+        min-width: 220px;
+    }
+    .first-checkin-card:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 6px 20px rgba(255, 193, 7, 0.25);
+    }
+    .first-checkin-card.no-checkin {
+        background: linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%);
+        border: 1px solid #dee2e6;
+        box-shadow: 0 4px 15px rgba(0, 0, 0, 0.05);
+    }
+    .first-checkin-card.no-checkin:hover {
+        box-shadow: 0 6px 20px rgba(0, 0, 0, 0.1);
+    }
+    .trophy-icon {
+        width: 42px;
+        height: 42px;
+        border-radius: 50%;
+        background: linear-gradient(135deg, #ffc107 0%, #ff9800 100%);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        box-shadow: 0 4px 12px rgba(255, 193, 7, 0.4);
+        flex-shrink: 0;
+    }
+    .trophy-icon i {
+        color: #fff;
+        font-size: 1.1rem;
+        text-shadow: 0 1px 2px rgba(0,0,0,0.2);
+    }
+    .first-checkin-card.no-checkin .trophy-icon {
+        background: linear-gradient(135deg, #adb5bd 0%, #6c757d 100%);
+        box-shadow: 0 4px 12px rgba(108, 117, 125, 0.3);
+    }
+    .first-checkin-info {
+        display: flex;
+        flex-direction: column;
+        min-width: 0;
+    }
+    .first-checkin-label {
+        font-size: 0.6rem;
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+        color: #b8860b;
+        font-weight: 700;
+        margin-bottom: 2px;
+    }
+    .first-checkin-card.no-checkin .first-checkin-label {
+        color: #6c757d;
+    }
+    .first-checkin-name {
+        font-size: 0.9rem;
+        font-weight: 700;
+        color: #333;
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        line-height: 1.2;
+    }
+    .first-checkin-details {
+        font-size: 0.7rem;
+        color: #666;
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
+        flex-wrap: wrap;
+    }
+    .first-checkin-details .branch {
+        background: rgba(255, 193, 7, 0.2);
+        padding: 1px 6px;
+        border-radius: 4px;
+        font-weight: 500;
+    }
+    .first-checkin-card.no-checkin .first-checkin-details .branch {
+        background: rgba(108, 117, 125, 0.15);
+    }
+    .first-checkin-time {
+        font-size: 0.75rem;
+        font-weight: 700;
+        color: #28a745;
+        display: flex;
+        align-items: center;
+        gap: 3px;
+    }
+    .first-checkin-time i {
+        font-size: 0.65rem;
+    }
+
+    /* Search Box */
+    .search-container {
+        position: relative;
+        width: 100%;
+        max-width: 280px;
+    }
+    .search-box {
+        width: 100%;
+        padding: 0.5rem 0.75rem 0.5rem 2.25rem;
+        border: 1px solid #e0e0e0;
+        border-radius: 8px;
+        font-size: 0.8rem;
+        background: linear-gradient(135deg, #fff 0%, #f8f9fa 100%);
+        transition: all 0.3s ease;
+        color: #333;
+    }
+    .search-box::placeholder {
+        color: #aaa;
+    }
+    .search-box:focus {
+        outline: none;
+        border-color: #667eea;
+        box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.15);
+        background: #fff;
+    }
+    .search-icon {
+        position: absolute;
+        left: 0.75rem;
+        top: 50%;
+        transform: translateY(-50%);
+        color: #aaa;
+        font-size: 0.8rem;
+        pointer-events: none;
+        transition: color 0.3s ease;
+    }
+    .search-box:focus + .search-icon,
+    .search-container:hover .search-icon {
+        color: #667eea;
+    }
+    
+    /* Search Results Dropdown */
+    .search-results {
+        position: absolute;
+        top: calc(100% + 5px);
+        left: 0;
+        right: 0;
+        background: #fff;
+        border-radius: 10px;
+        box-shadow: 0 10px 40px rgba(0,0,0,0.15);
+        border: 1px solid #eee;
+        max-height: 300px;
+        overflow-y: auto;
+        z-index: 1000;
+        display: none;
+    }
+    .search-results.active {
+        display: block;
+        animation: slideDown 0.2s ease;
+    }
+    @keyframes slideDown {
+        from {
+            opacity: 0;
+            transform: translateY(-10px);
+        }
+        to {
+            opacity: 1;
+            transform: translateY(0);
+        }
+    }
+    .search-result-item {
+        padding: 0.75rem 1rem;
+        display: flex;
+        align-items: center;
+        gap: 0.75rem;
+        cursor: pointer;
+        transition: background 0.2s ease;
+        border-bottom: 1px solid #f5f5f5;
+    }
+    .search-result-item:last-child {
+        border-bottom: none;
+    }
+    .search-result-item:hover {
+        background: #f8f9fa;
+    }
+    .search-result-avatar {
+        width: 36px;
+        height: 36px;
+        border-radius: 50%;
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        color: #fff;
+        font-weight: 600;
+        font-size: 0.8rem;
+        flex-shrink: 0;
+    }
+    .search-result-info {
+        flex: 1;
+        min-width: 0;
+    }
+    .search-result-name {
+        font-weight: 600;
+        font-size: 0.85rem;
+        color: #333;
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+    }
+    .search-result-meta {
+        font-size: 0.7rem;
+        color: #888;
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
+    }
+    .search-result-status {
+        padding: 3px 8px;
+        border-radius: 12px;
+        font-size: 0.65rem;
+        font-weight: 600;
+        flex-shrink: 0;
+    }
+    .search-result-status.signed-in {
+        background: linear-gradient(135deg, #d4edda 0%, #c3e6cb 100%);
+        color: #155724;
+    }
+    .search-result-status.late {
+        background: linear-gradient(135deg, #fff3cd 0%, #ffeeba 100%);
+        color: #856404;
+    }
+    .search-result-status.absent {
+        background: linear-gradient(135deg, #f8d7da 0%, #f5c6cb 100%);
+        color: #721c24;
+    }
+    .search-no-results {
+        padding: 1.5rem;
+        text-align: center;
+        color: #888;
+        font-size: 0.85rem;
+    }
+    .search-no-results i {
+        font-size: 1.5rem;
+        margin-bottom: 0.5rem;
+        display: block;
+        opacity: 0.5;
+    }
+
     /* Responsive */
     @media (max-width: 1200px) {
         .stat-card h3 {
@@ -413,6 +684,17 @@
         .stat-card .icon-wrapper {
             width: 36px;
             height: 36px;
+        }
+        .dashboard-header {
+            grid-template-columns: 1fr;
+            gap: 1rem;
+        }
+        .header-center {
+            order: -1;
+            justify-content: flex-start;
+        }
+        .header-right {
+            justify-content: flex-start;
         }
     }
     @media (max-width: 992px) {
@@ -427,36 +709,74 @@
         .stat-card-wrapper {
             flex: 0 0 calc(50% - 0.375rem);
         }
+        .first-checkin-card {
+            min-width: auto;
+            width: 100%;
+        }
     }
 </style>
 
-<div class="d-flex justify-content-between align-items-center mb-3">
-    <div>
-        <h2 class="mb-1 fw-bold"><i class="fas fa-tachometer-alt me-2 text-primary"></i>Dashboard</h2>
-        <p class="welcome-text mb-0" id="welcomeMessage">
-            Good morning, <strong>{{ current_user.username }}</strong>
-        </p>
+<!-- Dashboard Header with Search, First Check-in, and Clock -->
+<div class="dashboard-header">
+    <!-- Left: Title, Welcome, Search -->
+    <div class="header-left">
+        <div>
+            <h2 class="mb-1 fw-bold"><i class="fas fa-tachometer-alt me-2 text-primary"></i>Dashboard</h2>
+            <p class="welcome-text mb-0" id="welcomeMessage">
+                Good morning, <strong>{{ current_user.username }}</strong>
+            </p>
+        </div>
+        <div class="search-container">
+            <input type="text" class="search-box" id="staffSearch" placeholder="Search staff..." autocomplete="off">
+            <i class="fas fa-search search-icon"></i>
+            <div class="search-results" id="searchResults"></div>
+        </div>
     </div>
-    <div class="clock-container">
-        <div class="analog-clock">
-            <div class="clock-face">
-                <div class="brand-dot"></div>
-                <div class="hour-marks">
-                    {% for i in range(12) %}
-                    <div class="hour-mark {% if i % 3 == 0 %}main{% endif %}" style="transform: translateX(-50%) rotate({{ i * 30 }}deg);"></div>
-                    {% endfor %}
+    
+    <!-- Center: First Check-in -->
+    <div class="header-center">
+        <div class="first-checkin-card no-checkin" id="firstCheckinCard">
+            <div class="trophy-icon">
+                <i class="fas fa-trophy"></i>
+            </div>
+            <div class="first-checkin-info">
+                <span class="first-checkin-label">🏆 First Today</span>
+                <span class="first-checkin-name" id="firstCheckinName">No check-ins yet</span>
+                <div class="first-checkin-details">
+                    <span class="branch" id="firstCheckinBranch">Waiting...</span>
+                    <span id="firstCheckinDept"></span>
                 </div>
-                <div class="hand hour-hand" id="hourHand"></div>
-                <div class="hand minute-hand" id="minuteHand"></div>
-                <div class="hand second-hand" id="secondHand"></div>
-                <div class="clock-center"></div>
+            </div>
+            <div class="first-checkin-time" id="firstCheckinTime" style="display: none;">
+                <i class="fas fa-clock"></i>
+                <span id="firstCheckinTimeValue"></span>
             </div>
         </div>
-        <div class="digital-clock">
-            <div class="digital-time">
-                <span id="digitalTime">12:00</span><span class="seconds" id="digitalSeconds">:00</span><span class="ampm" id="digitalAmpm">AM</span>
+    </div>
+    
+    <!-- Right: Clock -->
+    <div class="header-right">
+        <div class="clock-container">
+            <div class="analog-clock">
+                <div class="clock-face">
+                    <div class="brand-dot"></div>
+                    <div class="hour-marks">
+                        {% for i in range(12) %}
+                        <div class="hour-mark {% if i % 3 == 0 %}main{% endif %}" style="transform: translateX(-50%) rotate({{ i * 30 }}deg);"></div>
+                        {% endfor %}
+                    </div>
+                    <div class="hand hour-hand" id="hourHand"></div>
+                    <div class="hand minute-hand" id="minuteHand"></div>
+                    <div class="hand second-hand" id="secondHand"></div>
+                    <div class="clock-center"></div>
+                </div>
             </div>
-            <div class="digital-date" id="digitalDate">Monday, January 1</div>
+            <div class="digital-clock">
+                <div class="digital-time">
+                    <span id="digitalTime">12:00</span><span class="seconds" id="digitalSeconds">:00</span><span class="ampm" id="digitalAmpm">AM</span>
+                </div>
+                <div class="digital-date" id="digitalDate">Monday, January 1</div>
+            </div>
         </div>
     </div>
 </div>
@@ -697,6 +1017,31 @@ function animateCounters() {
 // Initial counter animation
 animateCounters();
 
+// Update First Check-in Card
+function updateFirstCheckin(data) {
+    const card = document.getElementById('firstCheckinCard');
+    const nameEl = document.getElementById('firstCheckinName');
+    const branchEl = document.getElementById('firstCheckinBranch');
+    const deptEl = document.getElementById('firstCheckinDept');
+    const timeContainer = document.getElementById('firstCheckinTime');
+    const timeValue = document.getElementById('firstCheckinTimeValue');
+    
+    if (data.first_checkin) {
+        card.classList.remove('no-checkin');
+        nameEl.textContent = data.first_checkin.name;
+        branchEl.textContent = data.first_checkin.branch;
+        deptEl.textContent = '• ' + data.first_checkin.department;
+        timeValue.textContent = data.first_checkin.time;
+        timeContainer.style.display = 'flex';
+    } else {
+        card.classList.add('no-checkin');
+        nameEl.textContent = 'No check-ins yet';
+        branchEl.textContent = 'Waiting...';
+        deptEl.textContent = '';
+        timeContainer.style.display = 'none';
+    }
+}
+
 // Auto-refresh dashboard stats every 15 seconds
 function refreshDashboard() {
     fetch('/api/dashboard-stats')
@@ -711,6 +1056,9 @@ function refreshDashboard() {
             
             // Re-animate counters
             animateCounters();
+            
+            // Update first check-in
+            updateFirstCheckin(data);
             
             // Update ticker with recent activity
             if (data.recent_activity && data.recent_activity.length > 0) {
@@ -737,6 +1085,94 @@ function refreshDashboard() {
 // Initial load and set interval
 setTimeout(refreshDashboard, 1000);
 setInterval(refreshDashboard, 15000);
+
+// Staff Search Functionality
+const searchInput = document.getElementById('staffSearch');
+const searchResults = document.getElementById('searchResults');
+let searchTimeout;
+
+searchInput.addEventListener('input', function() {
+    const query = this.value.trim();
+    
+    clearTimeout(searchTimeout);
+    
+    if (query.length < 2) {
+        searchResults.classList.remove('active');
+        return;
+    }
+    
+    searchTimeout = setTimeout(() => {
+        fetch(`/api/search-staff?q=${encodeURIComponent(query)}`)
+            .then(response => response.json())
+            .then(data => {
+                if (data.results && data.results.length > 0) {
+                    let html = '';
+                    data.results.forEach(staff => {
+                        const initials = staff.name.split(' ').map(n => n[0]).join('').substring(0, 2).toUpperCase();
+                        let statusClass = 'absent';
+                        let statusText = 'Absent';
+                        
+                        if (staff.status === 'signed_in') {
+                            statusClass = 'signed-in';
+                            statusText = staff.time ? `In ${staff.time}` : 'Signed In';
+                        } else if (staff.status === 'late') {
+                            statusClass = 'late';
+                            statusText = staff.time ? `Late ${staff.time}` : 'Late';
+                        }
+                        
+                        html += `
+                            <div class="search-result-item" data-staff-id="${staff.id}">
+                                <div class="search-result-avatar">${initials}</div>
+                                <div class="search-result-info">
+                                    <div class="search-result-name">${staff.name}</div>
+                                    <div class="search-result-meta">
+                                        <span>${staff.branch}</span>
+                                        <span>•</span>
+                                        <span>${staff.department}</span>
+                                    </div>
+                                </div>
+                                <span class="search-result-status ${statusClass}">${statusText}</span>
+                            </div>
+                        `;
+                    });
+                    searchResults.innerHTML = html;
+                    searchResults.classList.add('active');
+                } else {
+                    searchResults.innerHTML = `
+                        <div class="search-no-results">
+                            <i class="fas fa-search"></i>
+                            No staff found matching "${query}"
+                        </div>
+                    `;
+                    searchResults.classList.add('active');
+                }
+            })
+            .catch(error => {
+                console.log('Search error:', error);
+                searchResults.classList.remove('active');
+            });
+    }, 300);
+});
+
+// Close search results when clicking outside
+document.addEventListener('click', function(e) {
+    if (!searchInput.contains(e.target) && !searchResults.contains(e.target)) {
+        searchResults.classList.remove('active');
+    }
+});
+
+// Focus search on keyboard shortcut (Ctrl+K or Cmd+K)
+document.addEventListener('keydown', function(e) {
+    if ((e.ctrlKey || e.metaKey) && e.key === 'k') {
+        e.preventDefault();
+        searchInput.focus();
+    }
+    // Close on Escape
+    if (e.key === 'Escape') {
+        searchResults.classList.remove('active');
+        searchInput.blur();
+    }
+});
 
 // Sparklines
 function createSparkline(canvasId) {
