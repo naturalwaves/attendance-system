@@ -7,6 +7,9 @@
     <h2>Staff List</h2>
     <div>
         {% if current_user.role == 'super_admin' or current_user.role == 'school_admin' %}
+        <a href="{{ url_for('download_staff_csv') }}" class="btn btn-outline-success me-2">
+            <i class="fas fa-file-csv me-2"></i>Export CSV
+        </a>
         <a href="{{ url_for('bulk_upload') }}" class="btn btn-outline-primary me-2">
             <i class="fas fa-upload me-2"></i>Bulk Upload
         </a>
@@ -53,6 +56,7 @@
                         <th>Name</th>
                         <th>Branch</th>
                         <th>Department</th>
+                        <th>Contact</th>
                         <th>Status</th>
                         <th>Actions</th>
                     </tr>
@@ -61,9 +65,24 @@
                     {% for s in staff %}
                     <tr data-name="{{ s.name|lower }}" data-id="{{ s.staff_id|lower }}" data-org="{{ s.school.organization_id }}">
                         <td>{{ s.staff_id }}</td>
-                        <td>{{ s.name }}</td>
+                        <td>
+                            {% if s.photo_url %}
+                            <img src="{{ s.photo_url }}" alt="{{ s.name }}" class="rounded-circle me-2" style="width: 30px; height: 30px; object-fit: cover;">
+                            {% endif %}
+                            {{ s.name }}
+                        </td>
                         <td>{{ s.school.name }}</td>
                         <td>{{ s.department or '-' }}</td>
+                        <td>
+                            {% if s.email %}
+                            <small class="text-muted d-block">{{ s.email }}</small>
+                            {% else %}
+                            <span class="badge bg-warning text-dark" title="No email on file"><i class="fas fa-exclamation-triangle"></i> No Email</span>
+                            {% endif %}
+                            {% if s.phone %}
+                            <small class="text-muted d-block">{{ s.phone }}</small>
+                            {% endif %}
+                        </td>
                         <td>
                             {% if s.is_active %}
                             <span class="badge bg-success">Active</span>
@@ -72,7 +91,7 @@
                             {% endif %}
                         </td>
                         <td>
-                            <button class="btn btn-sm btn-outline-primary me-1" onclick="editStaff({{ s.id }}, '{{ s.staff_id }}', '{{ s.name }}', '{{ s.department }}', {{ s.school_id }}, {{ s.school.organization_id }}, {{ s.is_active|lower }})" title="Edit">
+                            <button class="btn btn-sm btn-outline-primary me-1" onclick="editStaff({{ s.id }}, '{{ s.staff_id }}', '{{ s.name }}', '{{ s.department }}', {{ s.school_id }}, {{ s.school.organization_id }}, {{ s.is_active|lower }}, '{{ s.email or '' }}', '{{ s.phone or '' }}', '{{ s.photo_url or '' }}')" title="Edit">
                                 <i class="fas fa-edit"></i>
                             </button>
                             <a href="{{ url_for('toggle_staff', id=s.id) }}" class="btn btn-sm btn-outline-warning me-1" title="{% if s.is_active %}Deactivate{% else %}Activate{% endif %}">
@@ -92,7 +111,7 @@
 
 <!-- Edit Modal -->
 <div class="modal fade" id="editModal" tabindex="-1">
-    <div class="modal-dialog">
+    <div class="modal-dialog modal-lg">
         <div class="modal-content">
             <div class="modal-header">
                 <h5 class="modal-title">Edit Staff</h5>
@@ -100,44 +119,88 @@
             </div>
             <form id="editForm" method="POST">
                 <div class="modal-body">
-                    <div class="mb-3">
-                        <label class="form-label">Staff ID</label>
-                        <input type="text" name="staff_id" id="editStaffId" class="form-control" required>
+                    <div class="row">
+                        <div class="col-md-6 mb-3">
+                            <label class="form-label">Staff ID <span class="text-danger">*</span></label>
+                            <input type="text" name="staff_id" id="editStaffId" class="form-control" required>
+                        </div>
+                        <div class="col-md-6 mb-3">
+                            <label class="form-label">Name <span class="text-danger">*</span></label>
+                            <input type="text" name="name" id="editName" class="form-control" required>
+                        </div>
                     </div>
-                    <div class="mb-3">
-                        <label class="form-label">Name</label>
-                        <input type="text" name="name" id="editName" class="form-control" required>
-                    </div>
+                    
                     {% if current_user.role == 'super_admin' %}
-                    <div class="mb-3">
-                        <label class="form-label">Organization</label>
-                        <select id="editOrganization" class="form-select" onchange="loadBranchesForEdit()" required>
-                            <option value="">Select Organization...</option>
-                            {% for org in organizations %}
-                            <option value="{{ org.id }}">{{ org.name }}</option>
-                            {% endfor %}
-                        </select>
+                    <div class="row">
+                        <div class="col-md-6 mb-3">
+                            <label class="form-label">Organization <span class="text-danger">*</span></label>
+                            <select id="editOrganization" class="form-select" onchange="loadBranchesForEdit()" required>
+                                <option value="">Select Organization...</option>
+                                {% for org in organizations %}
+                                <option value="{{ org.id }}">{{ org.name }}</option>
+                                {% endfor %}
+                            </select>
+                        </div>
+                        <div class="col-md-6 mb-3">
+                            <label class="form-label">Branch <span class="text-danger">*</span></label>
+                            <select name="school_id" id="editSchool" class="form-select" onchange="loadDepartmentsForEdit()" required>
+                                <option value="">Select Branch...</option>
+                                {% for school in schools %}
+                                <option value="{{ school.id }}" data-org="{{ school.organization_id }}">{{ school.name }}</option>
+                                {% endfor %}
+                            </select>
+                        </div>
+                    </div>
+                    {% else %}
+                    <div class="row">
+                        <div class="col-md-6 mb-3">
+                            <label class="form-label">Branch <span class="text-danger">*</span></label>
+                            <select name="school_id" id="editSchool" class="form-select" onchange="loadDepartmentsForEdit()" required>
+                                <option value="">Select Branch...</option>
+                                {% for school in schools %}
+                                <option value="{{ school.id }}" data-org="{{ school.organization_id }}">{{ school.name }}</option>
+                                {% endfor %}
+                            </select>
+                        </div>
                     </div>
                     {% endif %}
-                    <div class="mb-3">
-                        <label class="form-label">Branch</label>
-                        <select name="school_id" id="editSchool" class="form-select" onchange="loadDepartmentsForEdit()" required>
-                            <option value="">Select Branch...</option>
-                            {% for school in schools %}
-                            <option value="{{ school.id }}" data-org="{{ school.organization_id }}">{{ school.name }}</option>
-                            {% endfor %}
-                        </select>
-                        <small class="text-muted">Select {% if current_user.role == 'super_admin' %}organization then {% endif %}branch to load departments</small>
+                    
+                    <div class="row">
+                        <div class="col-md-6 mb-3">
+                            <label class="form-label">Department <span class="text-danger">*</span></label>
+                            <select name="department" id="editDepartment" class="form-select" required>
+                                <option value="">Select department...</option>
+                            </select>
+                        </div>
+                        <div class="col-md-6 mb-3 d-flex align-items-end">
+                            <div class="form-check">
+                                <input type="checkbox" name="is_active" id="editActive" class="form-check-input">
+                                <label class="form-check-label" for="editActive">Active</label>
+                            </div>
+                        </div>
                     </div>
-                    <div class="mb-3">
-                        <label class="form-label">Department</label>
-                        <select name="department" id="editDepartment" class="form-select" required>
-                            <option value="">Select department...</option>
-                        </select>
+
+                    <hr class="my-3">
+                    <h6 class="mb-3">Contact Information (Optional)</h6>
+
+                    <div class="row">
+                        <div class="col-md-6 mb-3">
+                            <label class="form-label">Email</label>
+                            <input type="email" name="email" id="editEmail" class="form-control" placeholder="e.g. staff@company.com">
+                            <small class="text-muted">Used for sending query emails</small>
+                        </div>
+                        <div class="col-md-6 mb-3">
+                            <label class="form-label">Phone Number</label>
+                            <input type="tel" name="phone" id="editPhone" class="form-control" placeholder="e.g. 08012345678">
+                        </div>
                     </div>
-                    <div class="mb-3 form-check">
-                        <input type="checkbox" name="is_active" id="editActive" class="form-check-input">
-                        <label class="form-check-label" for="editActive">Active</label>
+
+                    <div class="row">
+                        <div class="col-md-12 mb-3">
+                            <label class="form-label">Photo URL</label>
+                            <input type="url" name="photo_url" id="editPhotoUrl" class="form-control" placeholder="e.g. https://example.com/photo.jpg">
+                            <small class="text-muted">Paste a link to the staff member's photo</small>
+                        </div>
                     </div>
                 </div>
                 <div class="modal-footer">
@@ -190,94 +253,14 @@ function searchStaff() {
     document.getElementById('staffCount').textContent = `Showing ${visibleCount} staff`;
 }
 
-function editStaff(id, staffId, name, department, schoolId, orgId, isActive) {
+function editStaff(id, staffId, name, department, schoolId, orgId, isActive, email, phone, photoUrl) {
     document.getElementById('editForm').action = `/staff/edit/${id}`;
     document.getElementById('editStaffId').value = staffId;
     document.getElementById('editName').value = name;
     document.getElementById('editActive').checked = isActive;
-    
-    {% if current_user.role == 'super_admin' %}
-    // Set organization first
-    const orgSelect = document.getElementById('editOrganization');
-    orgSelect.value = orgId;
-    
-    // Filter branches by organization
-    loadBranchesForEdit(schoolId);
-    {% else %}
-    document.getElementById('editSchool').value = schoolId;
-    loadDepartmentsForEdit(department);
-    {% endif %}
-    
-    new bootstrap.Modal(document.getElementById('editModal')).show();
-}
-
-{% if current_user.role == 'super_admin' %}
-function loadBranchesForEdit(preselectedBranchId = null) {
-    const orgId = document.getElementById('editOrganization').value;
-    const branchSelect = document.getElementById('editSchool');
-    const deptSelect = document.getElementById('editDepartment');
-    
-    // Clear current options
-    branchSelect.innerHTML = '<option value="">Select Branch...</option>';
-    deptSelect.innerHTML = '<option value="">Select department...</option>';
-    
-    if (!orgId) return;
-    
-    // Filter branches by organization
-    const filteredBranches = allBranches.filter(b => b.org_id == orgId);
-    
-    filteredBranches.forEach(branch => {
-        const option = document.createElement('option');
-        option.value = branch.id;
-        option.textContent = branch.name;
-        option.setAttribute('data-org', branch.org_id);
-        branchSelect.appendChild(option);
-    });
-    
-    // Preselect branch if provided
-    if (preselectedBranchId) {
-        branchSelect.value = preselectedBranchId;
-        loadDepartmentsForEdit();
-    }
-}
-{% endif %}
-
-function loadDepartmentsForEdit(preselectedDept = null) {
-    const branchId = document.getElementById('editSchool').value;
-    const deptSelect = document.getElementById('editDepartment');
-    
-    if (!branchId) {
-        deptSelect.innerHTML = '<option value="">Select department...</option>';
-        return;
-    }
-    
-    fetch(`/api/branch-departments/${branchId}`)
-        .then(response => response.json())
-        .then(departments => {
-            deptSelect.innerHTML = '<option value="">Select department...</option>';
-            departments.forEach(dept => {
-                const option = document.createElement('option');
-                option.value = dept.name;
-                option.textContent = dept.name;
-                deptSelect.appendChild(option);
-            });
-            
-            // Preselect department if provided
-            if (preselectedDept) {
-                deptSelect.value = preselectedDept;
-            }
-        });
-}
-
-// For edit modal - need to capture the department to preselect
-let currentEditDepartment = '';
-
-function editStaff(id, staffId, name, department, schoolId, orgId, isActive) {
-    document.getElementById('editForm').action = `/staff/edit/${id}`;
-    document.getElementById('editStaffId').value = staffId;
-    document.getElementById('editName').value = name;
-    document.getElementById('editActive').checked = isActive;
-    currentEditDepartment = department;
+    document.getElementById('editEmail').value = email;
+    document.getElementById('editPhone').value = phone;
+    document.getElementById('editPhotoUrl').value = photoUrl;
     
     {% if current_user.role == 'super_admin' %}
     const orgSelect = document.getElementById('editOrganization');
@@ -292,6 +275,27 @@ function editStaff(id, staffId, name, department, schoolId, orgId, isActive) {
 }
 
 {% if current_user.role == 'super_admin' %}
+function loadBranchesForEdit() {
+    const orgId = document.getElementById('editOrganization').value;
+    const branchSelect = document.getElementById('editSchool');
+    const deptSelect = document.getElementById('editDepartment');
+    
+    branchSelect.innerHTML = '<option value="">Select Branch...</option>';
+    deptSelect.innerHTML = '<option value="">Select department...</option>';
+    
+    if (!orgId) return;
+    
+    const filteredBranches = allBranches.filter(b => b.org_id == orgId);
+    
+    filteredBranches.forEach(branch => {
+        const option = document.createElement('option');
+        option.value = branch.id;
+        option.textContent = branch.name;
+        option.setAttribute('data-org', branch.org_id);
+        branchSelect.appendChild(option);
+    });
+}
+
 function loadBranchesForEditWithDept(preselectedBranchId, department) {
     const orgId = document.getElementById('editOrganization').value;
     const branchSelect = document.getElementById('editSchool');
@@ -318,6 +322,28 @@ function loadBranchesForEditWithDept(preselectedBranchId, department) {
     }
 }
 {% endif %}
+
+function loadDepartmentsForEdit() {
+    const branchId = document.getElementById('editSchool').value;
+    const deptSelect = document.getElementById('editDepartment');
+    
+    if (!branchId) {
+        deptSelect.innerHTML = '<option value="">Select department...</option>';
+        return;
+    }
+    
+    fetch(`/api/branch-departments/${branchId}`)
+        .then(response => response.json())
+        .then(departments => {
+            deptSelect.innerHTML = '<option value="">Select department...</option>';
+            departments.forEach(dept => {
+                const option = document.createElement('option');
+                option.value = dept.name;
+                option.textContent = dept.name;
+                deptSelect.appendChild(option);
+            });
+        });
+}
 
 function loadDepartmentsForEditWithDept(department) {
     const branchId = document.getElementById('editSchool').value;
