@@ -1224,7 +1224,9 @@ def attendance_report():
     date_from = request.args.get('date_from', '')
     date_to = request.args.get('date_to', '')
     school_id = request.args.get('school_id', '')
+    organization_id = request.args.get('organization_id', '')
     today = date.today()
+    
     if today_param == '1':
         date_from = today.isoformat()
         date_to = today.isoformat()
@@ -1238,26 +1240,42 @@ def attendance_report():
     except:
         start_date = today
         end_date = today
+    
     query = Attendance.query.filter(Attendance.date >= start_date, Attendance.date <= end_date)
     accessible_school_ids = current_user.get_accessible_school_ids()
-    if school_id:
+    
+    # Filter by organization first (for super_admin)
+    if organization_id:
+        org_school_ids = [s.id for s in School.query.filter_by(organization_id=organization_id).all()]
+        if school_id:
+            staff_ids = [s.id for s in Staff.query.filter_by(school_id=school_id).all()]
+        else:
+            staff_ids = [s.id for s in Staff.query.filter(Staff.school_id.in_(org_school_ids)).all()] if org_school_ids else []
+        query = query.filter(Attendance.staff_id.in_(staff_ids)) if staff_ids else query.filter(False)
+    elif school_id:
         staff_ids = [s.id for s in Staff.query.filter_by(school_id=school_id).all()]
         query = query.filter(Attendance.staff_id.in_(staff_ids)) if staff_ids else query.filter(False)
     elif current_user.role != 'super_admin' and accessible_school_ids:
         staff_ids = [s.id for s in Staff.query.filter(Staff.school_id.in_(accessible_school_ids)).all()]
         query = query.filter(Attendance.staff_id.in_(staff_ids)) if staff_ids else query.filter(False)
+    
     attendance = query.order_by(Attendance.date.desc()).all()
+    
     if current_user.role == 'super_admin':
         schools = School.query.all()
+        organizations = Organization.query.all()
     else:
         schools = current_user.get_accessible_schools()
+        organizations = current_user.get_accessible_organizations()
+    
     return render_template('attendance_report.html', 
                          attendance=attendance, 
                          schools=schools,
-                         organizations=current_user.get_accessible_organizations(),
+                         organizations=organizations,
                          date_from=date_from,
                          date_to=date_to,
                          school_id=school_id,
+                         organization_id=organization_id,
                          today=today.isoformat())
 
 def format_minutes_to_hours(minutes):
@@ -1279,7 +1297,9 @@ def download_attendance():
     date_from = request.args.get('date_from', '')
     date_to = request.args.get('date_to', '')
     school_id = request.args.get('school_id', '')
+    organization_id = request.args.get('organization_id', '')
     today = date.today()
+    
     if not date_from:
         date_from = today.isoformat()
     if not date_to:
@@ -1290,32 +1310,54 @@ def download_attendance():
     except:
         start_date = today
         end_date = today
+    
     query = Attendance.query.filter(Attendance.date >= start_date, Attendance.date <= end_date)
     accessible_school_ids = current_user.get_accessible_school_ids()
-    if school_id:
+    
+    # Filter by organization first (for super_admin)
+    if organization_id:
+        org_school_ids = [s.id for s in School.query.filter_by(organization_id=organization_id).all()]
+        if school_id:
+            staff_ids = [s.id for s in Staff.query.filter_by(school_id=school_id).all()]
+        else:
+            staff_ids = [s.id for s in Staff.query.filter(Staff.school_id.in_(org_school_ids)).all()] if org_school_ids else []
+        query = query.filter(Attendance.staff_id.in_(staff_ids)) if staff_ids else query.filter(False)
+    elif school_id:
         staff_ids = [s.id for s in Staff.query.filter_by(school_id=school_id).all()]
         query = query.filter(Attendance.staff_id.in_(staff_ids)) if staff_ids else query.filter(False)
     elif current_user.role != 'super_admin' and accessible_school_ids:
         staff_ids = [s.id for s in Staff.query.filter(Staff.school_id.in_(accessible_school_ids)).all()]
         query = query.filter(Attendance.staff_id.in_(staff_ids)) if staff_ids else query.filter(False)
+    
     attendance = query.order_by(Attendance.date.desc()).all()
     output = io.StringIO()
     writer = csv.writer(output)
-    writer.writerow(['Date', 'Staff ID', 'Name', 'Branch', 'Department', 'Sign In', 'Sign Out', 'Status', 'Late Duration', 'Overtime Duration'])
+    writer.writerow(['Date', 'Staff ID', 'Name', 'Organization', 'Branch', 'Department', 'Sign In', 'Sign Out', 'Status', 'Late Duration', 'Overtime Duration'])
+    
     for a in attendance:
-        late_formatted = format_minutes_to_hours(a.late_minutes) if a.is_late else 'On Time'
+        # Management staff get neutral status
+        if a.staff.department == 'Management':
+            status = 'Signed In'
+            late_formatted = '-'
+        else:
+            late_formatted = format_minutes_to_hours(a.late_minutes) if a.is_late else 'On Time'
+            status = f'Late ({late_formatted})' if a.is_late else 'On Time'
+        
         overtime_formatted = format_minutes_to_hours(a.overtime_minutes)
         writer.writerow([
             a.date.strftime('%d/%m/%Y'),
             a.staff.staff_id,
             a.staff.name,
-            a.staff.school.short_name or a.staff.school.name,
+            a.staff.school.organization.name if a.staff.school and a.staff.school.organization else '',
+            a.staff.school.short_name or a.staff.school.name if a.staff.school else '',
             a.staff.department,
             a.sign_in_time.strftime('%H:%M') if a.sign_in_time else '',
             a.sign_out_time.strftime('%H:%M') if a.sign_out_time else '',
-            f'Late ({late_formatted})' if a.is_late else 'On Time',
+            status,
+            late_formatted,
             overtime_formatted
         ])
+    
     output.seek(0)
     filename = f'attendance_{date_from}_to_{date_to}.csv'
     return Response(output.getvalue(), mimetype='text/csv', headers={'Content-Disposition': f'attachment; filename={filename}'})
@@ -1327,8 +1369,10 @@ def late_report():
     date_from = request.args.get('date_from', '')
     date_to = request.args.get('date_to', '')
     school_id = request.args.get('school_id', '')
+    organization_id = request.args.get('organization_id', '')
     calc_mode = request.args.get('calc_mode', 'alltime')
     today = date.today()
+    
     if today_param == '1':
         date_from = today.isoformat()
         date_to = today.isoformat()
@@ -1341,12 +1385,22 @@ def late_report():
             end_date = datetime.strptime(date_to, '%Y-%m-%d').date()
         except:
             pass
+    
     accessible_school_ids = current_user.get_accessible_school_ids()
     staff_query = Staff.query.filter_by(is_active=True)
-    if school_id:
+    
+    # Filter by organization first (for super_admin)
+    if organization_id:
+        org_school_ids = [s.id for s in School.query.filter_by(organization_id=organization_id).all()]
+        if school_id:
+            staff_query = staff_query.filter_by(school_id=school_id)
+        else:
+            staff_query = staff_query.filter(Staff.school_id.in_(org_school_ids)) if org_school_ids else staff_query.filter(False)
+    elif school_id:
         staff_query = staff_query.filter_by(school_id=school_id)
     elif current_user.role != 'super_admin' and accessible_school_ids:
         staff_query = staff_query.filter(Staff.school_id.in_(accessible_school_ids))
+    
     staff_list_data = staff_query.all()
     late_staff = []
     for s in staff_list_data:
@@ -1394,17 +1448,22 @@ def late_report():
                 'lateness': lateness
             })
     late_staff.sort(key=lambda x: x['times_late'], reverse=True)
+    
     if current_user.role == 'super_admin':
         schools = School.query.all()
+        organizations = Organization.query.all()
     else:
         schools = current_user.get_accessible_schools()
+        organizations = current_user.get_accessible_organizations()
+    
     return render_template('late_report.html', 
                          late_staff=late_staff, 
                          schools=schools,
-                         organizations=current_user.get_accessible_organizations(),
+                         organizations=organizations,
                          date_from=date_from,
                          date_to=date_to,
                          school_id=school_id,
+                         organization_id=organization_id,
                          calc_mode=calc_mode,
                          show_toggle=show_toggle,
                          today=today.isoformat())
@@ -1415,6 +1474,7 @@ def download_late_report():
     date_from = request.args.get('date_from', '')
     date_to = request.args.get('date_to', '')
     school_id = request.args.get('school_id', '')
+    organization_id = request.args.get('organization_id', '')
     calc_mode = request.args.get('calc_mode', 'alltime')
     start_date = None
     end_date = None
@@ -1424,16 +1484,27 @@ def download_late_report():
             end_date = datetime.strptime(date_to, '%Y-%m-%d').date()
         except:
             pass
+    
     accessible_school_ids = current_user.get_accessible_school_ids()
     staff_query = Staff.query.filter_by(is_active=True)
-    if school_id:
+    
+    # Filter by organization first (for super_admin)
+    if organization_id:
+        org_school_ids = [s.id for s in School.query.filter_by(organization_id=organization_id).all()]
+        if school_id:
+            staff_query = staff_query.filter_by(school_id=school_id)
+        else:
+            staff_query = staff_query.filter(Staff.school_id.in_(org_school_ids)) if org_school_ids else staff_query.filter(False)
+    elif school_id:
         staff_query = staff_query.filter_by(school_id=school_id)
     elif current_user.role != 'super_admin' and accessible_school_ids:
         staff_query = staff_query.filter(Staff.school_id.in_(accessible_school_ids))
+    
     staff_list_data = staff_query.all()
     output = io.StringIO()
     writer = csv.writer(output)
-    writer.writerow(['Staff ID', 'Name', 'Branch', 'Department', 'Times Late', '% Punctuality', '% Lateness'])
+    writer.writerow(['Staff ID', 'Name', 'Organization', 'Branch', 'Department', 'Times Late', '% Punctuality', '% Lateness'])
+    
     for s in staff_list_data:
         if s.department == 'Management':
             continue
@@ -1475,12 +1546,14 @@ def download_late_report():
             writer.writerow([
                 s.staff_id,
                 s.name,
-                s.school.short_name or s.school.name,
+                s.school.organization.name if s.school and s.school.organization else '',
+                s.school.short_name or s.school.name if s.school else '',
                 s.department,
                 times_late,
                 punctuality,
                 lateness
             ])
+    
     output.seek(0)
     filename = f'late_report_{date_from}_to_{date_to}.csv' if date_from and date_to else f'late_report_{date.today()}.csv'
     return Response(output.getvalue(), mimetype='text/csv', headers={'Content-Disposition': f'attachment; filename={filename}'})
@@ -1510,7 +1583,9 @@ def absent_report():
     date_from = request.args.get('date_from', '')
     date_to = request.args.get('date_to', '')
     school_id = request.args.get('school_id', '')
+    organization_id = request.args.get('organization_id', '')
     today = date.today()
+    
     if today_param == '1':
         date_from = today.isoformat()
         date_to = today.isoformat()
@@ -1524,12 +1599,22 @@ def absent_report():
     except:
         start_date = today
         end_date = today
+    
     accessible_school_ids = current_user.get_accessible_school_ids()
     staff_query = Staff.query.filter_by(is_active=True)
-    if school_id:
+    
+    # Filter by organization first (for super_admin)
+    if organization_id:
+        org_school_ids = [s.id for s in School.query.filter_by(organization_id=organization_id).all()]
+        if school_id:
+            staff_query = staff_query.filter_by(school_id=school_id)
+        else:
+            staff_query = staff_query.filter(Staff.school_id.in_(org_school_ids)) if org_school_ids else staff_query.filter(False)
+    elif school_id:
         staff_query = staff_query.filter_by(school_id=school_id)
     elif current_user.role != 'super_admin' and accessible_school_ids:
         staff_query = staff_query.filter(Staff.school_id.in_(accessible_school_ids))
+    
     all_staff = staff_query.all()
     absent_records = []
     current_date = start_date
@@ -1545,17 +1630,22 @@ def absent_report():
                         'staff': s
                     })
         current_date += timedelta(days=1)
+    
     if current_user.role == 'super_admin':
         schools = School.query.all()
+        organizations = Organization.query.all()
     else:
         schools = current_user.get_accessible_schools()
+        organizations = current_user.get_accessible_organizations()
+    
     return render_template('absent_report.html', 
                          absent_records=absent_records, 
                          schools=schools,
-                         organizations=current_user.get_accessible_organizations(),
+                         organizations=organizations,
                          date_from=date_from,
                          date_to=date_to,
                          school_id=school_id,
+                         organization_id=organization_id,
                          today=today.isoformat())
 
 @app.route('/reports/absent/download')
@@ -1564,7 +1654,9 @@ def download_absent_report():
     date_from = request.args.get('date_from', '')
     date_to = request.args.get('date_to', '')
     school_id = request.args.get('school_id', '')
+    organization_id = request.args.get('organization_id', '')
     today = date.today()
+    
     if not date_from:
         date_from = today.isoformat()
     if not date_to:
@@ -1575,16 +1667,27 @@ def download_absent_report():
     except:
         start_date = today
         end_date = today
+    
     accessible_school_ids = current_user.get_accessible_school_ids()
     staff_query = Staff.query.filter_by(is_active=True)
-    if school_id:
+    
+    # Filter by organization first (for super_admin)
+    if organization_id:
+        org_school_ids = [s.id for s in School.query.filter_by(organization_id=organization_id).all()]
+        if school_id:
+            staff_query = staff_query.filter_by(school_id=school_id)
+        else:
+            staff_query = staff_query.filter(Staff.school_id.in_(org_school_ids)) if org_school_ids else staff_query.filter(False)
+    elif school_id:
         staff_query = staff_query.filter_by(school_id=school_id)
     elif current_user.role != 'super_admin' and accessible_school_ids:
         staff_query = staff_query.filter(Staff.school_id.in_(accessible_school_ids))
+    
     all_staff = staff_query.all()
     output = io.StringIO()
     writer = csv.writer(output)
-    writer.writerow(['Date', 'Staff ID', 'Name', 'Branch', 'Department'])
+    writer.writerow(['Date', 'Staff ID', 'Name', 'Organization', 'Branch', 'Department'])
+    
     current_date = start_date
     while current_date <= end_date:
         if current_date.weekday() < 5:
@@ -1597,10 +1700,12 @@ def download_absent_report():
                         current_date.strftime('%d/%m/%Y'),
                         s.staff_id,
                         s.name,
-                        s.school.short_name or s.school.name,
+                        s.school.organization.name if s.school and s.school.organization else '',
+                        s.school.short_name or s.school.name if s.school else '',
                         s.department
                     ])
         current_date += timedelta(days=1)
+    
     output.seek(0)
     filename = f'absent_{date_from}_to_{date_to}.csv'
     return Response(output.getvalue(), mimetype='text/csv', headers={'Content-Disposition': f'attachment; filename={filename}'})
@@ -1612,7 +1717,9 @@ def overtime_report():
     date_from = request.args.get('date_from', '')
     date_to = request.args.get('date_to', '')
     school_id = request.args.get('school_id', '')
+    organization_id = request.args.get('organization_id', '')
     today = date.today()
+    
     if today_param == '1':
         date_from = today.isoformat()
         date_to = today.isoformat()
@@ -1626,30 +1733,46 @@ def overtime_report():
     except:
         start_date = today
         end_date = today
+    
     query = Attendance.query.filter(
         Attendance.date >= start_date,
         Attendance.date <= end_date,
         Attendance.overtime_minutes > 0
     )
     accessible_school_ids = current_user.get_accessible_school_ids()
-    if school_id:
+    
+    # Filter by organization first (for super_admin)
+    if organization_id:
+        org_school_ids = [s.id for s in School.query.filter_by(organization_id=organization_id).all()]
+        if school_id:
+            staff_ids = [s.id for s in Staff.query.filter_by(school_id=school_id).all()]
+        else:
+            staff_ids = [s.id for s in Staff.query.filter(Staff.school_id.in_(org_school_ids)).all()] if org_school_ids else []
+        query = query.filter(Attendance.staff_id.in_(staff_ids)) if staff_ids else query.filter(False)
+    elif school_id:
         staff_ids = [s.id for s in Staff.query.filter_by(school_id=school_id).all()]
         query = query.filter(Attendance.staff_id.in_(staff_ids)) if staff_ids else query.filter(False)
     elif current_user.role != 'super_admin' and accessible_school_ids:
         staff_ids = [s.id for s in Staff.query.filter(Staff.school_id.in_(accessible_school_ids)).all()]
         query = query.filter(Attendance.staff_id.in_(staff_ids)) if staff_ids else query.filter(False)
+    
     overtime = query.order_by(Attendance.date.desc()).all()
+    
     if current_user.role == 'super_admin':
         schools = School.query.all()
+        organizations = Organization.query.all()
     else:
         schools = current_user.get_accessible_schools()
+        organizations = current_user.get_accessible_organizations()
+    
     return render_template('overtime_report.html', 
                          overtime=overtime, 
                          schools=schools,
-                         organizations=current_user.get_accessible_organizations(),
+                         organizations=organizations,
                          date_from=date_from,
                          date_to=date_to,
                          school_id=school_id,
+                         organization_id=organization_id,
                          today=today.isoformat(),
                          format_minutes=format_minutes_to_hours)
 
@@ -1659,7 +1782,9 @@ def download_overtime_report():
     date_from = request.args.get('date_from', '')
     date_to = request.args.get('date_to', '')
     school_id = request.args.get('school_id', '')
+    organization_id = request.args.get('organization_id', '')
     today = date.today()
+    
     if not date_from:
         date_from = today.isoformat()
     if not date_to:
@@ -1670,32 +1795,46 @@ def download_overtime_report():
     except:
         start_date = today
         end_date = today
+    
     query = Attendance.query.filter(
         Attendance.date >= start_date,
         Attendance.date <= end_date,
         Attendance.overtime_minutes > 0
     )
     accessible_school_ids = current_user.get_accessible_school_ids()
-    if school_id:
+    
+    # Filter by organization first (for super_admin)
+    if organization_id:
+        org_school_ids = [s.id for s in School.query.filter_by(organization_id=organization_id).all()]
+        if school_id:
+            staff_ids = [s.id for s in Staff.query.filter_by(school_id=school_id).all()]
+        else:
+            staff_ids = [s.id for s in Staff.query.filter(Staff.school_id.in_(org_school_ids)).all()] if org_school_ids else []
+        query = query.filter(Attendance.staff_id.in_(staff_ids)) if staff_ids else query.filter(False)
+    elif school_id:
         staff_ids = [s.id for s in Staff.query.filter_by(school_id=school_id).all()]
         query = query.filter(Attendance.staff_id.in_(staff_ids)) if staff_ids else query.filter(False)
     elif current_user.role != 'super_admin' and accessible_school_ids:
         staff_ids = [s.id for s in Staff.query.filter(Staff.school_id.in_(accessible_school_ids)).all()]
         query = query.filter(Attendance.staff_id.in_(staff_ids)) if staff_ids else query.filter(False)
+    
     overtime = query.order_by(Attendance.date.desc()).all()
     output = io.StringIO()
     writer = csv.writer(output)
-    writer.writerow(['Date', 'Staff ID', 'Name', 'Branch', 'Department', 'Sign Out', 'Overtime'])
+    writer.writerow(['Date', 'Staff ID', 'Name', 'Organization', 'Branch', 'Department', 'Sign Out', 'Overtime'])
+    
     for o in overtime:
         writer.writerow([
             o.date.strftime('%d/%m/%Y'),
             o.staff.staff_id,
             o.staff.name,
-            o.staff.school.short_name or o.staff.school.name,
+            o.staff.school.organization.name if o.staff.school and o.staff.school.organization else '',
+            o.staff.school.short_name or o.staff.school.name if o.staff.school else '',
             o.staff.department,
             o.sign_out_time.strftime('%H:%M') if o.sign_out_time else '',
             format_minutes_to_hours(o.overtime_minutes)
         ])
+    
     output.seek(0)
     filename = f'overtime_{date_from}_to_{date_to}.csv'
     return Response(output.getvalue(), mimetype='text/csv', headers={'Content-Disposition': f'attachment; filename={filename}'})
