@@ -954,6 +954,52 @@ def delete_staff(id):
     flash('Staff deleted successfully!', 'success')
     return redirect(url_for('staff_list'))
 
+@app.route('/staff/download-csv')
+@login_required
+def download_staff_csv():
+    if current_user.role not in ['super_admin', 'school_admin']:
+        flash('Access denied', 'danger')
+        return redirect(url_for('dashboard'))
+    
+    import csv
+    from io import StringIO
+    
+    # Get staff based on role
+    if current_user.role == 'super_admin':
+        staff = Staff.query.join(School).join(Organization).order_by(Organization.name, School.name, Staff.name).all()
+    else:
+        allowed_school_ids = [s.id for s in current_user.allowed_schools]
+        staff = Staff.query.filter(Staff.school_id.in_(allowed_school_ids)).order_by(Staff.name).all()
+    
+    # Create CSV
+    output = StringIO()
+    writer = csv.writer(output)
+    
+    # Header row
+    writer.writerow(['Staff ID', 'Name', 'Organization', 'Branch', 'Department', 'Email', 'Phone', 'Status'])
+    
+    # Data rows
+    for s in staff:
+        writer.writerow([
+            s.staff_id,
+            s.name,
+            s.school.organization.name,
+            s.school.name,
+            s.department or '',
+            s.email or '',
+            s.phone or '',
+            'Active' if s.is_active else 'Inactive'
+        ])
+    
+    output.seek(0)
+    
+    from flask import Response
+    return Response(
+        output.getvalue(),
+        mimetype='text/csv',
+        headers={'Content-Disposition': 'attachment; filename=staff_list.csv'}
+    )
+
 @app.route('/staff/bulk-upload', methods=['GET', 'POST'])
 @login_required
 @role_required('super_admin', 'school_admin')
@@ -2276,3 +2322,4 @@ if __name__ == '__main__':
     with app.app_context():
         db.create_all()
     app.run(debug=True, host='0.0.0.0', port=int(os.environ.get('PORT', 5000)))
+
