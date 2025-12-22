@@ -14,7 +14,7 @@
             {% endfor %}
         {% endif %}
     </h2>
-    <a href="{{ url_for('download_absent_report', date_from=date_from, date_to=date_to, school_id=school_id or '') }}" class="btn btn-success">
+    <a href="{{ url_for('download_absent_report', date_from=date_from, date_to=date_to, school_id=school_id or '', organization_id=organization_id or '') }}" class="btn btn-success">
         <i class="fas fa-download me-2"></i>Download CSV
     </a>
 </div>
@@ -37,7 +37,7 @@
                 <select name="organization_id" id="organizationFilter" class="form-select">
                     <option value="">All Organizations</option>
                     {% for org in organizations %}
-                    <option value="{{ org.id }}">{{ org.name }}</option>
+                    <option value="{{ org.id }}" {% if organization_id|string == org.id|string %}selected{% endif %}>{{ org.name }}</option>
                     {% endfor %}
                 </select>
             </div>
@@ -47,7 +47,7 @@
                 <select name="school_id" id="branchFilter" class="form-select">
                     <option value="">All Branches</option>
                     {% for s in schools %}
-                    <option value="{{ s.id }}" data-org="{{ s.organization_id or '' }}" {% if school_id == s.id|string %}selected{% endif %}>{{ s.name }}</option>
+                    <option value="{{ s.id }}" data-org="{{ s.organization_id or '' }}" {% if school_id|string == s.id|string %}selected{% endif %}>{{ s.name }}</option>
                     {% endfor %}
                 </select>
             </div>
@@ -84,6 +84,7 @@
                         <th>Date</th>
                         <th>Staff ID</th>
                         <th>Name</th>
+                        <th>Organization</th>
                         <th>Branch</th>
                         <th>Department</th>
                     </tr>
@@ -94,12 +95,13 @@
                         <td>{{ record.date.strftime('%d/%m/%Y') }}</td>
                         <td>{{ record.staff.staff_id }}</td>
                         <td>{{ record.staff.name }}</td>
+                        <td>{{ record.staff.school.organization.name if record.staff.school and record.staff.school.organization else 'N/A' }}</td>
                         <td>{{ record.staff.school.name if record.staff.school else 'N/A' }}</td>
                         <td>{{ record.staff.department or 'N/A' }}</td>
                     </tr>
                     {% else %}
                     <tr>
-                        <td colspan="5" class="text-center text-muted py-4">No absent staff for this period</td>
+                        <td colspan="6" class="text-center text-muted py-4">No absent staff for this period</td>
                     </tr>
                     {% endfor %}
                 </tbody>
