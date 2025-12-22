@@ -152,7 +152,6 @@ class Staff(db.Model):
     school_id = db.Column(db.Integer, db.ForeignKey('schools.id'), nullable=False)
     is_active = db.Column(db.Boolean, default=True)
     times_late = db.Column(db.Integer, default=0)
-    # New fields
     email = db.Column(db.String(120), nullable=True)
     phone = db.Column(db.String(20), nullable=True)
     photo_url = db.Column(db.String(500), nullable=True)
@@ -458,7 +457,7 @@ def get_organization_branches(org_id):
             School.organization_id == org_id,
             School.id.in_(accessible_ids)
         ).all()
-    return jsonify([{'id': b.id, 'name': b.name} for b in branches])
+    return jsonify({'branches': [{'id': b.id, 'name': b.name} for b in branches]})
 
 @app.route('/dashboard')
 @login_required
@@ -475,7 +474,6 @@ def dashboard():
         else:
             all_staff = Staff.query.filter(Staff.school_id.in_(accessible_school_ids), Staff.is_active==True).all()
         
-        # Separate management from regular staff
         management_staff = [s for s in all_staff if s.department == 'Management']
         non_mgmt_staff = [s for s in all_staff if s.department != 'Management']
         
@@ -558,7 +556,6 @@ def dashboard_stats():
     
     total_schools = len(schools)
     
-    # Separate management from regular staff
     management_staff = [s for s in all_staff if s.department == 'Management']
     non_mgmt_staff = [s for s in all_staff if s.department != 'Management']
     
@@ -861,7 +858,6 @@ def add_staff():
             flash('Invalid branch selected!', 'danger')
             return redirect(url_for('add_staff'))
         
-        # Check if staff ID exists within this organization only
         existing = check_staff_id_exists_in_org(staff_id, school_id)
         if existing:
             flash('Staff ID already exists in this organization!', 'danger')
@@ -909,9 +905,7 @@ def edit_staff(id):
         flash('Invalid branch selected!', 'danger')
         return redirect(url_for('staff_list'))
     
-    # Check if staff ID is being changed
     if new_staff_id != staff.staff_id:
-        # Check if new staff ID exists within this organization (excluding current staff)
         existing = check_staff_id_exists_in_org(new_staff_id, new_school_id, exclude_staff_id=id)
         if existing:
             flash('Staff ID already exists in this organization!', 'danger')
@@ -961,30 +955,22 @@ def download_staff_csv():
         flash('Access denied', 'danger')
         return redirect(url_for('dashboard'))
     
-    import csv
-    from io import StringIO
-    
-    # Get staff based on role
     if current_user.role == 'super_admin':
         staff = Staff.query.join(School).join(Organization).order_by(Organization.name, School.name, Staff.name).all()
     else:
         allowed_school_ids = [s.id for s in current_user.allowed_schools]
         staff = Staff.query.filter(Staff.school_id.in_(allowed_school_ids)).order_by(Staff.name).all()
     
-    # Create CSV
-    output = StringIO()
+    output = io.StringIO()
     writer = csv.writer(output)
-    
-    # Header row
     writer.writerow(['Staff ID', 'Name', 'Organization', 'Branch', 'Department', 'Email', 'Phone', 'Status'])
     
-    # Data rows
     for s in staff:
         writer.writerow([
             s.staff_id,
             s.name,
-            s.school.organization.name,
-            s.school.name,
+            s.school.organization.name if s.school and s.school.organization else '',
+            s.school.name if s.school else '',
             s.department or '',
             s.email or '',
             s.phone or '',
@@ -992,12 +978,26 @@ def download_staff_csv():
         ])
     
     output.seek(0)
-    
-    from flask import Response
     return Response(
         output.getvalue(),
         mimetype='text/csv',
         headers={'Content-Disposition': 'attachment; filename=staff_list.csv'}
+    )
+
+@app.route('/staff/download-template')
+@login_required
+@role_required('super_admin', 'school_admin')
+def download_staff_template():
+    output = io.StringIO()
+    writer = csv.writer(output)
+    writer.writerow(['staff_id', 'name', 'department', 'email', 'phone', 'photo_url'])
+    writer.writerow(['001', 'John Doe', 'Academic', 'john@example.com', '08012345678', 'https://example.com/photo.jpg'])
+    writer.writerow(['002', 'Jane Smith', 'Administrative', 'jane@example.com', '08098765432', ''])
+    output.seek(0)
+    return Response(
+        output.getvalue(),
+        mimetype='text/csv',
+        headers={'Content-Disposition': 'attachment; filename=staff_upload_template.csv'}
     )
 
 @app.route('/staff/bulk-upload', methods=['GET', 'POST'])
@@ -1036,14 +1036,12 @@ def bulk_upload():
             flash('Branch not found!', 'danger')
             return redirect(url_for('bulk_upload'))
         
-        # Get valid departments for this organization
         valid_departments = []
         if school.organization_id:
             valid_departments = [d.name for d in Department.query.filter_by(organization_id=school.organization_id).all()]
         if not valid_departments:
             valid_departments = ['Academic', 'Non-Academic', 'Administrative', 'Support Staff']
         
-        # Get all branch IDs in the same organization for duplicate checking
         if school.organization_id:
             org_branch_ids = [s.id for s in School.query.filter_by(organization_id=school.organization_id).all()]
         else:
@@ -1069,7 +1067,6 @@ def bulk_upload():
                     skipped += 1
                     continue
                 
-                # Check if staff ID exists within this organization only
                 existing = Staff.query.filter(
                     Staff.staff_id == row_staff_id,
                     Staff.school_id.in_(org_branch_ids)
@@ -1107,25 +1104,11 @@ def bulk_upload():
     
     if current_user.role == 'super_admin':
         schools = School.query.all()
+        organizations = Organization.query.all()
     else:
         schools = current_user.get_accessible_schools()
-    return render_template('bulk_upload.html', schools=schools)
-
-@app.route('/staff/download-template')
-@login_required
-@role_required('super_admin', 'school_admin')
-def download_staff_template():
-    output = io.StringIO()
-    writer = csv.writer(output)
-    writer.writerow(['staff_id', 'name', 'department', 'email', 'phone', 'photo_url'])
-    writer.writerow(['001', 'John Doe', 'Academic', 'john@example.com', '08012345678', 'https://example.com/photo.jpg'])
-    writer.writerow(['002', 'Jane Smith', 'Administrative', 'jane@example.com', '08098765432', ''])
-    output.seek(0)
-    return Response(
-        output.getvalue(),
-        mimetype='text/csv',
-        headers={'Content-Disposition': 'attachment; filename=staff_upload_template.csv'}
-    )
+        organizations = []
+    return render_template('bulk_upload.html', schools=schools, organizations=organizations)
 
 @app.route('/users')
 @login_required
@@ -1181,7 +1164,6 @@ def edit_user(id):
     if new_password and new_password.strip():
         user.set_password(new_password)
     
-    # Handle allowed_schools
     user.allowed_schools = []
     if user.role == 'school_admin':
         school_ids = request.form.getlist('allowed_schools')
@@ -2236,7 +2218,6 @@ def init_db():
     try:
         db.create_all()
         
-        # Remove the unique constraint on staff_id to allow same ID across organizations
         try:
             db.session.execute(db.text('ALTER TABLE staff DROP CONSTRAINT IF EXISTS staff_staff_id_key'))
             db.session.commit()
@@ -2245,7 +2226,6 @@ def init_db():
             db.session.rollback()
             print(f"Could not remove constraint: {e}")
         
-        # Add new staff columns
         migrations = [
             'ALTER TABLE staff ADD COLUMN IF NOT EXISTS email VARCHAR(120)',
             'ALTER TABLE staff ADD COLUMN IF NOT EXISTS phone VARCHAR(20)',
@@ -2322,4 +2302,3 @@ if __name__ == '__main__':
     with app.app_context():
         db.create_all()
     app.run(debug=True, host='0.0.0.0', port=int(os.environ.get('PORT', 5000)))
-
