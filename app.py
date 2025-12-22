@@ -152,6 +152,10 @@ class Staff(db.Model):
     school_id = db.Column(db.Integer, db.ForeignKey('schools.id'), nullable=False)
     is_active = db.Column(db.Boolean, default=True)
     times_late = db.Column(db.Integer, default=0)
+    # New fields
+    email = db.Column(db.String(120), nullable=True)
+    phone = db.Column(db.String(20), nullable=True)
+    photo_url = db.Column(db.String(500), nullable=True)
     attendance = db.relationship('Attendance', backref='staff', lazy=True, cascade='all, delete-orphan')
 
 class Attendance(db.Model):
@@ -470,28 +474,39 @@ def dashboard():
             all_staff = Staff.query.filter_by(is_active=True).all()
         else:
             all_staff = Staff.query.filter(Staff.school_id.in_(accessible_school_ids), Staff.is_active==True).all()
-        total_staff = len(all_staff)
+        
+        # Separate management from regular staff
+        management_staff = [s for s in all_staff if s.department == 'Management']
+        non_mgmt_staff = [s for s in all_staff if s.department != 'Management']
+        
+        total_staff = len(non_mgmt_staff)
+        management_count = len(management_staff)
+        
         all_staff_ids = [s.id for s in all_staff]
+        non_mgmt_ids = [s.id for s in non_mgmt_staff]
+        
         today_attendance = Attendance.query.filter(
-            Attendance.staff_id.in_(all_staff_ids),
+            Attendance.staff_id.in_(non_mgmt_ids),
             Attendance.date == today
-        ).count() if all_staff_ids else 0
+        ).count() if non_mgmt_ids else 0
+        
         late_today = Attendance.query.filter(
-            Attendance.staff_id.in_(all_staff_ids),
+            Attendance.staff_id.in_(non_mgmt_ids),
             Attendance.date == today,
             Attendance.is_late == True
-        ).count() if all_staff_ids else 0
-        non_mgmt_staff = [s for s in all_staff if s.department != 'Management']
-        non_mgmt_ids = [s.id for s in non_mgmt_staff]
+        ).count() if non_mgmt_ids else 0
+        
         present_ids = [a.staff_id for a in Attendance.query.filter(
             Attendance.staff_id.in_(non_mgmt_ids),
             Attendance.date == today
         ).all()] if non_mgmt_ids else []
         absent_today = len([s for s in non_mgmt_staff if s.id not in present_ids])
+        
         school_stats = []
         for school in schools:
             school_staff = Staff.query.filter_by(school_id=school.id, is_active=True).all()
-            school_staff_ids = [s.id for s in school_staff]
+            school_non_mgmt = [s for s in school_staff if s.department != 'Management']
+            school_staff_ids = [s.id for s in school_non_mgmt]
             school_present = Attendance.query.filter(
                 Attendance.staff_id.in_(school_staff_ids),
                 Attendance.date == today
@@ -504,12 +519,13 @@ def dashboard():
             school_stats.append({
                 'id': school.id,
                 'school': school,
-                'total_staff': len(school_staff),
+                'total_staff': len(school_non_mgmt),
                 'present': school_present,
                 'late': school_late
             })
     else:
         total_staff = 0
+        management_count = 0
         today_attendance = 0
         late_today = 0
         absent_today = 0
@@ -518,7 +534,8 @@ def dashboard():
                          schools=schools,
                          school_stats=school_stats,
                          total_schools=len(schools),
-                         total_staff=total_staff, 
+                         total_staff=total_staff,
+                         management_count=management_count,
                          today_attendance=today_attendance, 
                          late_today=late_today,
                          absent_today=absent_today)
@@ -540,22 +557,26 @@ def dashboard_stats():
         all_staff = []
     
     total_schools = len(schools)
-    total_staff = len(all_staff)
-    all_staff_ids = [s.id for s in all_staff]
+    
+    # Separate management from regular staff
+    management_staff = [s for s in all_staff if s.department == 'Management']
+    non_mgmt_staff = [s for s in all_staff if s.department != 'Management']
+    
+    total_staff = len(non_mgmt_staff)
+    management_count = len(management_staff)
+    non_mgmt_ids = [s.id for s in non_mgmt_staff]
     
     today_attendance = Attendance.query.filter(
-        Attendance.staff_id.in_(all_staff_ids),
+        Attendance.staff_id.in_(non_mgmt_ids),
         Attendance.date == today
-    ).count() if all_staff_ids else 0
+    ).count() if non_mgmt_ids else 0
     
     late_today = Attendance.query.filter(
-        Attendance.staff_id.in_(all_staff_ids),
+        Attendance.staff_id.in_(non_mgmt_ids),
         Attendance.date == today,
         Attendance.is_late == True
-    ).count() if all_staff_ids else 0
+    ).count() if non_mgmt_ids else 0
     
-    non_mgmt_staff = [s for s in all_staff if s.department != 'Management']
-    non_mgmt_ids = [s.id for s in non_mgmt_staff]
     present_ids = [a.staff_id for a in Attendance.query.filter(
         Attendance.staff_id.in_(non_mgmt_ids),
         Attendance.date == today
@@ -563,9 +584,9 @@ def dashboard_stats():
     absent_today = len([s for s in non_mgmt_staff if s.id not in present_ids])
     
     first_checkin = None
-    if all_staff_ids:
+    if non_mgmt_ids:
         first_attendance = Attendance.query.filter(
-            Attendance.staff_id.in_(all_staff_ids),
+            Attendance.staff_id.in_(non_mgmt_ids),
             Attendance.date == today,
             Attendance.sign_in_time.isnot(None)
         ).order_by(Attendance.sign_in_time.asc()).first()
@@ -581,9 +602,9 @@ def dashboard_stats():
                 }
     
     recent_activity = []
-    if all_staff_ids:
+    if non_mgmt_ids:
         recent_checkins = Attendance.query.filter(
-            Attendance.staff_id.in_(all_staff_ids),
+            Attendance.staff_id.in_(non_mgmt_ids),
             Attendance.date == today
         ).order_by(Attendance.sign_in_time.desc()).limit(20).all()
         
@@ -599,6 +620,7 @@ def dashboard_stats():
     return jsonify({
         'total_schools': total_schools,
         'total_staff': total_staff,
+        'management_count': management_count,
         'today_attendance': today_attendance,
         'late_today': late_today,
         'absent_today': absent_today,
@@ -816,6 +838,9 @@ def add_staff():
         name = request.form.get('name')
         department = request.form.get('department')
         school_id = request.form.get('school_id')
+        email = request.form.get('email', '').strip() or None
+        phone = request.form.get('phone', '').strip() or None
+        photo_url = request.form.get('photo_url', '').strip() or None
         
         if current_user.role == 'school_admin':
             if current_user.allowed_schools:
@@ -842,7 +867,15 @@ def add_staff():
             flash('Staff ID already exists in this organization!', 'danger')
             return redirect(url_for('add_staff'))
         
-        staff = Staff(staff_id=staff_id, name=name, department=department, school_id=school_id)
+        staff = Staff(
+            staff_id=staff_id, 
+            name=name, 
+            department=department, 
+            school_id=school_id,
+            email=email,
+            phone=phone,
+            photo_url=photo_url
+        )
         db.session.add(staff)
         db.session.commit()
         flash('Staff added successfully!', 'success')
@@ -889,6 +922,9 @@ def edit_staff(id):
     staff.department = request.form.get('department')
     staff.school_id = new_school_id
     staff.is_active = request.form.get('is_active') == 'true'
+    staff.email = request.form.get('email', '').strip() or None
+    staff.phone = request.form.get('phone', '').strip() or None
+    staff.photo_url = request.form.get('photo_url', '').strip() or None
     
     db.session.commit()
     flash(f'Staff "{staff.name}" updated successfully!', 'success')
@@ -972,11 +1008,18 @@ def bulk_upload():
             reader = csv.DictReader(stream)
             added = 0
             skipped = 0
-            for row in reader:
+            errors = []
+            
+            for row_num, row in enumerate(reader, start=2):
                 row_staff_id = row.get('staff_id', '').strip()
                 name = row.get('name', '').strip()
                 department = row.get('department', '').strip()
+                email = row.get('email', '').strip() or None
+                phone = row.get('phone', '').strip() or None
+                photo_url = row.get('photo_url', '').strip() or None
+                
                 if not row_staff_id or not name:
+                    errors.append(f"Row {row_num}: Missing staff_id or name")
                     skipped += 1
                     continue
                 
@@ -987,15 +1030,31 @@ def bulk_upload():
                 ).first()
                 
                 if existing:
+                    errors.append(f"Row {row_num}: Staff ID '{row_staff_id}' already exists")
                     skipped += 1
                     continue
+                    
                 if department not in valid_departments:
                     department = valid_departments[0] if valid_departments else 'Academic'
-                staff = Staff(staff_id=row_staff_id, name=name, department=department, school_id=school_id)
+                    
+                staff = Staff(
+                    staff_id=row_staff_id, 
+                    name=name, 
+                    department=department, 
+                    school_id=school_id,
+                    email=email,
+                    phone=phone,
+                    photo_url=photo_url
+                )
                 db.session.add(staff)
                 added += 1
+                
             db.session.commit()
-            flash(f'Bulk upload complete! Added: {added}, Skipped: {skipped}', 'success')
+            
+            if errors:
+                flash(f'Bulk upload complete! Added: {added}, Skipped: {skipped}. Errors: {"; ".join(errors[:5])}{"..." if len(errors) > 5 else ""}', 'warning')
+            else:
+                flash(f'Bulk upload complete! Added: {added}, Skipped: {skipped}', 'success')
         except Exception as e:
             flash(f'Error processing file: {str(e)}', 'danger')
         return redirect(url_for('staff_list'))
@@ -1005,6 +1064,22 @@ def bulk_upload():
     else:
         schools = current_user.get_accessible_schools()
     return render_template('bulk_upload.html', schools=schools)
+
+@app.route('/staff/download-template')
+@login_required
+@role_required('super_admin', 'school_admin')
+def download_staff_template():
+    output = io.StringIO()
+    writer = csv.writer(output)
+    writer.writerow(['staff_id', 'name', 'department', 'email', 'phone', 'photo_url'])
+    writer.writerow(['001', 'John Doe', 'Academic', 'john@example.com', '08012345678', 'https://example.com/photo.jpg'])
+    writer.writerow(['002', 'Jane Smith', 'Administrative', 'jane@example.com', '08098765432', ''])
+    output.seek(0)
+    return Response(
+        output.getvalue(),
+        mimetype='text/csv',
+        headers={'Content-Disposition': 'attachment; filename=staff_upload_template.csv'}
+    )
 
 @app.route('/users')
 @login_required
@@ -1135,6 +1210,19 @@ def attendance_report():
                          school_id=school_id,
                          today=today.isoformat())
 
+def format_minutes_to_hours(minutes):
+    """Convert minutes to hours and minutes format"""
+    if minutes <= 0:
+        return "0mins"
+    hours = minutes // 60
+    mins = minutes % 60
+    if hours > 0 and mins > 0:
+        return f"{hours}hr{'s' if hours > 1 else ''} {mins}mins"
+    elif hours > 0:
+        return f"{hours}hr{'s' if hours > 1 else ''}"
+    else:
+        return f"{mins}mins"
+
 @app.route('/reports/attendance/download')
 @login_required
 def download_attendance():
@@ -1163,8 +1251,10 @@ def download_attendance():
     attendance = query.order_by(Attendance.date.desc()).all()
     output = io.StringIO()
     writer = csv.writer(output)
-    writer.writerow(['Date', 'Staff ID', 'Name', 'Branch', 'Department', 'Sign In', 'Sign Out', 'Status', 'Late Minutes', 'Overtime Minutes'])
+    writer.writerow(['Date', 'Staff ID', 'Name', 'Branch', 'Department', 'Sign In', 'Sign Out', 'Status', 'Late Duration', 'Overtime Duration'])
     for a in attendance:
+        late_formatted = format_minutes_to_hours(a.late_minutes) if a.is_late else 'On Time'
+        overtime_formatted = format_minutes_to_hours(a.overtime_minutes)
         writer.writerow([
             a.date.strftime('%d/%m/%Y'),
             a.staff.staff_id,
@@ -1173,9 +1263,8 @@ def download_attendance():
             a.staff.department,
             a.sign_in_time.strftime('%H:%M') if a.sign_in_time else '',
             a.sign_out_time.strftime('%H:%M') if a.sign_out_time else '',
-            'Late' if a.is_late else 'On Time',
-            a.late_minutes,
-            a.overtime_minutes
+            f'Late ({late_formatted})' if a.is_late else 'On Time',
+            overtime_formatted
         ])
     output.seek(0)
     filename = f'attendance_{date_from}_to_{date_to}.csv'
@@ -1511,7 +1600,8 @@ def overtime_report():
                          date_from=date_from,
                          date_to=date_to,
                          school_id=school_id,
-                         today=today.isoformat())
+                         today=today.isoformat(),
+                         format_minutes=format_minutes_to_hours)
 
 @app.route('/reports/overtime/download')
 @login_required
@@ -1545,7 +1635,7 @@ def download_overtime_report():
     overtime = query.order_by(Attendance.date.desc()).all()
     output = io.StringIO()
     writer = csv.writer(output)
-    writer.writerow(['Date', 'Staff ID', 'Name', 'Branch', 'Department', 'Sign Out', 'Overtime (mins)'])
+    writer.writerow(['Date', 'Staff ID', 'Name', 'Branch', 'Department', 'Sign Out', 'Overtime'])
     for o in overtime:
         writer.writerow([
             o.date.strftime('%d/%m/%Y'),
@@ -1554,7 +1644,7 @@ def download_overtime_report():
             o.staff.school.short_name or o.staff.school.name,
             o.staff.department,
             o.sign_out_time.strftime('%H:%M') if o.sign_out_time else '',
-            o.overtime_minutes
+            format_minutes_to_hours(o.overtime_minutes)
         ])
     output.seek(0)
     filename = f'overtime_{date_from}_to_{date_to}.csv'
@@ -2109,6 +2199,22 @@ def init_db():
             db.session.rollback()
             print(f"Could not remove constraint: {e}")
         
+        # Add new staff columns
+        migrations = [
+            'ALTER TABLE staff ADD COLUMN IF NOT EXISTS email VARCHAR(120)',
+            'ALTER TABLE staff ADD COLUMN IF NOT EXISTS phone VARCHAR(20)',
+            'ALTER TABLE staff ADD COLUMN IF NOT EXISTS photo_url VARCHAR(500)',
+        ]
+        
+        for sql in migrations:
+            try:
+                db.session.execute(db.text(sql))
+                db.session.commit()
+                print(f"Migration OK: {sql[:50]}...")
+            except Exception as e:
+                db.session.rollback()
+                print(f"Migration skipped: {sql[:50]}... ({e})")
+        
         try:
             db.session.execute(db.text('''
                 CREATE TABLE IF NOT EXISTS departments (
@@ -2162,7 +2268,7 @@ def init_db():
                 Department.create_defaults(org.id)
         
         db.session.commit()
-        return 'Database initialized successfully! Unique constraint on staff_id removed.'
+        return 'Database initialized successfully! Staff fields (email, phone, photo_url) added.'
     except Exception as e:
         return f'Error: {str(e)}'
 
