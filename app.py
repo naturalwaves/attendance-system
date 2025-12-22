@@ -630,39 +630,6 @@ def search_staff():
         })
     
     return jsonify({'results': results})
-    @app.route('/edit-user/<int:id>', methods=['POST'])
-@login_required
-def edit_user(id):
-    if current_user.role != 'super_admin':
-        flash('Access denied', 'danger')
-        return redirect(url_for('dashboard'))
-    
-    user = User.query.get_or_404(id)
-    
-    # Don't allow editing the main super_admin or yourself
-    if user.username == 'admin':
-        flash('Cannot edit the default admin account', 'danger')
-        return redirect(url_for('users'))
-    
-    user.username = request.form.get('username')
-    user.role = request.form.get('role')
-    
-    # Update password only if provided
-    new_password = request.form.get('password')
-    if new_password and new_password.strip():
-        user.password_hash = generate_password_hash(new_password)
-    
-    # Handle allowed_schools for school_admin
-    if user.role == 'school_admin':
-        allowed_schools = request.form.getlist('allowed_schools')
-        user.allowed_schools = ','.join(allowed_schools) if allowed_schools else None
-    else:
-        user.allowed_schools = None
-    
-    db.session.commit()
-    flash('User updated successfully', 'success')
-    return redirect(url_for('users'))
-
 
 @app.route('/api/branch-staff/<int:branch_id>')
 @login_required
@@ -955,7 +922,8 @@ def bulk_upload():
 @role_required('super_admin')
 def users():
     all_users = User.query.all()
-    return render_template('users.html', users=all_users)
+    schools = School.query.all()
+    return render_template('users.html', users=all_users, schools=schools)
 
 @app.route('/users/add', methods=['GET', 'POST'])
 @login_required
@@ -985,30 +953,37 @@ def add_user():
     roles = ['super_admin', 'hr_viewer', 'ceo_viewer', 'school_admin', 'staff']
     return render_template('add_user.html', schools=schools, roles=roles)
 
-@app.route('/users/edit/<int:id>', methods=['GET', 'POST'])
+@app.route('/users/edit/<int:id>', methods=['POST'])
 @login_required
 @role_required('super_admin')
 def edit_user(id):
     user = User.query.get_or_404(id)
-    if request.method == 'POST':
-        user.username = request.form.get('username')
-        user.role = request.form.get('role')
-        school_ids = request.form.getlist('school_ids')
-        password = request.form.get('password')
-        if password:
-            user.set_password(password)
-        user.allowed_schools = []
+    
+    if user.username == 'admin':
+        flash('Cannot edit the default admin account', 'danger')
+        return redirect(url_for('users'))
+    
+    user.username = request.form.get('username')
+    user.role = request.form.get('role')
+    user.is_active = 'is_active' in request.form
+    
+    new_password = request.form.get('password')
+    if new_password and new_password.strip():
+        user.set_password(new_password)
+    
+    # Handle allowed_schools
+    user.allowed_schools = []
+    if user.role == 'school_admin':
+        school_ids = request.form.getlist('allowed_schools')
         if school_ids:
             for school_id in school_ids:
                 school = School.query.get(int(school_id))
                 if school:
                     user.allowed_schools.append(school)
-        db.session.commit()
-        flash('User updated successfully!', 'success')
-        return redirect(url_for('users'))
-    schools = School.query.all()
-    roles = ['super_admin', 'hr_viewer', 'ceo_viewer', 'school_admin', 'staff']
-    return render_template('edit_user.html', user=user, schools=schools, roles=roles)
+    
+    db.session.commit()
+    flash('User updated successfully', 'success')
+    return redirect(url_for('users'))
 
 @app.route('/users/delete/<int:id>')
 @login_required
