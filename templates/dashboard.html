@@ -352,6 +352,17 @@
         margin-top: 0.25rem;
         font-weight: 700;
     }
+    .stat-card .mgt-label {
+        position: absolute;
+        bottom: 8px;
+        right: 10px;
+        font-size: 0.6rem;
+        opacity: 0.85;
+        font-weight: 600;
+        background: rgba(255,255,255,0.15);
+        padding: 2px 6px;
+        border-radius: 4px;
+    }
     .sparkline-container {
         height: 25px;
         margin-top: 0.5rem;
@@ -468,11 +479,9 @@
     .staff-list-table tbody tr:last-child td {
         border-bottom: none;
     }
-    /* Alternating row colors */
     .staff-list-table tbody tr:nth-child(even) {
         background: #fafbfc;
     }
-    /* Hover effect on staff rows */
     .staff-list-table tbody tr:hover {
         background: #f0fdf4;
     }
@@ -901,6 +910,9 @@
                     </div>
                     <h3 class="counter" data-target="{{ total_staff }}">0</h3>
                     <div class="label">Total Staff</div>
+                    {% if management_count > 0 %}
+                    <span class="mgt-label">Mgt: {{ management_count }}</span>
+                    {% endif %}
                     <div class="sparkline-container">
                         <canvas id="sparkStaff" height="25"></canvas>
                     </div>
@@ -1119,6 +1131,26 @@ function updateFirstCheckin(data) {
     }
 }
 
+// Management count update
+function updateManagementCount(count) {
+    const mgtLabel = document.querySelector('.mgt-label');
+    if (count > 0) {
+        if (mgtLabel) {
+            mgtLabel.textContent = `Mgt: ${count}`;
+        } else {
+            const staffCard = document.querySelector('.stat-staff .card-body');
+            if (staffCard) {
+                const span = document.createElement('span');
+                span.className = 'mgt-label';
+                span.textContent = `Mgt: ${count}`;
+                staffCard.appendChild(span);
+            }
+        }
+    } else if (mgtLabel) {
+        mgtLabel.remove();
+    }
+}
+
 // Dashboard Refresh
 function refreshDashboard() {
     fetch('/api/dashboard-stats')
@@ -1132,6 +1164,7 @@ function refreshDashboard() {
             
             animateCounters();
             updateFirstCheckin(data);
+            updateManagementCount(data.management_count || 0);
             
             if (data.recent_activity && data.recent_activity.length > 0) {
                 let tickerHTML = '';
@@ -1164,7 +1197,6 @@ document.querySelectorAll('.branch-row').forEach(row => {
         const detailsRow = document.querySelector(`.staff-details[data-branch-id="${branchId}"]`);
         const wrapper = detailsRow.querySelector('.staff-list-wrapper');
         
-        // If clicking same row, collapse it
         if (currentExpandedBranch === branchId) {
             this.classList.remove('expanded');
             detailsRow.classList.remove('show');
@@ -1172,21 +1204,17 @@ document.querySelectorAll('.branch-row').forEach(row => {
             return;
         }
         
-        // Collapse previous
         if (currentExpandedBranch) {
             document.querySelector(`.branch-row[data-branch-id="${currentExpandedBranch}"]`).classList.remove('expanded');
             document.querySelector(`.staff-details[data-branch-id="${currentExpandedBranch}"]`).classList.remove('show');
         }
         
-        // Expand this row
         this.classList.add('expanded');
         detailsRow.classList.add('show');
         currentExpandedBranch = branchId;
         
-        // Show loading
         wrapper.innerHTML = '<div class="staff-loading"><i class="fas fa-spinner"></i> Loading staff...</div>';
         
-        // Fetch staff data
         fetch(`/api/branch-staff/${branchId}`)
             .then(response => response.json())
             .then(data => {
@@ -1195,7 +1223,6 @@ document.querySelectorAll('.branch-row').forEach(row => {
                     return;
                 }
                 
-                // Sort: Present first, then Late, then Absent
                 data.sort((a, b) => {
                     const order = { 'Present': 1, 'Late': 2, 'Absent': 3 };
                     return (order[a.status] || 4) - (order[b.status] || 4);
