@@ -86,7 +86,7 @@
                 </thead>
                 <tbody>
                     {% for a in attendance %}
-                    <tr class="{% if a.is_late %}table-warning{% endif %}">
+                    <tr class="{% if a.is_late and a.staff.department != 'Management' %}table-warning{% endif %}">
                         <td>{{ a.date.strftime('%d/%m/%Y') }}</td>
                         <td>{{ a.staff.staff_id }}</td>
                         <td>{{ a.staff.name }}</td>
@@ -95,7 +95,9 @@
                         <td>{{ a.sign_in_time.strftime('%H:%M') if a.sign_in_time else '-' }}</td>
                         <td>{{ a.sign_out_time.strftime('%H:%M') if a.sign_out_time else '-' }}</td>
                         <td>
-                            {% if a.is_late %}
+                            {% if a.staff.department == 'Management' %}
+                            <span class="badge bg-info">Signed In</span>
+                            {% elif a.is_late %}
                             <span class="badge bg-warning text-dark">Late ({{ a.late_minutes }} mins)</span>
                             {% else %}
                             <span class="badge bg-success">On Time</span>
