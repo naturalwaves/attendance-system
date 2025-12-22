@@ -221,8 +221,19 @@ def get_staff_data_for_api(school):
 
 def check_staff_id_exists_in_org(staff_id, school_id, exclude_staff_id=None):
     """Check if staff_id exists within the same organization"""
+    if not school_id:
+        return None
+    
+    try:
+        school_id = int(school_id)
+    except (ValueError, TypeError):
+        return None
+    
     branch = School.query.get(school_id)
-    if branch and branch.organization_id:
+    if not branch:
+        return None
+    
+    if branch.organization_id:
         org_branch_ids = [s.id for s in School.query.filter_by(organization_id=branch.organization_id).all()]
         query = Staff.query.filter(
             Staff.staff_id == staff_id,
@@ -805,8 +816,25 @@ def add_staff():
         name = request.form.get('name')
         department = request.form.get('department')
         school_id = request.form.get('school_id')
+        
         if current_user.role == 'school_admin':
-            school_id = current_user.school_id
+            if current_user.allowed_schools:
+                school_id = current_user.allowed_schools[0].id
+            elif current_user.school_id:
+                school_id = current_user.school_id
+            else:
+                flash('No branch assigned to your account!', 'danger')
+                return redirect(url_for('staff_list'))
+        
+        if not school_id:
+            flash('Please select a branch!', 'danger')
+            return redirect(url_for('add_staff'))
+        
+        try:
+            school_id = int(school_id)
+        except (ValueError, TypeError):
+            flash('Invalid branch selected!', 'danger')
+            return redirect(url_for('add_staff'))
         
         # Check if staff ID exists within this organization only
         existing = check_staff_id_exists_in_org(staff_id, school_id)
@@ -835,12 +863,18 @@ def add_staff():
 def edit_staff(id):
     staff = Staff.query.get_or_404(id)
     
-    if current_user.role == 'school_admin' and staff.school_id != current_user.school_id:
+    if current_user.role == 'school_admin' and staff.school_id not in current_user.get_accessible_school_ids():
         flash('You do not have permission to edit this staff.', 'danger')
         return redirect(url_for('staff_list'))
     
     new_staff_id = request.form.get('staff_id')
     new_school_id = request.form.get('school_id')
+    
+    try:
+        new_school_id = int(new_school_id)
+    except (ValueError, TypeError):
+        flash('Invalid branch selected!', 'danger')
+        return redirect(url_for('staff_list'))
     
     # Check if staff ID is being changed
     if new_staff_id != staff.staff_id:
@@ -865,7 +899,7 @@ def edit_staff(id):
 @role_required('super_admin', 'school_admin')
 def toggle_staff(id):
     staff = Staff.query.get_or_404(id)
-    if current_user.role == 'school_admin' and staff.school_id != current_user.school_id:
+    if current_user.role == 'school_admin' and staff.school_id not in current_user.get_accessible_school_ids():
         flash('You do not have permission to modify this staff.', 'danger')
         return redirect(url_for('staff_list'))
     staff.is_active = not staff.is_active
@@ -901,22 +935,37 @@ def bulk_upload():
             return redirect(url_for('bulk_upload'))
         school_id = request.form.get('school_id')
         if current_user.role == 'school_admin':
-            school_id = current_user.school_id
+            if current_user.allowed_schools:
+                school_id = current_user.allowed_schools[0].id
+            elif current_user.school_id:
+                school_id = current_user.school_id
+            else:
+                flash('No branch assigned to your account!', 'danger')
+                return redirect(url_for('staff_list'))
+        
+        try:
+            school_id = int(school_id)
+        except (ValueError, TypeError):
+            flash('Invalid branch selected!', 'danger')
+            return redirect(url_for('bulk_upload'))
         
         school = School.query.get(school_id)
+        if not school:
+            flash('Branch not found!', 'danger')
+            return redirect(url_for('bulk_upload'))
         
         # Get valid departments for this organization
         valid_departments = []
-        if school and school.organization_id:
+        if school.organization_id:
             valid_departments = [d.name for d in Department.query.filter_by(organization_id=school.organization_id).all()]
         if not valid_departments:
             valid_departments = ['Academic', 'Non-Academic', 'Administrative', 'Support Staff']
         
         # Get all branch IDs in the same organization for duplicate checking
-        if school and school.organization_id:
+        if school.organization_id:
             org_branch_ids = [s.id for s in School.query.filter_by(organization_id=school.organization_id).all()]
         else:
-            org_branch_ids = [int(school_id)]
+            org_branch_ids = [school_id]
         
         try:
             stream = io.StringIO(file.stream.read().decode('UTF-8'))
@@ -924,16 +973,16 @@ def bulk_upload():
             added = 0
             skipped = 0
             for row in reader:
-                staff_id = row.get('staff_id', '').strip()
+                row_staff_id = row.get('staff_id', '').strip()
                 name = row.get('name', '').strip()
                 department = row.get('department', '').strip()
-                if not staff_id or not name:
+                if not row_staff_id or not name:
                     skipped += 1
                     continue
                 
                 # Check if staff ID exists within this organization only
                 existing = Staff.query.filter(
-                    Staff.staff_id == staff_id,
+                    Staff.staff_id == row_staff_id,
                     Staff.school_id.in_(org_branch_ids)
                 ).first()
                 
@@ -942,7 +991,7 @@ def bulk_upload():
                     continue
                 if department not in valid_departments:
                     department = valid_departments[0] if valid_departments else 'Academic'
-                staff = Staff(staff_id=staff_id, name=name, department=department, school_id=school_id)
+                staff = Staff(staff_id=row_staff_id, name=name, department=department, school_id=school_id)
                 db.session.add(staff)
                 added += 1
             db.session.commit()
@@ -954,7 +1003,7 @@ def bulk_upload():
     if current_user.role == 'super_admin':
         schools = School.query.all()
     else:
-        schools = [current_user.school]
+        schools = current_user.get_accessible_schools()
     return render_template('bulk_upload.html', schools=schools)
 
 @app.route('/users')
@@ -2051,6 +2100,15 @@ def init_db():
     try:
         db.create_all()
         
+        # Remove the unique constraint on staff_id to allow same ID across organizations
+        try:
+            db.session.execute(db.text('ALTER TABLE staff DROP CONSTRAINT IF EXISTS staff_staff_id_key'))
+            db.session.commit()
+            print("Removed staff_staff_id_key constraint")
+        except Exception as e:
+            db.session.rollback()
+            print(f"Could not remove constraint: {e}")
+        
         try:
             db.session.execute(db.text('''
                 CREATE TABLE IF NOT EXISTS departments (
@@ -2104,7 +2162,7 @@ def init_db():
                 Department.create_defaults(org.id)
         
         db.session.commit()
-        return 'Database initialized successfully!'
+        return 'Database initialized successfully! Unique constraint on staff_id removed.'
     except Exception as e:
         return f'Error: {str(e)}'
 
