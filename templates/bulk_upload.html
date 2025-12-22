@@ -5,9 +5,14 @@
 {% block content %}
 <div class="d-flex justify-content-between align-items-center mb-4">
     <h2>Bulk Upload Staff</h2>
-    <a href="{{ url_for('staff_list') }}" class="btn btn-secondary">
-        <i class="fas fa-arrow-left me-2"></i>Back
-    </a>
+    <div>
+        <a href="{{ url_for('download_staff_template') }}" class="btn btn-outline-success me-2">
+            <i class="fas fa-download me-2"></i>Download Template
+        </a>
+        <a href="{{ url_for('staff_list') }}" class="btn btn-secondary">
+            <i class="fas fa-arrow-left me-2"></i>Back
+        </a>
+    </div>
 </div>
 
 <div class="card mb-4">
@@ -15,58 +20,135 @@
         <i class="fas fa-info-circle me-2"></i>CSV File Format
     </div>
     <div class="card-body">
-        <p>Your CSV file must have the following columns:</p>
-        <table class="table table-bordered">
-            <thead>
-                <tr>
-                    <th>staff_id</th>
-                    <th>name</th>
-                    <th>department</th>
-                </tr>
-            </thead>
-            <tbody>
-                <tr>
-                    <td>STF001</td>
-                    <td>John Doe</td>
-                    <td>Academic</td>
-                </tr>
-                <tr>
-                    <td>STF002</td>
-                    <td>Jane Smith</td>
-                    <td>Admin</td>
-                </tr>
-            </tbody>
-        </table>
-        <p class="mb-0"><strong>Valid departments:</strong> Academic, Admin, Non-Academic, Management</p>
+        <p>Your CSV file must have the following columns. <strong>Required columns are marked with *</strong></p>
+        <div class="table-responsive">
+            <table class="table table-bordered">
+                <thead class="table-light">
+                    <tr>
+                        <th>staff_id *</th>
+                        <th>name *</th>
+                        <th>department *</th>
+                        <th>email</th>
+                        <th>phone</th>
+                        <th>photo_url</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr>
+                        <td>STF001</td>
+                        <td>John Doe</td>
+                        <td>Academic</td>
+                        <td>john@example.com</td>
+                        <td>08012345678</td>
+                        <td>https://example.com/john.jpg</td>
+                    </tr>
+                    <tr>
+                        <td>STF002</td>
+                        <td>Jane Smith</td>
+                        <td>Admin</td>
+                        <td>jane@example.com</td>
+                        <td></td>
+                        <td></td>
+                    </tr>
+                    <tr class="text-muted">
+                        <td><small>Required</small></td>
+                        <td><small>Required</small></td>
+                        <td><small>Required</small></td>
+                        <td><small>Optional</small></td>
+                        <td><small>Optional</small></td>
+                        <td><small>Optional</small></td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
+        
+        <div class="alert alert-info mt-3 mb-0">
+            <strong><i class="fas fa-lightbulb me-2"></i>Tips:</strong>
+            <ul class="mb-0 mt-2">
+                <li>Download the template above to get the correct format</li>
+                <li>Staff ID must be unique within your organization</li>
+                <li>Department must match one of the departments set up for the selected branch</li>
+                <li>Email and phone are optional but recommended for sending query notifications</li>
+                <li>Leave optional columns empty if not needed (don't remove the columns)</li>
+            </ul>
+        </div>
     </div>
 </div>
 
 <div class="card">
     <div class="card-body">
         <form method="POST" enctype="multipart/form-data">
+            {% if current_user.role == 'super_admin' %}
             <div class="row">
                 <div class="col-md-6 mb-3">
-                    <label class="form-label">School</label>
-                    <select name="school_id" class="form-select" required>
+                    <label class="form-label">Organization <span class="text-danger">*</span></label>
+                    <select id="organization" class="form-select" onchange="loadBranches()" required>
+                        <option value="">Select Organization</option>
+                        {% for org in organizations %}
+                        <option value="{{ org.id }}">{{ org.name }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+                <div class="col-md-6 mb-3">
+                    <label class="form-label">Branch <span class="text-danger">*</span></label>
+                    <select name="school_id" id="school_id" class="form-select" required disabled>
+                        <option value="">Select Organization First</option>
+                    </select>
+                </div>
+            </div>
+            {% else %}
+            <div class="row">
+                <div class="col-md-6 mb-3">
+                    <label class="form-label">Branch <span class="text-danger">*</span></label>
+                    <select name="school_id" id="school_id" class="form-select" required>
+                        <option value="">Select Branch</option>
                         {% for school in schools %}
                         <option value="{{ school.id }}">{{ school.name }}</option>
                         {% endfor %}
                     </select>
                 </div>
+            </div>
+            {% endif %}
+            
+            <div class="row">
                 <div class="col-md-6 mb-3">
-                    <label class="form-label">CSV File</label>
+                    <label class="form-label">CSV File <span class="text-danger">*</span></label>
                     <input type="file" name="file" class="form-control" accept=".csv" required>
+                    <small class="text-muted">Maximum 500 rows per upload</small>
                 </div>
             </div>
             
             <div class="mt-4">
                 <button type="submit" class="btn btn-primary">
-                    <i class="fas fa-upload me-2"></i>Upload
+                    <i class="fas fa-upload me-2"></i>Upload Staff
                 </button>
                 <a href="{{ url_for('staff_list') }}" class="btn btn-secondary ms-2">Cancel</a>
             </div>
         </form>
     </div>
 </div>
-{% endblock %}
 
+{% if current_user.role == 'super_admin' %}
+<script>
+function loadBranches() {
+    const orgId = document.getElementById('organization').value;
+    const branchSelect = document.getElementById('school_id');
+    
+    if (orgId) {
+        fetch(`/api/organization-branches/${orgId}`)
+            .then(response => response.json())
+            .then(data => {
+                branchSelect.innerHTML = '<option value="">Select Branch</option>';
+                data.branches.forEach(branch => {
+                    branchSelect.innerHTML += `<option value="${branch.id}">${branch.name}</option>`;
+                });
+                branchSelect.disabled = false;
+            });
+    } else {
+        branchSelect.innerHTML = '<option value="">Select Organization First</option>';
+        branchSelect.disabled = true;
+    }
+}
+</script>
+{% endif %}
+{% endblock %}
