@@ -17,7 +17,7 @@
                 <thead>
                     <tr>
                         <th>Branch Name</th>
-                        <th>Address</th>
+                        <th>Short Name</th>
                         <th>Organization</th>
                         <th>Staff Count</th>
                         <th>Actions</th>
@@ -27,7 +27,7 @@
                     {% for school in schools %}
                     <tr>
                         <td>{{ school.name }}</td>
-                        <td>{{ school.address or '-' }}</td>
+                        <td>{{ school.short_name or '-' }}</td>
                         <td>
                             {% if school.organization %}
                                 <span class="badge bg-info">{{ school.organization.name }}</span>
