@@ -34,8 +34,7 @@
                         </td>
                         <td>
                             {% if user.role == 'school_admin' and user.allowed_schools %}
-                                {% set school_ids = user.allowed_schools.split(',') %}
-                                {% for school in schools if school.id|string in school_ids %}
+                                {% for school in user.allowed_schools %}
                                     <span class="badge bg-light text-dark">{{ school.name }}</span>
                                 {% endfor %}
                             {% else %}
@@ -51,7 +50,7 @@
                         </td>
                         <td>
                             {% if user.id != current_user.id and user.username != 'admin' %}
-                            <button type="button" class="btn btn-sm btn-warning" onclick="openEditModal({{ user.id }}, '{{ user.username }}', '{{ user.role }}', '{{ user.allowed_schools or '' }}', {{ user.is_active | lower }})">
+                            <button type="button" class="btn btn-sm btn-warning" onclick="openEditModal({{ user.id }}, '{{ user.username }}', '{{ user.role }}', '{{ user.allowed_schools | map(attribute='id') | list | join(',') }}', {{ 'true' if user.is_active else 'false' }})">
                                 <i class="fas fa-edit"></i>
                             </button>
                             <a href="{{ url_for('delete_user', id=user.id) }}" class="btn btn-sm btn-danger" onclick="return confirm('Delete this user?')">
@@ -125,7 +124,7 @@
 
 <script>
 function openEditModal(id, username, role, allowedSchools, isActive) {
-    document.getElementById('editUserForm').action = '/edit-user/' + id;
+    document.getElementById('editUserForm').action = '/users/edit/' + id;
     document.getElementById('editUsername').value = username;
     document.getElementById('editPassword').value = '';
     document.getElementById('editRole').value = role;
@@ -139,8 +138,8 @@ function openEditModal(id, username, role, allowedSchools, isActive) {
     
     if (allowedSchools) {
         const schoolIds = allowedSchools.split(',');
-        schoolIds.forEach(id => {
-            const option = select.querySelector(`option[value="${id}"]`);
+        schoolIds.forEach(sid => {
+            const option = select.querySelector(`option[value="${sid}"]`);
             if (option) option.selected = true;
         });
     }
