@@ -134,7 +134,7 @@ document.getElementById('school_id').addEventListener('change', function() {
             .then(response => response.json())
             .then(data => {
                 deptSelect.innerHTML = '<option value="">Select Department</option>';
-                data.departments.forEach(dept => {
+                data.forEach(dept => {
                     deptSelect.innerHTML += `<option value="${dept.name}">${dept.name}</option>`;
                 });
                 deptSelect.disabled = false;
