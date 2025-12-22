@@ -219,6 +219,23 @@ def get_staff_data_for_api(school):
         })
     return staff_list_data
 
+def check_staff_id_exists_in_org(staff_id, school_id, exclude_staff_id=None):
+    """Check if staff_id exists within the same organization"""
+    branch = School.query.get(school_id)
+    if branch and branch.organization_id:
+        org_branch_ids = [s.id for s in School.query.filter_by(organization_id=branch.organization_id).all()]
+        query = Staff.query.filter(
+            Staff.staff_id == staff_id,
+            Staff.school_id.in_(org_branch_ids)
+        )
+    else:
+        query = Staff.query.filter_by(staff_id=staff_id, school_id=school_id)
+    
+    if exclude_staff_id:
+        query = query.filter(Staff.id != exclude_staff_id)
+    
+    return query.first()
+
 @app.route('/')
 def index():
     if current_user.is_authenticated:
@@ -790,15 +807,19 @@ def add_staff():
         school_id = request.form.get('school_id')
         if current_user.role == 'school_admin':
             school_id = current_user.school_id
-        existing = Staff.query.filter_by(staff_id=staff_id).first()
+        
+        # Check if staff ID exists within this organization only
+        existing = check_staff_id_exists_in_org(staff_id, school_id)
         if existing:
-            flash('Staff ID already exists!', 'danger')
+            flash('Staff ID already exists in this organization!', 'danger')
             return redirect(url_for('add_staff'))
+        
         staff = Staff(staff_id=staff_id, name=name, department=department, school_id=school_id)
         db.session.add(staff)
         db.session.commit()
         flash('Staff added successfully!', 'success')
         return redirect(url_for('staff_list'))
+    
     if current_user.role == 'super_admin':
         schools = School.query.all()
         organizations = Organization.query.all()
@@ -819,16 +840,20 @@ def edit_staff(id):
         return redirect(url_for('staff_list'))
     
     new_staff_id = request.form.get('staff_id')
+    new_school_id = request.form.get('school_id')
+    
+    # Check if staff ID is being changed
     if new_staff_id != staff.staff_id:
-        existing = Staff.query.filter_by(staff_id=new_staff_id).first()
+        # Check if new staff ID exists within this organization (excluding current staff)
+        existing = check_staff_id_exists_in_org(new_staff_id, new_school_id, exclude_staff_id=id)
         if existing:
-            flash('Staff ID already exists!', 'danger')
+            flash('Staff ID already exists in this organization!', 'danger')
             return redirect(url_for('staff_list'))
     
     staff.staff_id = new_staff_id
     staff.name = request.form.get('name')
     staff.department = request.form.get('department')
-    staff.school_id = request.form.get('school_id')
+    staff.school_id = new_school_id
     staff.is_active = request.form.get('is_active') == 'true'
     
     db.session.commit()
@@ -879,11 +904,19 @@ def bulk_upload():
             school_id = current_user.school_id
         
         school = School.query.get(school_id)
+        
+        # Get valid departments for this organization
         valid_departments = []
         if school and school.organization_id:
             valid_departments = [d.name for d in Department.query.filter_by(organization_id=school.organization_id).all()]
         if not valid_departments:
             valid_departments = ['Academic', 'Non-Academic', 'Administrative', 'Support Staff']
+        
+        # Get all branch IDs in the same organization for duplicate checking
+        if school and school.organization_id:
+            org_branch_ids = [s.id for s in School.query.filter_by(organization_id=school.organization_id).all()]
+        else:
+            org_branch_ids = [int(school_id)]
         
         try:
             stream = io.StringIO(file.stream.read().decode('UTF-8'))
@@ -897,7 +930,13 @@ def bulk_upload():
                 if not staff_id or not name:
                     skipped += 1
                     continue
-                existing = Staff.query.filter_by(staff_id=staff_id).first()
+                
+                # Check if staff ID exists within this organization only
+                existing = Staff.query.filter(
+                    Staff.staff_id == staff_id,
+                    Staff.school_id.in_(org_branch_ids)
+                ).first()
+                
                 if existing:
                     skipped += 1
                     continue
@@ -911,6 +950,7 @@ def bulk_upload():
         except Exception as e:
             flash(f'Error processing file: {str(e)}', 'danger')
         return redirect(url_for('staff_list'))
+    
     if current_user.role == 'super_admin':
         schools = School.query.all()
     else:
