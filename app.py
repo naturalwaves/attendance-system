@@ -630,6 +630,39 @@ def search_staff():
         })
     
     return jsonify({'results': results})
+    @app.route('/edit-user/<int:id>', methods=['POST'])
+@login_required
+def edit_user(id):
+    if current_user.role != 'super_admin':
+        flash('Access denied', 'danger')
+        return redirect(url_for('dashboard'))
+    
+    user = User.query.get_or_404(id)
+    
+    # Don't allow editing the main super_admin or yourself
+    if user.username == 'admin':
+        flash('Cannot edit the default admin account', 'danger')
+        return redirect(url_for('users'))
+    
+    user.username = request.form.get('username')
+    user.role = request.form.get('role')
+    
+    # Update password only if provided
+    new_password = request.form.get('password')
+    if new_password and new_password.strip():
+        user.password_hash = generate_password_hash(new_password)
+    
+    # Handle allowed_schools for school_admin
+    if user.role == 'school_admin':
+        allowed_schools = request.form.getlist('allowed_schools')
+        user.allowed_schools = ','.join(allowed_schools) if allowed_schools else None
+    else:
+        user.allowed_schools = None
+    
+    db.session.commit()
+    flash('User updated successfully', 'success')
+    return redirect(url_for('users'))
+
 
 @app.route('/api/branch-staff/<int:branch_id>')
 @login_required
