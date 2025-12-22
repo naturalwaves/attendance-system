@@ -655,16 +655,26 @@ def search_staff():
             date=today
         ).first()
         
-        status = 'absent'
-        time_str = None
-        
-        if attendance:
-            if attendance.is_late:
-                status = 'late'
-            else:
+        # Management staff get special status labels
+        if staff.department == 'Management':
+            if attendance:
                 status = 'signed_in'
-            if attendance.sign_in_time:
-                time_str = attendance.sign_in_time.strftime('%H:%M')
+                time_str = attendance.sign_in_time.strftime('%H:%M') if attendance.sign_in_time else None
+            else:
+                status = 'not_signed_in'
+                time_str = None
+        else:
+            # Regular staff get normal status labels
+            status = 'absent'
+            time_str = None
+            
+            if attendance:
+                if attendance.is_late:
+                    status = 'late'
+                else:
+                    status = 'signed_in'
+                if attendance.sign_in_time:
+                    time_str = attendance.sign_in_time.strftime('%H:%M')
         
         results.append({
             'id': staff.id,
@@ -696,17 +706,29 @@ def get_branch_staff(branch_id):
             date=today
         ).first()
         
-        if attendance:
-            if attendance.is_late:
-                status = 'Late'
+        # Management staff get special status labels
+        if staff.department == 'Management':
+            if attendance:
+                status = 'Signed In'
+                time_in = attendance.sign_in_time.strftime('%H:%M') if attendance.sign_in_time else '-'
+                time_out = attendance.sign_out_time.strftime('%H:%M') if attendance.sign_out_time else '-'
             else:
-                status = 'Present'
-            time_in = attendance.sign_in_time.strftime('%H:%M') if attendance.sign_in_time else '-'
-            time_out = attendance.sign_out_time.strftime('%H:%M') if attendance.sign_out_time else '-'
+                status = 'Not Signed In'
+                time_in = '-'
+                time_out = '-'
         else:
-            status = 'Absent'
-            time_in = '-'
-            time_out = '-'
+            # Regular staff get normal status labels
+            if attendance:
+                if attendance.is_late:
+                    status = 'Late'
+                else:
+                    status = 'Present'
+                time_in = attendance.sign_in_time.strftime('%H:%M') if attendance.sign_in_time else '-'
+                time_out = attendance.sign_out_time.strftime('%H:%M') if attendance.sign_out_time else '-'
+            else:
+                status = 'Absent'
+                time_in = '-'
+                time_out = '-'
         
         result.append({
             'name': staff.name,
@@ -2139,9 +2161,10 @@ def api_sync():
                         day_of_week = record_date.weekday()
                         start_time, end_time = get_school_schedule(school, day_of_week)
                         
+                        # Management staff are never marked as late
                         is_late = False
                         late_minutes = 0
-                        if start_time:
+                        if staff.department != 'Management' and start_time:
                             scheduled_start = datetime.strptime(start_time, '%H:%M').time()
                             if sign_in_datetime.time() > scheduled_start:
                                 is_late = True
