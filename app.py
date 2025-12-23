@@ -183,12 +183,14 @@ class QueryTemplate(db.Model):
     title = db.Column(db.String(100), nullable=False)
     subject = db.Column(db.String(200), nullable=False)
     body = db.Column(db.Text, nullable=False)
+    from_email = db.Column(db.String(255), nullable=True)  # NEW LINE
     created_by = db.Column(db.Integer, db.ForeignKey('users.id'), nullable=False)
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
     is_active = db.Column(db.Boolean, default=True)
     
     organization = db.relationship('Organization', backref='query_templates')
     creator = db.relationship('User', backref='created_templates')
+
 
 class StaffQuery(db.Model):
     __tablename__ = 'staff_queries'
@@ -2430,6 +2432,7 @@ if __name__ == '__main__':
     with app.app_context():
         db.create_all()
     app.run(debug=True, host='0.0.0.0', port=int(os.environ.get('PORT', 5000)))
+
 
 
 
