@@ -1168,33 +1168,55 @@ def add_query_template():
         title = request.form.get('title')
         subject = request.form.get('subject')
         body = request.form.get('body')
+        from_email = request.form.get('from_email', '').strip() or None
+        
         if not all([organization_id, title, subject, body]):
             flash('All fields are required!', 'danger')
             return redirect(url_for('add_query_template'))
-        template = QueryTemplate(organization_id=organization_id, title=title, subject=subject, body=body, created_by=current_user.id)
+        
+        template = QueryTemplate(
+            organization_id=organization_id, 
+            title=title, 
+            subject=subject, 
+            body=body, 
+            from_email=from_email,
+            created_by=current_user.id
+        )
         db.session.add(template)
         db.session.commit()
         flash('Query template added successfully!', 'success')
         return redirect(url_for('query_templates'))
+    
     if current_user.role == 'super_admin':
         organizations = Organization.query.all()
     else:
         organizations = current_user.get_accessible_organizations()
     return render_template('add_query_template.html', organizations=organizations)
 
+
 @app.route('/query-templates/edit/<int:id>', methods=['GET', 'POST'])
 @login_required
 @role_required('super_admin', 'hr_viewer', 'school_admin')
 def edit_query_template(id):
     template = QueryTemplate.query.get_or_404(id)
+    
     if request.method == 'POST':
+        template.organization_id = request.form.get('organization_id')
         template.title = request.form.get('title')
         template.subject = request.form.get('subject')
         template.body = request.form.get('body')
+        template.from_email = request.form.get('from_email', '').strip() or None
         db.session.commit()
         flash('Query template updated successfully!', 'success')
         return redirect(url_for('query_templates'))
-    return render_template('edit_query_template.html', template=template)
+    
+    if current_user.role == 'super_admin':
+        organizations = Organization.query.all()
+    else:
+        organizations = current_user.get_accessible_organizations()
+    
+    return render_template('edit_query_template.html', template=template, organizations=organizations)
+
 
 @app.route('/query-templates/delete/<int:id>')
 @login_required
@@ -2432,6 +2454,7 @@ if __name__ == '__main__':
     with app.app_context():
         db.create_all()
     app.run(debug=True, host='0.0.0.0', port=int(os.environ.get('PORT', 5000)))
+
 
 
 
