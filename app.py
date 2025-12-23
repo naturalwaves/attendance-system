@@ -279,36 +279,75 @@ def check_staff_id_exists_in_org(staff_id, school_id, exclude_staff_id=None):
         query = query.filter(Staff.id != exclude_staff_id)
     return query.first()
 
-def send_query_email(staff, template, organization, sender):
+def send_query_email(staff, template, organization, sender, late_count=None, period_str=None):
     if not staff.email:
         return False, "Staff has no email address"
+    
     api_key = app.config.get('SENDGRID_API_KEY')
     if not api_key:
         return False, "SendGrid API key not configured"
-    body = template.body.replace('{staff_name}', staff.name)
-    body = body.replace('{times_late}', str(staff.times_late))
+    
+    # Get verified sender email from environment
+    from_email = os.environ.get('SENDGRID_FROM_EMAIL', 'noreply@wakatotech.com')
+    
+    # Reply-To: Use template's from_email, or organization's hr_email, or fallback
+    reply_to_email = None
+    if template.from_email:
+        reply_to_email = template.from_email
+    elif organization and organization.hr_email:
+        reply_to_email = organization.hr_email
+    
+    # Use passed late_count or fall back to staff.times_late
+    actual_late_count = late_count if late_count is not None else staff.times_late
+    
+    # Use passed period or default to "All Time"
+    actual_period = period_str if period_str else "All Time"
+    
+    # Replace placeholders in body
+    body = template.body
+    body = body.replace('{staff_name}', staff.name)
+    body = body.replace('{staff_id}', staff.staff_id)
+    body = body.replace('{department}', staff.department or '')
+    body = body.replace('{branch}', staff.school.name if staff.school else '')
+    body = body.replace('{late_count}', str(actual_late_count))
+    body = body.replace('{times_late}', str(actual_late_count))
+    body = body.replace('{period}', actual_period)
+    body = body.replace('{current_date}', datetime.now().strftime('%d/%m/%Y'))
     body = body.replace('{date}', datetime.now().strftime('%d/%m/%Y'))
     body = body.replace('{organization_name}', organization.name if organization else '')
     body = body.replace('{branch_name}', staff.school.name if staff.school else '')
-    subject = template.subject.replace('{staff_name}', staff.name)
+    
+    # Replace placeholders in subject
+    subject = template.subject
+    subject = subject.replace('{staff_name}', staff.name)
     subject = subject.replace('{date}', datetime.now().strftime('%d/%m/%Y'))
-    from_email = organization.hr_email if organization and organization.hr_email else 'noreply@wakatotech.com'
-    from_name = organization.hr_email_name if organization and organization.hr_email_name else 'HR Department'
+    subject = subject.replace('{period}', actual_period)
+    
+    # Build email payload
+    email_data = {
+        'personalizations': [{'to': [{'email': staff.email}]}],
+        'from': {'email': from_email, 'name': 'HR Department'},
+        'subject': subject,
+        'content': [{'type': 'text/html', 'value': body}]
+    }
+    
+    # Add Reply-To if available
+    if reply_to_email:
+        email_data['reply_to'] = {'email': reply_to_email}
+    
     try:
         response = requests.post(
             'https://api.sendgrid.com/v3/mail/send',
-            headers={'Authorization': f'Bearer {api_key}', 'Content-Type': 'application/json'},
-            json={
-                'personalizations': [{'to': [{'email': staff.email}]}],
-                'from': {'email': from_email, 'name': from_name},
-                'subject': subject,
-                'content': [{'type': 'text/html', 'value': body}]
-            }
+            headers={
+                'Authorization': f'Bearer {api_key}',
+                'Content-Type': 'application/json'
+            },
+            json=email_data
         )
         if response.status_code in [200, 201, 202]:
             return True, "Email sent successfully"
         else:
-            return False, f"SendGrid error: {response.status_code}"
+            return False, f"SendGrid error: {response.status_code} - {response.text}"
     except Exception as e:
         return False, str(e)
 
@@ -1235,46 +1274,89 @@ def send_query():
     if request.method == 'POST':
         staff_ids = request.form.getlist('staff_ids')
         template_id = request.form.get('template_id')
+        
+        # Get period info from form
+        period_start = request.form.get('period_start', '')
+        period_end = request.form.get('period_end', '')
+        
+        # Build period string
+        if period_start and period_end:
+            try:
+                start_dt = datetime.strptime(period_start, '%Y-%m-%d')
+                end_dt = datetime.strptime(period_end, '%Y-%m-%d')
+                period_str = f"{start_dt.strftime('%d/%m/%Y')} to {end_dt.strftime('%d/%m/%Y')}"
+            except:
+                period_str = f"{period_start} to {period_end}"
+        else:
+            period_str = "All Time"
+        
         if not staff_ids:
             flash('Please select at least one staff member!', 'danger')
             return redirect(url_for('send_query'))
         if not template_id:
             flash('Please select a query template!', 'danger')
             return redirect(url_for('send_query'))
+        
         template = QueryTemplate.query.get(template_id)
         if not template:
             flash('Invalid template!', 'danger')
             return redirect(url_for('send_query'))
+        
         success_count = 0
         fail_count = 0
         no_email_count = 0
+        
         for staff_id in staff_ids:
             staff = Staff.query.get(staff_id)
             if not staff:
                 continue
+            
+            # Get the late count from the form (passed as hidden field)
+            staff_late_count = request.form.get(f'late_count_{staff_id}', type=int)
+            if staff_late_count is None:
+                staff_late_count = staff.times_late
+            
             if not staff.email:
                 no_email_count += 1
-                query_record = StaffQuery(staff_id=staff.id, template_id=template.id, sent_by=current_user.id, times_late_at_query=staff.times_late, email_status='no_email')
+                query_record = StaffQuery(
+                    staff_id=staff.id, 
+                    template_id=template.id, 
+                    sent_by=current_user.id, 
+                    times_late_at_query=staff_late_count, 
+                    email_status='no_email'
+                )
                 db.session.add(query_record)
                 continue
+            
             organization = template.organization
-            success, message = send_query_email(staff, template, organization, current_user)
-            query_record = StaffQuery(staff_id=staff.id, template_id=template.id, sent_by=current_user.id, times_late_at_query=staff.times_late, email_status='sent' if success else 'failed')
+            success, message = send_query_email(staff, template, organization, current_user, staff_late_count, period_str)
+            
+            query_record = StaffQuery(
+                staff_id=staff.id, 
+                template_id=template.id, 
+                sent_by=current_user.id, 
+                times_late_at_query=staff_late_count, 
+                email_status='sent' if success else 'failed'
+            )
             db.session.add(query_record)
+            
             if success:
                 success_count += 1
             else:
                 fail_count += 1
+        
         db.session.commit()
+        
         if success_count > 0:
             flash(f'Successfully sent {success_count} query email(s)!', 'success')
         if fail_count > 0:
             flash(f'{fail_count} email(s) failed to send.', 'warning')
         if no_email_count > 0:
             flash(f'{no_email_count} staff member(s) have no email address (query recorded).', 'info')
+        
         return redirect(url_for('query_tracking'))
     
-    # Get filter parameters
+    # GET request - show the send query page
     accessible_school_ids = current_user.get_accessible_school_ids()
     organization_id = request.args.get('organization_id', type=int)
     branch_id = request.args.get('branch_id', type=int)
@@ -2454,6 +2536,7 @@ if __name__ == '__main__':
     with app.app_context():
         db.create_all()
     app.run(debug=True, host='0.0.0.0', port=int(os.environ.get('PORT', 5000)))
+
 
 
 
