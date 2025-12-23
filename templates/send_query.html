@@ -3,16 +3,34 @@
 {% block title %}Send Query - Attendance System{% endblock %}
 
 {% block content %}
-<div class="card">
-    <div class="card-header d-flex justify-content-between align-items-center">
-        <h5 class="mb-0"><i class="fas fa-paper-plane me-2"></i>Send Query to Late Staff</h5>
+<div class="row mb-4">
+    <div class="col-12">
+        <div class="card border-0 shadow-sm">
+            <div class="card-body">
+                <div class="d-flex justify-content-between align-items-center">
+                    <div>
+                        <h4 class="mb-1"><i class="fas fa-paper-plane text-danger me-2"></i>Send Query</h4>
+                        <p class="text-muted mb-0">Select late staff and send query emails</p>
+                    </div>
+                    <a href="{{ url_for('query_tracking') }}" class="btn btn-outline-primary">
+                        <i class="fas fa-history me-1"></i> View Query History
+                    </a>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Filters Card -->
+<div class="card border-0 shadow-sm mb-4">
+    <div class="card-header bg-white py-3">
+        <h6 class="mb-0"><i class="fas fa-filter text-muted me-2"></i>Filters</h6>
     </div>
     <div class="card-body">
-        <!-- Filters -->
-        <form method="GET" id="filterForm" class="mb-4">
+        <form method="GET" id="filterForm">
             <div class="row g-3">
                 <div class="col-md-3">
-                    <label class="form-label">Organization</label>
+                    <label class="form-label small text-muted">Organization</label>
                     <select name="organization_id" id="organizationFilter" class="form-select" onchange="this.form.submit()">
                         <option value="">All Organizations</option>
                         {% for org in organizations %}
@@ -21,7 +39,7 @@
                     </select>
                 </div>
                 <div class="col-md-3">
-                    <label class="form-label">Branch</label>
+                    <label class="form-label small text-muted">Branch</label>
                     <select name="branch_id" id="branchFilter" class="form-select" onchange="this.form.submit()">
                         <option value="">All Branches</option>
                         {% for branch in branches %}
@@ -30,7 +48,7 @@
                     </select>
                 </div>
                 <div class="col-md-3">
-                    <label class="form-label">Period</label>
+                    <label class="form-label small text-muted">Period</label>
                     <select name="period" id="periodFilter" class="form-select" onchange="handlePeriodChange()">
                         <option value="all" {% if selected_period == 'all' %}selected{% endif %}>All Time</option>
                         <option value="today" {% if selected_period == 'today' %}selected{% endif %}>Today</option>
@@ -45,95 +63,164 @@
                 </div>
                 <div class="col-md-3 d-flex align-items-end">
                     <a href="{{ url_for('send_query') }}" class="btn btn-outline-secondary w-100">
-                        <i class="fas fa-redo me-1"></i> Reset Filters
+                        <i class="fas fa-redo me-1"></i> Reset
                     </a>
                 </div>
             </div>
             
             <!-- Custom Date Range -->
-            <div class="row g-3 mt-2" id="customDateRange" style="display: {% if selected_period == 'custom' %}flex{% else %}none{% endif %};">
+            <div class="row g-3 mt-1" id="customDateRange" style="display: {% if selected_period == 'custom' %}flex{% else %}none{% endif %};">
                 <div class="col-md-3">
-                    <label class="form-label">Start Date</label>
+                    <label class="form-label small text-muted">Start Date</label>
                     <input type="date" name="start_date" id="startDate" class="form-control" value="{{ start_date }}">
                 </div>
                 <div class="col-md-3">
-                    <label class="form-label">End Date</label>
+                    <label class="form-label small text-muted">End Date</label>
                     <input type="date" name="end_date" id="endDate" class="form-control" value="{{ end_date }}">
                 </div>
                 <div class="col-md-3 d-flex align-items-end">
                     <button type="submit" class="btn btn-primary w-100">
-                        <i class="fas fa-filter me-1"></i> Apply
+                        <i class="fas fa-search me-1"></i> Apply
                     </button>
                 </div>
             </div>
         </form>
+    </div>
+</div>
 
-        {% if late_staff %}
-        <form method="POST">
-            <!-- Template Selection -->
-            <div class="row mb-4">
-                <div class="col-md-6">
-                    <label class="form-label fw-bold">Select Query Template <span class="text-danger">*</span></label>
-                    <select name="template_id" class="form-select" required>
-                        <option value="">-- Select Template --</option>
+{% if late_staff %}
+<!-- Summary Cards -->
+<div class="row mb-4">
+    <div class="col-md-3">
+        <div class="card border-0 shadow-sm">
+            <div class="card-body text-center py-3">
+                <div class="display-6 text-danger fw-bold">{{ late_staff|length }}</div>
+                <div class="text-muted small">Late Staff</div>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="card border-0 shadow-sm">
+            <div class="card-body text-center py-3">
+                <div class="display-6 text-warning fw-bold">{{ late_staff|sum(attribute='late_count') }}</div>
+                <div class="text-muted small">Total Late (Period)</div>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="card border-0 shadow-sm">
+            <div class="card-body text-center py-3">
+                <div class="display-6 text-info fw-bold">{{ templates|length }}</div>
+                <div class="text-muted small">Templates Available</div>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="card border-0 shadow-sm">
+            <div class="card-body text-center py-3">
+                <div class="display-6 text-success fw-bold" id="selectedDisplay">0</div>
+                <div class="text-muted small">Selected</div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<form method="POST">
+    <!-- Template Selection Card -->
+    <div class="card border-0 shadow-sm mb-4">
+        <div class="card-header bg-white py-3">
+            <h6 class="mb-0"><i class="fas fa-file-alt text-muted me-2"></i>Select Template</h6>
+        </div>
+        <div class="card-body">
+            <div class="row align-items-center">
+                <div class="col-md-8">
+                    <select name="template_id" class="form-select form-select-lg" required>
+                        <option value="">-- Choose a Query Template --</option>
                         {% for template in templates %}
                         <option value="{{ template.id }}">{{ template.title }} ({{ template.organization.name }})</option>
                         {% endfor %}
                     </select>
                 </div>
-                <div class="col-md-6 d-flex align-items-end">
-                    <button type="submit" class="btn btn-primary">
-                        <i class="fas fa-paper-plane me-1"></i> Send Query to Selected Staff
+                <div class="col-md-4">
+                    <button type="submit" class="btn btn-primary btn-lg w-100">
+                        <i class="fas fa-paper-plane me-2"></i>Send Query
                     </button>
                 </div>
             </div>
+        </div>
+    </div>
 
-            <!-- Staff Selection -->
+    <!-- Staff List Card -->
+    <div class="card border-0 shadow-sm">
+        <div class="card-header bg-white py-3 d-flex justify-content-between align-items-center">
+            <h6 class="mb-0"><i class="fas fa-users text-muted me-2"></i>Late Staff (<span id="staffCount">{{ late_staff|length }}</span>)</h6>
+            <div class="form-check">
+                <input type="checkbox" id="selectAll" class="form-check-input" onclick="toggleAll(this)">
+                <label class="form-check-label" for="selectAll">Select All</label>
+            </div>
+        </div>
+        <div class="card-body p-0">
             <div class="table-responsive">
-                <table class="table table-hover">
-                    <thead>
+                <table class="table table-hover align-middle mb-0">
+                    <thead class="bg-light">
                         <tr>
-                            <th style="width: 40px;">
-                                <input type="checkbox" id="selectAll" class="form-check-input" onclick="toggleAll(this)">
-                            </th>
-                            <th>Staff ID</th>
-                            <th>Name</th>
+                            <th style="width: 50px;" class="ps-3"></th>
+                            <th>Staff</th>
                             <th>Branch</th>
                             <th>Department</th>
-                            <th>Email</th>
                             <th class="text-center">Late (Period)</th>
-                            <th class="text-center">Late (Total)</th>
-                            <th class="text-center">Queries Sent</th>
+                            <th class="text-center">Late (All Time)</th>
+                            <th class="text-center">Queries</th>
                         </tr>
                     </thead>
                     <tbody>
                         {% for item in late_staff %}
                         <tr>
-                            <td>
+                            <td class="ps-3">
                                 <input type="checkbox" name="staff_ids" value="{{ item.staff.id }}" class="form-check-input staff-checkbox">
                             </td>
-                            <td>{{ item.staff.staff_id }}</td>
                             <td>
-                                {{ item.staff.name }}
-                                {% if not item.staff.email %}
-                                <span class="badge bg-warning text-dark ms-1" title="No email address"><i class="fas fa-exclamation-triangle"></i></span>
+                                <div class="d-flex align-items-center">
+                                    <div class="avatar-circle me-3">
+                                        {{ item.staff.name[0] | upper }}
+                                    </div>
+                                    <div>
+                                        <div class="fw-semibold">{{ item.staff.name }}</div>
+                                        <div class="small text-muted">
+                                            {{ item.staff.staff_id }}
+                                            {% if item.staff.email %}
+                                            <span class="ms-2"><i class="fas fa-envelope text-success"></i></span>
+                                            {% else %}
+                                            <span class="ms-2" title="No email"><i class="fas fa-envelope text-danger"></i></span>
+                                            {% endif %}
+                                        </div>
+                                    </div>
+                                </div>
+                            </td>
+                            <td>
+                                <span class="badge bg-light text-dark">{{ item.staff.school.short_name or item.staff.school.name if item.staff.school else 'N/A' }}</span>
+                            </td>
+                            <td>{{ item.staff.department }}</td>
+                            <td class="text-center">
+                                {% if item.late_count >= 10 %}
+                                <span class="badge bg-danger px-3 py-2">{{ item.late_count }}</span>
+                                {% elif item.late_count >= 5 %}
+                                <span class="badge bg-warning text-dark px-3 py-2">{{ item.late_count }}</span>
+                                {% else %}
+                                <span class="badge bg-secondary px-3 py-2">{{ item.late_count }}</span>
                                 {% endif %}
                             </td>
-                            <td>{{ item.staff.school.short_name or item.staff.school.name if item.staff.school else 'N/A' }}</td>
-                            <td>{{ item.staff.department }}</td>
-                            <td>{{ item.staff.email or '-' }}</td>
                             <td class="text-center">
-                                <span class="badge bg-danger">{{ item.late_count }}</span>
-                            </td>
-                            <td class="text-center">
-                                <span class="badge bg-secondary">{{ item.total_late }}</span>
+                                <span class="text-muted">{{ item.total_late }}</span>
                             </td>
                             <td class="text-center">
                                 {% set query_count = item.staff.queries_received | length %}
                                 {% if query_count > 0 %}
-                                <a href="{{ url_for('staff_query_history', staff_id=item.staff.id) }}" class="badge bg-info text-decoration-none">{{ query_count }}</a>
+                                <a href="{{ url_for('staff_query_history', staff_id=item.staff.id) }}" class="btn btn-sm btn-outline-info">
+                                    {{ query_count }} <i class="fas fa-external-link-alt ms-1"></i>
+                                </a>
                                 {% else %}
-                                <span class="badge bg-light text-dark">0</span>
+                                <span class="text-muted">0</span>
                                 {% endif %}
                             </td>
                         </tr>
@@ -141,35 +228,55 @@
                     </tbody>
                 </table>
             </div>
-
-            <div class="mt-3 p-3 bg-light rounded">
-                <div class="row align-items-center">
-                    <div class="col-md-6">
-                        <span id="selectedCount">0</span> staff member(s) selected
-                    </div>
-                    <div class="col-md-6 text-end">
-                        <button type="submit" class="btn btn-primary">
-                            <i class="fas fa-paper-plane me-1"></i> Send Query to Selected Staff
-                        </button>
-                    </div>
-                </div>
-            </div>
-        </form>
-        {% else %}
-        <div class="text-center py-5">
-            <i class="fas fa-check-circle fa-3x text-success mb-3"></i>
-            <h5>No Late Staff Found</h5>
-            <p class="text-muted">
-                {% if selected_period != 'all' %}
-                No staff members have been late during the selected period.
-                {% else %}
-                No staff members have lateness records.
-                {% endif %}
-            </p>
         </div>
-        {% endif %}
+        <div class="card-footer bg-white py-3">
+            <div class="d-flex justify-content-between align-items-center">
+                <div>
+                    <span class="fw-semibold" id="selectedCount">0</span> staff member(s) selected
+                </div>
+                <button type="submit" class="btn btn-primary">
+                    <i class="fas fa-paper-plane me-2"></i>Send Query to Selected
+                </button>
+            </div>
+        </div>
+    </div>
+</form>
+
+{% else %}
+<div class="card border-0 shadow-sm">
+    <div class="card-body text-center py-5">
+        <div class="mb-4">
+            <i class="fas fa-check-circle fa-4x text-success"></i>
+        </div>
+        <h4>No Late Staff Found</h4>
+        <p class="text-muted mb-0">
+            {% if selected_period != 'all' %}
+            No staff members have been late during the selected period.
+            {% else %}
+            All staff members have perfect attendance records.
+            {% endif %}
+        </p>
     </div>
 </div>
+{% endif %}
+
+<style>
+.avatar-circle {
+    width: 40px;
+    height: 40px;
+    border-radius: 50%;
+    background: linear-gradient(135deg, #dc3545 0%, #c82333 100%);
+    color: white;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-weight: 600;
+    font-size: 1rem;
+}
+.display-6 {
+    font-size: 1.75rem;
+}
+</style>
 
 <script>
 function toggleAll(source) {
@@ -181,6 +288,7 @@ function toggleAll(source) {
 function updateSelectedCount() {
     const checked = document.querySelectorAll('.staff-checkbox:checked').length;
     document.getElementById('selectedCount').textContent = checked;
+    document.getElementById('selectedDisplay').textContent = checked;
 }
 
 function handlePeriodChange() {
