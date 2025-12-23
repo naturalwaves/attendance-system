@@ -744,10 +744,32 @@ def regenerate_api_key(id):
 @app.route('/staff')
 @login_required
 def staff_list():
-    accessible_school_ids = current_user.get_accessible_school_ids()
     organization_id = request.args.get('organization_id', type=int)
     branch_id = request.args.get('branch_id', type=int)
     
+    # Get all organizations for filter dropdown (all roles can see this)
+    if current_user.role == 'super_admin':
+        organizations = Organization.query.all()
+    else:
+        organizations = current_user.get_accessible_organizations()
+    
+    # Get branches based on organization filter or user access
+    if organization_id:
+        if current_user.role == 'super_admin':
+            branches = School.query.filter_by(organization_id=organization_id).all()
+        else:
+            accessible_ids = current_user.get_accessible_school_ids()
+            branches = School.query.filter(
+                School.organization_id == organization_id,
+                School.id.in_(accessible_ids)
+            ).all()
+    else:
+        if current_user.role == 'super_admin':
+            branches = School.query.all()
+        else:
+            branches = current_user.get_accessible_schools()
+    
+    # Get staff based on filters
     if current_user.role == 'super_admin':
         if organization_id:
             org_school_ids = [s.id for s in School.query.filter_by(organization_id=organization_id).all()]
@@ -759,32 +781,34 @@ def staff_list():
             staff = Staff.query.filter(Staff.school_id == branch_id).all()
         else:
             staff = Staff.query.all()
-        organizations = Organization.query.all()
-        if organization_id:
-            branches = School.query.filter_by(organization_id=organization_id).all()
-        else:
-            branches = School.query.all()
-    elif accessible_school_ids:
-        if branch_id and branch_id in accessible_school_ids:
+    else:
+        accessible_school_ids = current_user.get_accessible_school_ids()
+        if not accessible_school_ids:
+            staff = []
+        elif branch_id and branch_id in accessible_school_ids:
             staff = Staff.query.filter(Staff.school_id == branch_id).all()
+        elif organization_id:
+            org_school_ids = [s.id for s in School.query.filter_by(organization_id=organization_id).all()]
+            filtered_ids = [sid for sid in org_school_ids if sid in accessible_school_ids]
+            staff = Staff.query.filter(Staff.school_id.in_(filtered_ids)).all() if filtered_ids else []
         else:
             staff = Staff.query.filter(Staff.school_id.in_(accessible_school_ids)).all()
-        organizations = current_user.get_accessible_organizations()
-        branches = current_user.get_accessible_schools()
-    else:
-        staff = []
-        organizations = []
-        branches = []
     
-    schools = School.query.all()
+    # Get all schools for modals (add/edit staff)
+    if current_user.role == 'super_admin':
+        schools = School.query.all()
+    else:
+        schools = current_user.get_accessible_schools()
     
     return render_template('staff.html', 
-                          staff=staff,
-                          schools=schools,
-                          organizations=organizations,
-                          branches=branches,
-                          selected_organization=organization_id,
-                          selected_branch=branch_id)
+        staff=staff,
+        schools=schools,
+        organizations=organizations,
+        branches=branches,
+        selected_organization=organization_id,
+        selected_branch=branch_id
+    )
+
 
 
 @app.route('/staff/add', methods=['GET', 'POST'])
@@ -2370,6 +2394,7 @@ if __name__ == '__main__':
     with app.app_context():
         db.create_all()
     app.run(debug=True, host='0.0.0.0', port=int(os.environ.get('PORT', 5000)))
+
 
 
 
