@@ -1,0 +1,138 @@
+{% extends 'base.html' %}
+
+{% block title %}Query History - {{ staff.name }} - Attendance System{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <div>
+        <h2><i class="fas fa-user me-2"></i>{{ staff.name }}</h2>
+        <p class="text-muted mb-0">Query History</p>
+    </div>
+    <a href="{{ url_for('query_tracking') }}" class="btn btn-secondary">
+        <i class="fas fa-arrow-left me-2"></i>Back to Tracking
+    </a>
+</div>
+
+<!-- Staff Info Card -->
+<div class="card mb-4">
+    <div class="card-body">
+        <div class="row">
+            <div class="col-md-2 text-center">
+                {% if staff.photo_url %}
+                <img src="{{ staff.photo_url }}" alt="{{ staff.name }}" class="rounded-circle" style="width: 100px; height: 100px; object-fit: cover;">
+                {% else %}
+                <div class="rounded-circle bg-primary d-flex align-items-center justify-content-center mx-auto" style="width: 100px; height: 100px;">
+                    <span class="text-white fs-1">{{ staff.name[0] }}</span>
+                </div>
+                {% endif %}
+            </div>
+            <div class="col-md-10">
+                <div class="row">
+                    <div class="col-md-3">
+                        <p class="mb-1"><strong>Staff ID:</strong></p>
+                        <p class="text-muted">{{ staff.staff_id }}</p>
+                    </div>
+                    <div class="col-md-3">
+                        <p class="mb-1"><strong>Branch:</strong></p>
+                        <p><span class="badge bg-info">{{ staff.school.short_name or staff.school.name if staff.school else 'N/A' }}</span></p>
+                    </div>
+                    <div class="col-md-3">
+                        <p class="mb-1"><strong>Department:</strong></p>
+                        <p class="text-muted">{{ staff.department }}</p>
+                    </div>
+                    <div class="col-md-3">
+                        <p class="mb-1"><strong>Email:</strong></p>
+                        <p class="text-muted">{{ staff.email or 'Not provided' }}</p>
+                    </div>
+                </div>
+                <div class="row mt-3">
+                    <div class="col-md-3">
+                        <div class="card bg-danger text-white">
+                            <div class="card-body text-center py-2">
+                                <h3 class="mb-0">{{ staff.times_late }}</h3>
+                                <small>Times Late</small>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col-md-3">
+                        <div class="card bg-warning text-dark">
+                            <div class="card-body text-center py-2">
+                                <h3 class="mb-0">{{ queries | length }}</h3>
+                                <small>Queries Received</small>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Query History -->
+<div class="card">
+    <div class="card-header">
+        <h5 class="mb-0"><i class="fas fa-history me-2"></i>Query History</h5>
+    </div>
+    <div class="card-body">
+        {% if queries %}
+        <div class="timeline">
+            {% for query in queries %}
+            <div class="card mb-3 {% if query.email_status == 'sent' %}border-success{% elif query.email_status == 'failed' %}border-danger{% else %}border-warning{% endif %}">
+                <div class="card-header d-flex justify-content-between align-items-center">
+                    <div>
+                        <strong>{{ query.template.title if query.template else 'Unknown Template' }}</strong>
+                        <br>
+                        <small class="text-muted">{{ query.sent_at.strftime('%d %B %Y at %H:%M') }}</small>
+                    </div>
+                    <div>
+                        {% if query.email_status == 'sent' %}
+                        <span class="badge bg-success"><i class="fas fa-check me-1"></i>Email Sent</span>
+                        {% elif query.email_status == 'failed' %}
+                        <span class="badge bg-danger"><i class="fas fa-times me-1"></i>Email Failed</span>
+                        {% elif query.email_status == 'no_email' %}
+                        <span class="badge bg-warning text-dark"><i class="fas fa-exclamation me-1"></i>No Email Address</span>
+                        {% else %}
+                        <span class="badge bg-secondary"><i class="fas fa-clock me-1"></i>Pending</span>
+                        {% endif %}
+                    </div>
+                </div>
+                <div class="card-body">
+                    <div class="row">
+                        <div class="col-md-4">
+                            <p class="mb-1"><strong>Sent By:</strong></p>
+                            <p class="text-muted">{{ query.sender.username if query.sender else 'N/A' }}</p>
+                        </div>
+                        <div class="col-md-4">
+                            <p class="mb-1"><strong>Late Count (at time of query):</strong></p>
+                            <p><span class="badge bg-secondary">{{ query.times_late_at_query }}</span></p>
+                        </div>
+                        <div class="col-md-4">
+                            <p class="mb-1"><strong>Organization:</strong></p>
+                            <p class="text-muted">{{ query.template.organization.name if query.template and query.template.organization else 'N/A' }}</p>
+                        </div>
+                    </div>
+                    {% if query.template %}
+                    <hr>
+                    <p class="mb-1"><strong>Email Subject:</strong></p>
+                    <p class="text-muted">{{ query.template.subject }}</p>
+                    <p class="mb-1"><strong>Email Preview:</strong></p>
+                    <div class="border rounded p-3 bg-light">
+                        {{ query.template.body | replace('{staff_name}', staff.name) | replace('{times_late}', query.times_late_at_query|string) | replace('{organization_name}', (query.template.organization.name if query.template.organization else '')) | replace('{branch_name}', (staff.school.name if staff.school else '')) | safe }}
+                    </div>
+                    {% endif %}
+                </div>
+            </div>
+            {% endfor %}
+        </div>
+        {% else %}
+        <div class="text-center py-5">
+            <i class="fas fa-inbox fa-3x text-muted mb-3"></i>
+            <p class="text-muted">No queries have been sent to this staff member yet.</p>
+            <a href="{{ url_for('send_query') }}" class="btn btn-primary">
+                <i class="fas fa-paper-plane me-2"></i>Send Query
+            </a>
+        </div>
+        {% endif %}
+    </div>
+</div>
+{% endblock %}
