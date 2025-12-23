@@ -308,9 +308,7 @@
                             <i class="fas fa-envelope me-1"></i> HR Queries
                         </a>
                         <ul class="dropdown-menu">
-                            {% if current_user.role in ['super_admin', 'school_admin'] %}
                             <li><a class="dropdown-item" href="{{ url_for('query_templates') }}"><i class="fas fa-file-alt me-2"></i>Query Templates</a></li>
-                            {% endif %}
                             <li><a class="dropdown-item" href="{{ url_for('send_query') }}"><i class="fas fa-paper-plane me-2"></i>Send Query</a></li>
                             <li><a class="dropdown-item" href="{{ url_for('query_tracking') }}"><i class="fas fa-list me-2"></i>Query Tracking</a></li>
                         </ul>
