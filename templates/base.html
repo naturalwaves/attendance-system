@@ -302,6 +302,21 @@
                         </ul>
                     </li>
                     
+                    {% if current_user.role in ['super_admin', 'school_admin', 'hr_viewer'] %}
+                    <li class="nav-item dropdown">
+                        <a class="nav-link dropdown-toggle {% if request.endpoint in ['query_templates', 'add_query_template', 'edit_query_template', 'send_query', 'query_tracking', 'staff_query_history'] %}active{% endif %}" href="#" id="queryDropdown" role="button" data-bs-toggle="dropdown">
+                            <i class="fas fa-envelope-open-text me-1"></i> HR Queries
+                        </a>
+                        <ul class="dropdown-menu">
+                            {% if current_user.role in ['super_admin', 'school_admin'] %}
+                            <li><a class="dropdown-item" href="{{ url_for('query_templates') }}"><i class="fas fa-file-alt me-2"></i>Query Templates</a></li>
+                            {% endif %}
+                            <li><a class="dropdown-item" href="{{ url_for('send_query') }}"><i class="fas fa-paper-plane me-2"></i>Send Query</a></li>
+                            <li><a class="dropdown-item" href="{{ url_for('query_tracking') }}"><i class="fas fa-list-check me-2"></i>Query Tracking</a></li>
+                        </ul>
+                    </li>
+                    {% endif %}
+                    
                     {% if current_user.role == 'super_admin' %}
                     <li class="nav-item">
                         <a class="nav-link {% if request.endpoint == 'settings' %}active{% endif %}" href="{{ url_for('settings') }}">
