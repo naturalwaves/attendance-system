@@ -746,21 +746,46 @@ def regenerate_api_key(id):
 def staff_list():
     accessible_school_ids = current_user.get_accessible_school_ids()
     organization_id = request.args.get('organization_id', type=int)
+    branch_id = request.args.get('branch_id', type=int)
+    
     if current_user.role == 'super_admin':
         if organization_id:
             org_school_ids = [s.id for s in School.query.filter_by(organization_id=organization_id).all()]
-            staff = Staff.query.filter(Staff.school_id.in_(org_school_ids)).all() if org_school_ids else []
+            if branch_id and branch_id in org_school_ids:
+                staff = Staff.query.filter(Staff.school_id == branch_id).all()
+            else:
+                staff = Staff.query.filter(Staff.school_id.in_(org_school_ids)).all() if org_school_ids else []
+        elif branch_id:
+            staff = Staff.query.filter(Staff.school_id == branch_id).all()
         else:
             staff = Staff.query.all()
         organizations = Organization.query.all()
+        if organization_id:
+            branches = School.query.filter_by(organization_id=organization_id).all()
+        else:
+            branches = School.query.all()
     elif accessible_school_ids:
-        staff = Staff.query.filter(Staff.school_id.in_(accessible_school_ids)).all()
-        organizations = []
+        if branch_id and branch_id in accessible_school_ids:
+            staff = Staff.query.filter(Staff.school_id == branch_id).all()
+        else:
+            staff = Staff.query.filter(Staff.school_id.in_(accessible_school_ids)).all()
+        organizations = current_user.get_accessible_organizations()
+        branches = current_user.get_accessible_schools()
     else:
         staff = []
         organizations = []
+        branches = []
+    
     schools = School.query.all()
-    return render_template('staff.html', staff=staff, schools=schools, organizations=organizations, selected_organization=organization_id)
+    
+    return render_template('staff.html', 
+                          staff=staff,
+                          schools=schools,
+                          organizations=organizations,
+                          branches=branches,
+                          selected_organization=organization_id,
+                          selected_branch=branch_id)
+
 
 @app.route('/staff/add', methods=['GET', 'POST'])
 @login_required
@@ -2345,6 +2370,7 @@ if __name__ == '__main__':
     with app.app_context():
         db.create_all()
     app.run(debug=True, host='0.0.0.0', port=int(os.environ.get('PORT', 5000)))
+
 
 
 
