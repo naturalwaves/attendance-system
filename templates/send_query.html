@@ -9,39 +9,62 @@
     </div>
     <div class="card-body">
         <!-- Filters -->
-        <form method="GET" class="row g-3 mb-4">
-            <div class="col-md-3">
-                <label class="form-label">Organization</label>
-                <select name="organization_id" id="organizationFilter" class="form-select" onchange="this.form.submit()">
-                    <option value="">All Organizations</option>
-                    {% for org in organizations %}
-                    <option value="{{ org.id }}" {% if selected_organization == org.id %}selected{% endif %}>{{ org.name }}</option>
-                    {% endfor %}
-                </select>
+        <form method="GET" id="filterForm" class="mb-4">
+            <div class="row g-3">
+                <div class="col-md-3">
+                    <label class="form-label">Organization</label>
+                    <select name="organization_id" id="organizationFilter" class="form-select" onchange="this.form.submit()">
+                        <option value="">All Organizations</option>
+                        {% for org in organizations %}
+                        <option value="{{ org.id }}" {% if selected_organization == org.id %}selected{% endif %}>{{ org.name }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+                <div class="col-md-3">
+                    <label class="form-label">Branch</label>
+                    <select name="branch_id" id="branchFilter" class="form-select" onchange="this.form.submit()">
+                        <option value="">All Branches</option>
+                        {% for branch in branches %}
+                        <option value="{{ branch.id }}" {% if selected_branch == branch.id %}selected{% endif %}>{{ branch.name }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+                <div class="col-md-3">
+                    <label class="form-label">Period</label>
+                    <select name="period" id="periodFilter" class="form-select" onchange="handlePeriodChange()">
+                        <option value="all" {% if selected_period == 'all' %}selected{% endif %}>All Time</option>
+                        <option value="today" {% if selected_period == 'today' %}selected{% endif %}>Today</option>
+                        <option value="7days" {% if selected_period == '7days' %}selected{% endif %}>Last 7 Days</option>
+                        <option value="14days" {% if selected_period == '14days' %}selected{% endif %}>Last 14 Days</option>
+                        <option value="this_week" {% if selected_period == 'this_week' %}selected{% endif %}>This Week</option>
+                        <option value="last_week" {% if selected_period == 'last_week' %}selected{% endif %}>Last Week</option>
+                        <option value="this_month" {% if selected_period == 'this_month' %}selected{% endif %}>This Month</option>
+                        <option value="last_month" {% if selected_period == 'last_month' %}selected{% endif %}>Last Month</option>
+                        <option value="custom" {% if selected_period == 'custom' %}selected{% endif %}>Custom Range</option>
+                    </select>
+                </div>
+                <div class="col-md-3 d-flex align-items-end">
+                    <a href="{{ url_for('send_query') }}" class="btn btn-outline-secondary w-100">
+                        <i class="fas fa-redo me-1"></i> Reset Filters
+                    </a>
+                </div>
             </div>
-            <div class="col-md-3">
-                <label class="form-label">Branch</label>
-                <select name="branch_id" id="branchFilter" class="form-select" onchange="this.form.submit()">
-                    <option value="">All Branches</option>
-                    {% for branch in branches %}
-                    <option value="{{ branch.id }}" {% if selected_branch == branch.id %}selected{% endif %}>{{ branch.name }}</option>
-                    {% endfor %}
-                </select>
-            </div>
-            <div class="col-md-3">
-                <label class="form-label">Period</label>
-                <select name="period" class="form-select" onchange="this.form.submit()">
-                    <option value="all" {% if selected_period == 'all' %}selected{% endif %}>All Time</option>
-                    <option value="1month" {% if selected_period == '1month' %}selected{% endif %}>Last 1 Month</option>
-                    <option value="3months" {% if selected_period == '3months' %}selected{% endif %}>Last 3 Months</option>
-                    <option value="6months" {% if selected_period == '6months' %}selected{% endif %}>Last 6 Months</option>
-                    <option value="1year" {% if selected_period == '1year' %}selected{% endif %}>Last 1 Year</option>
-                </select>
-            </div>
-            <div class="col-md-3 d-flex align-items-end">
-                <a href="{{ url_for('send_query') }}" class="btn btn-outline-secondary w-100">
-                    <i class="fas fa-redo me-1"></i> Reset Filters
-                </a>
+            
+            <!-- Custom Date Range -->
+            <div class="row g-3 mt-2" id="customDateRange" style="display: {% if selected_period == 'custom' %}flex{% else %}none{% endif %};">
+                <div class="col-md-3">
+                    <label class="form-label">Start Date</label>
+                    <input type="date" name="start_date" id="startDate" class="form-control" value="{{ start_date }}">
+                </div>
+                <div class="col-md-3">
+                    <label class="form-label">End Date</label>
+                    <input type="date" name="end_date" id="endDate" class="form-control" value="{{ end_date }}">
+                </div>
+                <div class="col-md-3 d-flex align-items-end">
+                    <button type="submit" class="btn btn-primary w-100">
+                        <i class="fas fa-filter me-1"></i> Apply
+                    </button>
+                </div>
             </div>
         </form>
 
@@ -158,6 +181,18 @@ function toggleAll(source) {
 function updateSelectedCount() {
     const checked = document.querySelectorAll('.staff-checkbox:checked').length;
     document.getElementById('selectedCount').textContent = checked;
+}
+
+function handlePeriodChange() {
+    const period = document.getElementById('periodFilter').value;
+    const customRange = document.getElementById('customDateRange');
+    
+    if (period === 'custom') {
+        customRange.style.display = 'flex';
+    } else {
+        customRange.style.display = 'none';
+        document.getElementById('filterForm').submit();
+    }
 }
 
 document.addEventListener('DOMContentLoaded', function() {
