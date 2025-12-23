@@ -1170,19 +1170,44 @@ def send_query():
     organization_id = request.args.get('organization_id', type=int)
     branch_id = request.args.get('branch_id', type=int)
     period = request.args.get('period', 'all')
+    start_date_param = request.args.get('start_date', '')
+    end_date_param = request.args.get('end_date', '')
     
     # Calculate date range based on period
     today = date.today()
-    if period == '1month':
-        start_date = today - timedelta(days=30)
-    elif period == '3months':
-        start_date = today - timedelta(days=90)
-    elif period == '6months':
-        start_date = today - timedelta(days=180)
-    elif period == '1year':
-        start_date = today - timedelta(days=365)
+    
+    if period == 'today':
+        start_date = today
+        end_date = today
+    elif period == '7days':
+        start_date = today - timedelta(days=7)
+        end_date = today
+    elif period == '14days':
+        start_date = today - timedelta(days=14)
+        end_date = today
+    elif period == 'this_week':
+        start_date = today - timedelta(days=today.weekday())
+        end_date = today
+    elif period == 'last_week':
+        start_date = today - timedelta(days=today.weekday() + 7)
+        end_date = today - timedelta(days=today.weekday() + 1)
+    elif period == 'this_month':
+        start_date = today.replace(day=1)
+        end_date = today
+    elif period == 'last_month':
+        first_of_this_month = today.replace(day=1)
+        end_date = first_of_this_month - timedelta(days=1)
+        start_date = end_date.replace(day=1)
+    elif period == 'custom' and start_date_param and end_date_param:
+        try:
+            start_date = datetime.strptime(start_date_param, '%Y-%m-%d').date()
+            end_date = datetime.strptime(end_date_param, '%Y-%m-%d').date()
+        except:
+            start_date = None
+            end_date = today
     else:
         start_date = None
+        end_date = today
     
     # Build staff query
     staff_query = Staff.query.filter(Staff.is_active == True, Staff.department != 'Management')
@@ -1211,7 +1236,7 @@ def send_query():
             period_late_count = Attendance.query.filter(
                 Attendance.staff_id == s.id,
                 Attendance.date >= start_date,
-                Attendance.date <= today,
+                Attendance.date <= end_date,
                 Attendance.is_late == True
             ).count()
         else:
@@ -1253,8 +1278,11 @@ def send_query():
         branches=branches,
         selected_organization=organization_id,
         selected_branch=branch_id,
-        selected_period=period
+        selected_period=period,
+        start_date=start_date_param or (start_date.strftime('%Y-%m-%d') if start_date else ''),
+        end_date=end_date_param or end_date.strftime('%Y-%m-%d')
     )
+
 
 
 @app.route('/queries/tracking')
@@ -2317,5 +2345,6 @@ if __name__ == '__main__':
     with app.app_context():
         db.create_all()
     app.run(debug=True, host='0.0.0.0', port=int(os.environ.get('PORT', 5000)))
+
 
 
