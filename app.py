@@ -663,17 +663,52 @@ def get_branch_staff(branch_id):
 @login_required
 @role_required('super_admin')
 def schools():
-    all_schools = School.query.all()
+    organization_id = request.args.get('organization_id', type=int)
+    
     organizations = Organization.query.all()
-    return render_template('schools.html', schools=all_schools, organizations=organizations)
+    
+    if organization_id:
+        all_schools = School.query.filter_by(organization_id=organization_id).all()
+    else:
+        all_schools = School.query.all()
+    
+    # Calculate totals
+    total_staff = sum(len(s.staff) for s in all_schools)
+    total_active_staff = sum(len([st for st in s.staff if st.is_active]) for s in all_schools)
+    
+    return render_template('schools.html', 
+        schools=all_schools, 
+        organizations=organizations,
+        selected_organization=organization_id,
+        total_staff=total_staff,
+        total_active_staff=total_active_staff
+    )
+
 
 @app.route('/branches')
 @login_required
 @role_required('super_admin')
 def branches():
-    all_schools = School.query.all()
+    organization_id = request.args.get('organization_id', type=int)
+    
     organizations = Organization.query.all()
-    return render_template('schools.html', schools=all_schools, organizations=organizations)
+    
+    if organization_id:
+        all_schools = School.query.filter_by(organization_id=organization_id).all()
+    else:
+        all_schools = School.query.all()
+    
+    total_staff = sum(len(s.staff) for s in all_schools)
+    total_active_staff = sum(len([st for st in s.staff if st.is_active]) for s in all_schools)
+    
+    return render_template('schools.html', 
+        schools=all_schools, 
+        organizations=organizations,
+        selected_organization=organization_id,
+        total_staff=total_staff,
+        total_active_staff=total_active_staff
+    )
+
 
 @app.route('/schools/add', methods=['GET', 'POST'])
 @login_required
@@ -2395,6 +2430,7 @@ if __name__ == '__main__':
     with app.app_context():
         db.create_all()
     app.run(debug=True, host='0.0.0.0', port=int(os.environ.get('PORT', 5000)))
+
 
 
 
