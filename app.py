@@ -1074,7 +1074,7 @@ def query_templates():
 
 @app.route('/query-templates/add', methods=['GET', 'POST'])
 @login_required
-@role_required('super_admin', 'school_admin')
+@role_required('super_admin', 'hr_viewer', 'school_admin')
 def add_query_template():
     if request.method == 'POST':
         organization_id = request.form.get('organization_id')
@@ -1097,7 +1097,7 @@ def add_query_template():
 
 @app.route('/query-templates/edit/<int:id>', methods=['GET', 'POST'])
 @login_required
-@role_required('super_admin', 'school_admin')
+@role_required('super_admin', 'hr_viewer', 'school_admin')
 def edit_query_template(id):
     template = QueryTemplate.query.get_or_404(id)
     if request.method == 'POST':
@@ -2245,3 +2245,4 @@ if __name__ == '__main__':
     with app.app_context():
         db.create_all()
     app.run(debug=True, host='0.0.0.0', port=int(os.environ.get('PORT', 5000)))
+
