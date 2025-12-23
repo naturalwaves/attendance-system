@@ -23,16 +23,17 @@
     </div>
 </div>
 
-<div class="card border-0 shadow-sm">
+<!-- Template Info Card -->
+<div class="card border-0 shadow-sm mb-4">
     <div class="card-header bg-white py-3">
         <h6 class="mb-0 fw-semibold">
-            <i class="fas fa-file-alt me-2 text-primary"></i>Template Details
+            <i class="fas fa-info-circle me-2 text-primary"></i>Template Information
         </h6>
     </div>
     <div class="card-body">
-        <form method="POST">
+        <form method="POST" id="templateForm">
             <div class="row g-3">
-                <div class="col-md-6">
+                <div class="col-md-4">
                     <label class="form-label small fw-semibold">Organization <span class="text-danger">*</span></label>
                     <select name="organization_id" class="form-select" required>
                         <option value="">Select Organization</option>
@@ -42,42 +43,54 @@
                     </select>
                 </div>
                 
-                <div class="col-md-6">
+                <div class="col-md-4">
                     <label class="form-label small fw-semibold">Template Title <span class="text-danger">*</span></label>
                     <input type="text" name="title" class="form-control" placeholder="e.g., Lateness Query - First Warning" required>
                 </div>
                 
-                <div class="col-12">
+                <div class="col-md-4">
                     <label class="form-label small fw-semibold">Email Subject <span class="text-danger">*</span></label>
                     <input type="text" name="subject" class="form-control" placeholder="e.g., Query Regarding Your Attendance - {date}" required>
-                    <small class="text-muted"><i class="fas fa-lightbulb me-1"></i> Placeholders: <code>{staff_name}</code>, <code>{date}</code></small>
-                </div>
-                
-                <div class="col-12">
-                    <label class="form-label small fw-semibold">Email Body <span class="text-danger">*</span></label>
-                    <textarea name="body" id="editor"></textarea>
-                    <div class="mt-2">
-                        <small class="text-muted">
-                            <i class="fas fa-lightbulb me-1"></i> Available placeholders: 
-                            <code>{staff_name}</code>, 
-                            <code>{times_late}</code>, 
-                            <code>{date}</code>, 
-                            <code>{organization_name}</code>, 
-                            <code>{branch_name}</code>
-                        </small>
-                    </div>
                 </div>
             </div>
-            
-            <hr class="my-4">
-            
-            <div class="d-flex gap-2">
-                <button type="submit" class="btn btn-primary">
-                    <i class="fas fa-save me-2"></i>Save Template
-                </button>
-                <a href="{{ url_for('query_templates') }}" class="btn btn-outline-secondary">Cancel</a>
+            <div class="mt-2">
+                <small class="text-muted"><i class="fas fa-lightbulb me-1"></i> Subject placeholders: <code>{staff_name}</code>, <code>{date}</code></small>
             </div>
         </form>
+    </div>
+</div>
+
+<!-- Email Body Card - Full Width -->
+<div class="card border-0 shadow-sm mb-4">
+    <div class="card-header bg-white py-3">
+        <h6 class="mb-0 fw-semibold">
+            <i class="fas fa-envelope me-2 text-primary"></i>Email Body <span class="text-danger">*</span>
+        </h6>
+    </div>
+    <div class="card-body p-0">
+        <textarea name="body" id="editor" form="templateForm"></textarea>
+    </div>
+    <div class="card-footer bg-light">
+        <small class="text-muted">
+            <i class="fas fa-lightbulb me-1"></i> Available placeholders: 
+            <code>{staff_name}</code>, 
+            <code>{times_late}</code>, 
+            <code>{date}</code>, 
+            <code>{organization_name}</code>, 
+            <code>{branch_name}</code>
+        </small>
+    </div>
+</div>
+
+<!-- Action Buttons -->
+<div class="card border-0 shadow-sm">
+    <div class="card-body">
+        <div class="d-flex gap-2">
+            <button type="submit" form="templateForm" class="btn btn-primary btn-lg">
+                <i class="fas fa-save me-2"></i>Save Template
+            </button>
+            <a href="{{ url_for('query_templates') }}" class="btn btn-outline-secondary btn-lg">Cancel</a>
+        </div>
     </div>
 </div>
 
@@ -90,8 +103,8 @@
 <script>
 $(document).ready(function() {
     $('#editor').summernote({
-        height: 500,
-        placeholder: 'Compose your query email here...',
+        height: 700,
+        placeholder: 'Compose your query email here...\n\nTip: You can use placeholders like {staff_name} which will be replaced with actual values when sending.',
         toolbar: [
             ['style', ['style']],
             ['font', ['bold', 'italic', 'underline', 'strikethrough', 'clear']],
@@ -99,6 +112,7 @@ $(document).ready(function() {
             ['fontsize', ['fontsize']],
             ['color', ['color']],
             ['para', ['ul', 'ol', 'paragraph']],
+            ['height', ['height']],
             ['table', ['table']],
             ['insert', ['link', 'hr']],
             ['view', ['fullscreen', 'codeview', 'undo', 'redo', 'help']]
@@ -116,7 +130,8 @@ $(document).ready(function() {
         callbacks: {
             onInit: function() {
                 $('.note-editable').css('font-family', 'Arial, sans-serif');
-                $('.note-editable').css('font-size', '12pt');
+                $('.note-editable').css('font-size', '14px');
+                $('.note-editable').css('line-height', '1.6');
             }
         }
     });
@@ -125,24 +140,28 @@ $(document).ready(function() {
 
 <style>
 .note-editor.note-frame {
-    border: 1px solid #dee2e6;
-    border-radius: 0.5rem;
+    border: none !important;
+    border-radius: 0;
 }
 
 .note-editor.note-frame .note-editing-area .note-editable {
-    padding: 15px;
+    padding: 25px;
     background-color: #fff;
+    min-height: 700px;
 }
 
 .note-toolbar {
     background-color: #f8f9fc;
     border-bottom: 1px solid #dee2e6;
-    border-radius: 0.5rem 0.5rem 0 0;
-    padding: 8px;
+    padding: 10px 15px;
 }
 
 .note-btn {
     border-radius: 4px !important;
+}
+
+.note-toolbar .note-btn-group {
+    margin-right: 8px;
 }
 
 .text-white-50 {
@@ -158,6 +177,10 @@ code {
     padding: 2px 6px;
     border-radius: 4px;
     color: #d63384;
+}
+
+.note-editable {
+    font-size: 14px !important;
 }
 </style>
 {% endblock %}
