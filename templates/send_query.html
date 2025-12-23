@@ -154,6 +154,13 @@
 
 {% if late_staff %}
 <form method="POST">
+    <!-- Hidden fields for period and late counts -->
+    <input type="hidden" name="period_start" value="{{ start_date }}">
+    <input type="hidden" name="period_end" value="{{ end_date }}">
+    {% for item in late_staff %}
+    <input type="hidden" name="late_count_{{ item.staff.id }}" value="{{ item.late_count }}">
+    {% endfor %}
+    
     <!-- Template Selection Card -->
     <div class="card border-0 shadow-sm mb-4 bg-light">
         <div class="card-body py-4">
