@@ -1121,7 +1121,7 @@ def delete_query_template(id):
 
 @app.route('/queries/send', methods=['GET', 'POST'])
 @login_required
-@role_required('super_admin', 'hr_viewer', 'school_admin')
+@role_required('super_admin', 'school_admin', 'hr_viewer')
 def send_query():
     if request.method == 'POST':
         staff_ids = request.form.getlist('staff_ids')
@@ -1164,26 +1164,98 @@ def send_query():
         if no_email_count > 0:
             flash(f'{no_email_count} staff member(s) have no email address (query recorded).', 'info')
         return redirect(url_for('query_tracking'))
+    
+    # Get filter parameters
     accessible_school_ids = current_user.get_accessible_school_ids()
     organization_id = request.args.get('organization_id', type=int)
-    staff_query = Staff.query.filter(Staff.is_active == True, Staff.times_late > 0, Staff.department != 'Management')
+    branch_id = request.args.get('branch_id', type=int)
+    period = request.args.get('period', 'all')
+    
+    # Calculate date range based on period
+    today = date.today()
+    if period == '1month':
+        start_date = today - timedelta(days=30)
+    elif period == '3months':
+        start_date = today - timedelta(days=90)
+    elif period == '6months':
+        start_date = today - timedelta(days=180)
+    elif period == '1year':
+        start_date = today - timedelta(days=365)
+    else:
+        start_date = None
+    
+    # Build staff query
+    staff_query = Staff.query.filter(Staff.is_active == True, Staff.department != 'Management')
+    
+    # Filter by organization
     if organization_id:
         org_school_ids = [s.id for s in School.query.filter_by(organization_id=organization_id).all()]
-        staff_query = staff_query.filter(Staff.school_id.in_(org_school_ids))
+        if branch_id and branch_id in org_school_ids:
+            staff_query = staff_query.filter(Staff.school_id == branch_id)
+        else:
+            staff_query = staff_query.filter(Staff.school_id.in_(org_school_ids))
     elif current_user.role != 'super_admin' and accessible_school_ids:
-        staff_query = staff_query.filter(Staff.school_id.in_(accessible_school_ids))
-    late_staff = staff_query.order_by(Staff.times_late.desc()).all()
+        if branch_id and branch_id in accessible_school_ids:
+            staff_query = staff_query.filter(Staff.school_id == branch_id)
+        else:
+            staff_query = staff_query.filter(Staff.school_id.in_(accessible_school_ids))
+    elif branch_id:
+        staff_query = staff_query.filter(Staff.school_id == branch_id)
+    
+    all_staff = staff_query.all()
+    
+    # Calculate late counts based on period
+    late_staff = []
+    for s in all_staff:
+        if start_date:
+            period_late_count = Attendance.query.filter(
+                Attendance.staff_id == s.id,
+                Attendance.date >= start_date,
+                Attendance.date <= today,
+                Attendance.is_late == True
+            ).count()
+        else:
+            period_late_count = s.times_late
+        
+        if period_late_count > 0:
+            late_staff.append({
+                'staff': s,
+                'late_count': period_late_count,
+                'total_late': s.times_late
+            })
+    
+    # Sort by late count descending
+    late_staff.sort(key=lambda x: x['late_count'], reverse=True)
+    
+    # Get organizations and branches for filters
     if current_user.role == 'super_admin':
         organizations = Organization.query.all()
         if organization_id:
+            branches = School.query.filter_by(organization_id=organization_id).all()
             templates = QueryTemplate.query.filter_by(organization_id=organization_id, is_active=True).all()
         else:
+            branches = School.query.all()
             templates = QueryTemplate.query.filter_by(is_active=True).all()
     else:
         organizations = current_user.get_accessible_organizations()
         org_ids = [o.id for o in organizations]
-        templates = QueryTemplate.query.filter(QueryTemplate.organization_id.in_(org_ids), QueryTemplate.is_active == True).all() if org_ids else []
-    return render_template('send_query.html', late_staff=late_staff, templates=templates, organizations=organizations, selected_organization=organization_id)
+        if organization_id and organization_id in org_ids:
+            branches = School.query.filter(School.organization_id == organization_id, School.id.in_(accessible_school_ids)).all()
+            templates = QueryTemplate.query.filter_by(organization_id=organization_id, is_active=True).all()
+        else:
+            branches = current_user.get_accessible_schools()
+            templates = QueryTemplate.query.filter(QueryTemplate.organization_id.in_(org_ids), QueryTemplate.is_active == True).all() if org_ids else []
+    
+    return render_template('send_query.html', 
+        late_staff=late_staff, 
+        templates=templates, 
+        organizations=organizations,
+        branches=branches,
+        selected_organization=organization_id,
+        selected_branch=branch_id,
+        selected_period=period
+    )
+
 
 @app.route('/queries/tracking')
 @login_required
@@ -2245,4 +2317,5 @@ if __name__ == '__main__':
     with app.app_context():
         db.create_all()
     app.run(debug=True, host='0.0.0.0', port=int(os.environ.get('PORT', 5000)))
+
 
