@@ -1,0 +1,204 @@
+{% extends 'base.html' %}
+
+{% block title %}Send Query - Attendance System{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <h2><i class="fas fa-paper-plane me-2"></i>Send Query</h2>
+    <a href="{{ url_for('query_tracking') }}" class="btn btn-secondary">
+        <i class="fas fa-history me-2"></i>View Query History
+    </a>
+</div>
+
+<!-- Filters -->
+<div class="card mb-4">
+    <div class="card-body">
+        <form method="GET" class="row g-3">
+            <div class="col-md-4">
+                <label class="form-label">Filter by Organization</label>
+                <select name="organization_id" class="form-select" onchange="this.form.submit()">
+                    <option value="">All Organizations</option>
+                    {% for org in organizations %}
+                    <option value="{{ org.id }}" {% if selected_organization == org.id %}selected{% endif %}>{{ org.name }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+        </form>
+    </div>
+</div>
+
+{% if late_staff %}
+<form method="POST" id="sendQueryForm">
+    <!-- Template Selection -->
+    <div class="card mb-4">
+        <div class="card-header bg-primary text-white">
+            <h5 class="mb-0"><i class="fas fa-file-alt me-2"></i>Step 1: Select Query Template</h5>
+        </div>
+        <div class="card-body">
+            {% if templates %}
+            <div class="row">
+                {% for template in templates %}
+                <div class="col-md-4 mb-3">
+                    <div class="form-check card h-100">
+                        <div class="card-body">
+                            <input class="form-check-input" type="radio" name="template_id" id="template{{ template.id }}" value="{{ template.id }}" required>
+                            <label class="form-check-label w-100" for="template{{ template.id }}">
+                                <strong>{{ template.title }}</strong>
+                                <br>
+                                <small class="text-muted">{{ template.organization.name if template.organization else '' }}</small>
+                                <br>
+                                <small class="text-muted">Subject: {{ template.subject[:40] }}...</small>
+                            </label>
+                        </div>
+                    </div>
+                </div>
+                {% endfor %}
+            </div>
+            {% else %}
+            <div class="alert alert-warning mb-0">
+                <i class="fas fa-exclamation-triangle me-2"></i>
+                No query templates found. 
+                <a href="{{ url_for('add_query_template') }}">Create one first</a>.
+            </div>
+            {% endif %}
+        </div>
+    </div>
+
+    <!-- Staff Selection -->
+    <div class="card mb-4">
+        <div class="card-header bg-primary text-white d-flex justify-content-between align-items-center">
+            <h5 class="mb-0"><i class="fas fa-users me-2"></i>Step 2: Select Staff Members</h5>
+            <div>
+                <button type="button" class="btn btn-light btn-sm" onclick="selectAll()">Select All</button>
+                <button type="button" class="btn btn-outline-light btn-sm" onclick="deselectAll()">Deselect All</button>
+            </div>
+        </div>
+        <div class="card-body">
+            <div class="table-responsive">
+                <table class="table table-hover">
+                    <thead>
+                        <tr>
+                            <th style="width: 50px;">
+                                <input type="checkbox" id="selectAllCheckbox" onclick="toggleAll(this)" class="form-check-input">
+                            </th>
+                            <th>Staff ID</th>
+                            <th>Name</th>
+                            <th>Branch</th>
+                            <th>Department</th>
+                            <th>Email</th>
+                            <th>Times Late</th>
+                            <th>Times Queried</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for staff in late_staff %}
+                        <tr>
+                            <td>
+                                <input type="checkbox" name="staff_ids" value="{{ staff.id }}" class="form-check-input staff-checkbox">
+                            </td>
+                            <td>{{ staff.staff_id }}</td>
+                            <td><strong>{{ staff.name }}</strong></td>
+                            <td>
+                                <span class="badge bg-info">{{ staff.school.short_name or staff.school.name if staff.school else 'N/A' }}</span>
+                            </td>
+                            <td>{{ staff.department }}</td>
+                            <td>
+                                {% if staff.email %}
+                                <span class="text-success"><i class="fas fa-check-circle me-1"></i>{{ staff.email }}</span>
+                                {% else %}
+                                <span class="text-danger"><i class="fas fa-times-circle me-1"></i>No email</span>
+                                {% endif %}
+                            </td>
+                            <td>
+                                <span class="badge bg-danger fs-6">{{ staff.times_late }}</span>
+                            </td>
+                            <td>
+                                {% set query_count = staff.queries_received | length %}
+                                {% if query_count > 0 %}
+                                <span class="badge bg-warning text-dark">{{ query_count }}</span>
+                                {% else %}
+                                <span class="badge bg-secondary">0</span>
+                                {% endif %}
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+
+    <!-- Submit -->
+    <div class="card">
+        <div class="card-body">
+            <div class="d-flex justify-content-between align-items-center">
+                <div>
+                    <span class="text-muted">Selected: <strong id="selectedCount">0</strong> staff member(s)</span>
+                </div>
+                <button type="submit" class="btn btn-primary btn-lg" id="submitBtn" disabled>
+                    <i class="fas fa-paper-plane me-2"></i>Send Query to Selected Staff
+                </button>
+            </div>
+        </div>
+    </div>
+</form>
+
+{% else %}
+<div class="card">
+    <div class="card-body text-center py-5">
+        <i class="fas fa-smile fa-3x text-success mb-3"></i>
+        <h4>No Late Staff Found!</h4>
+        <p class="text-muted">All staff members have perfect attendance records.</p>
+    </div>
+</div>
+{% endif %}
+
+<script>
+function selectAll() {
+    document.querySelectorAll('.staff-checkbox').forEach(cb => cb.checked = true);
+    document.getElementById('selectAllCheckbox').checked = true;
+    updateSelectedCount();
+}
+
+function deselectAll() {
+    document.querySelectorAll('.staff-checkbox').forEach(cb => cb.checked = false);
+    document.getElementById('selectAllCheckbox').checked = false;
+    updateSelectedCount();
+}
+
+function toggleAll(source) {
+    document.querySelectorAll('.staff-checkbox').forEach(cb => cb.checked = source.checked);
+    updateSelectedCount();
+}
+
+function updateSelectedCount() {
+    const count = document.querySelectorAll('.staff-checkbox:checked').length;
+    document.getElementById('selectedCount').textContent = count;
+    document.getElementById('submitBtn').disabled = count === 0;
+}
+
+document.querySelectorAll('.staff-checkbox').forEach(cb => {
+    cb.addEventListener('change', updateSelectedCount);
+});
+
+document.getElementById('sendQueryForm').addEventListener('submit', function(e) {
+    const count = document.querySelectorAll('.staff-checkbox:checked').length;
+    if (count === 0) {
+        e.preventDefault();
+        alert('Please select at least one staff member.');
+        return;
+    }
+    
+    const templateSelected = document.querySelector('input[name="template_id"]:checked');
+    if (!templateSelected) {
+        e.preventDefault();
+        alert('Please select a query template.');
+        return;
+    }
+    
+    if (!confirm(`Are you sure you want to send queries to ${count} staff member(s)?`)) {
+        e.preventDefault();
+    }
+});
+</script>
+{% endblock %}
