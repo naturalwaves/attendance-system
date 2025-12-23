@@ -23,15 +23,15 @@
     </div>
 </div>
 
-<!-- Template Info Card -->
-<div class="card border-0 shadow-sm mb-4">
-    <div class="card-header bg-white py-3">
-        <h6 class="mb-0 fw-semibold">
-            <i class="fas fa-info-circle me-2 text-primary"></i>Template Information
-        </h6>
-    </div>
-    <div class="card-body">
-        <form method="POST" id="templateForm">
+<form method="POST" id="templateForm">
+    <!-- Template Info Card -->
+    <div class="card border-0 shadow-sm mb-4">
+        <div class="card-header bg-white py-3">
+            <h6 class="mb-0 fw-semibold">
+                <i class="fas fa-info-circle me-2 text-primary"></i>Template Information
+            </h6>
+        </div>
+        <div class="card-body">
             <div class="row g-3">
                 <div class="col-md-4">
                     <label class="form-label small fw-semibold">Organization</label>
@@ -57,49 +57,52 @@
             <div class="mt-2">
                 <small class="text-muted"><i class="fas fa-lightbulb me-1"></i> Subject placeholders: <code>{staff_name}</code>, <code>{date}</code></small>
             </div>
-    </div>
-</div>
-
-<!-- Email Body Card - Full Width -->
-<div class="card border-0 shadow-sm mb-4">
-    <div class="card-header bg-white py-3">
-        <h6 class="mb-0 fw-semibold">
-            <i class="fas fa-envelope me-2 text-primary"></i>Email Body <span class="text-danger">*</span>
-        </h6>
-    </div>
-    <div class="card-body">
-        <textarea name="body" id="editor">{{ template.body }}</textarea>
-    </div>
-    <div class="card-footer bg-light">
-        <small class="text-muted">
-            <i class="fas fa-lightbulb me-1"></i> Available placeholders: 
-            <code>{staff_name}</code>, 
-            <code>{times_late}</code>, 
-            <code>{date}</code>, 
-            <code>{organization_name}</code>, 
-            <code>{branch_name}</code>
-        </small>
-    </div>
-</div>
-
-<!-- Action Buttons -->
-<div class="card border-0 shadow-sm">
-    <div class="card-body">
-        <div class="d-flex gap-2">
-            <button type="submit" form="templateForm" class="btn btn-primary btn-lg">
-                <i class="fas fa-save me-2"></i>Update Template
-            </button>
-            <a href="{{ url_for('query_templates') }}" class="btn btn-outline-secondary btn-lg">Cancel</a>
         </div>
     </div>
-</div>
+
+    <!-- Email Body Card -->
+    <div class="card border-0 shadow-sm mb-4">
+        <div class="card-header bg-white py-3">
+            <h6 class="mb-0 fw-semibold">
+                <i class="fas fa-envelope me-2 text-primary"></i>Email Body <span class="text-danger">*</span>
+            </h6>
+        </div>
+        <div class="card-body p-0">
+            <div id="editor-container">{{ template.body | safe }}</div>
+            <input type="hidden" name="body" id="body-input">
+        </div>
+        <div class="card-footer bg-light">
+            <small class="text-muted">
+                <i class="fas fa-lightbulb me-1"></i> Available placeholders: 
+                <code>{staff_name}</code>, 
+                <code>{times_late}</code>, 
+                <code>{date}</code>, 
+                <code>{organization_name}</code>, 
+                <code>{branch_name}</code>
+            </small>
+        </div>
+    </div>
+
+    <!-- Action Buttons -->
+    <div class="card border-0 shadow-sm">
+        <div class="card-body">
+            <div class="d-flex gap-2">
+                <button type="submit" class="btn btn-primary btn-lg">
+                    <i class="fas fa-save me-2"></i>Update Template
+                </button>
+                <a href="{{ url_for('query_templates') }}" class="btn btn-outline-secondary btn-lg">Cancel</a>
+            </div>
+        </div>
+    </div>
 </form>
 
-<!-- CKEditor 5 -->
+<!-- CKEditor 5 CDN -->
 <script src="https://cdn.ckeditor.com/ckeditor5/41.0.0/super-build/ckeditor.js"></script>
 
 <script>
-CKEDITOR.ClassicEditor.create(document.getElementById("editor"), {
+let editorInstance;
+
+CKEDITOR.ClassicEditor.create(document.getElementById("editor-container"), {
     toolbar: {
         items: [
             'heading', '|',
@@ -141,27 +144,33 @@ CKEDITOR.ClassicEditor.create(document.getElementById("editor"), {
         options: [8, 9, 10, 11, 12, 14, 16, 18, 20, 22, 24, 26, 28, 32, 36, 48, 72],
         supportAllValues: true
     },
+    alignment: {
+        options: ['left', 'center', 'right', 'justify']
+    },
     placeholder: 'Compose your query email here...',
     htmlSupport: {
         allow: [
             { name: /.*/, attributes: true, classes: true, styles: true }
         ]
     },
-    removePlugins: ['MediaEmbed', 'MediaEmbedToolbar']
+    removePlugins: ['MediaEmbed', 'MediaEmbedToolbar', 'CKBox', 'CKFinder', 'EasyImage', 'RealTimeCollaborativeComments', 'RealTimeCollaborativeTrackChanges', 'RealTimeCollaborativeRevisionHistory', 'PresenceList', 'Comments', 'TrackChanges', 'TrackChangesData', 'RevisionHistory', 'Pagination', 'WProofreader', 'MathType', 'SlashCommand', 'Template', 'DocumentOutline', 'FormatPainter', 'TableOfContents', 'PasteFromOfficeEnhanced', 'CloudServices']
 }).then(editor => {
-    window.editor = editor;
+    editorInstance = editor;
     
-    // Set minimum height
+    // Set editor height
     editor.editing.view.change(writer => {
         writer.setStyle('min-height', '500px', editor.editing.view.document.getRoot());
     });
     
-    // Sync content to textarea on form submit
-    document.getElementById('templateForm').addEventListener('submit', function() {
-        document.getElementById('editor').value = editor.getData();
-    });
 }).catch(error => {
-    console.error(error);
+    console.error('CKEditor Error:', error);
+});
+
+// Sync editor content to hidden input before form submit
+document.getElementById('templateForm').addEventListener('submit', function(e) {
+    if (editorInstance) {
+        document.getElementById('body-input').value = editorInstance.getData();
+    }
 });
 </script>
 
@@ -169,23 +178,40 @@ CKEDITOR.ClassicEditor.create(document.getElementById("editor"), {
 .ck-editor__editable {
     min-height: 500px !important;
     font-size: 14px;
-    line-height: 1.6;
+    line-height: 1.8;
+    padding: 20px !important;
 }
 
 .ck.ck-editor {
-    border-radius: 8px;
-    overflow: hidden;
+    width: 100%;
 }
 
 .ck.ck-toolbar {
     background-color: #f8f9fc !important;
+    border: none !important;
     border-bottom: 1px solid #dee2e6 !important;
-    padding: 8px !important;
+    padding: 10px !important;
+    flex-wrap: wrap !important;
 }
 
 .ck.ck-editor__main > .ck-editor__editable {
     background-color: #fff;
-    padding: 20px;
+    border: none !important;
+    border-radius: 0 !important;
+}
+
+.ck.ck-editor__editable:focus {
+    border: none !important;
+    box-shadow: none !important;
+}
+
+.ck.ck-button {
+    border-radius: 4px !important;
+}
+
+.ck-dropdown__panel {
+    max-height: 300px;
+    overflow-y: auto;
 }
 
 .text-white-50 {
