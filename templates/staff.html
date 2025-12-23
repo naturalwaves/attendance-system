@@ -5,34 +5,34 @@
 {% block content %}
 <div class="row mb-4">
     <div class="col-12">
-        <div class="card border-0 shadow-lg bg-gradient" style="background: linear-gradient(135deg, #1e3c72 0%, #2a5298 100%);">
-            <div class="card-body text-white py-4">
-                <div class="d-flex justify-content-between align-items-center">
+        <div class="card border-0 shadow-lg" style="background: linear-gradient(135deg, #1e3c72 0%, #2a5298 100%);">
+            <div class="card-body py-4">
+                <div class="d-flex justify-content-between align-items-center flex-wrap gap-3">
                     <div>
-                        <h3 class="mb-1 fw-bold">
+                        <h3 class="mb-1 fw-bold text-white">
                             <i class="fas fa-users me-2"></i>Staff Directory
                             {% if selected_branch and branches %}
                                 {% for branch in branches %}
                                     {% if branch.id == selected_branch %}
-                                        <span class="fw-normal">/ {{ branch.name }}</span>
+                                        <span class="fw-normal text-white-50">/ {{ branch.name }}</span>
                                     {% endif %}
                                 {% endfor %}
                             {% elif selected_organization and organizations %}
                                 {% for org in organizations %}
                                     {% if org.id == selected_organization %}
-                                        <span class="fw-normal">/ {{ org.name }}</span>
+                                        <span class="fw-normal text-white-50">/ {{ org.name }}</span>
                                     {% endif %}
                                 {% endfor %}
                             {% endif %}
                         </h3>
-                        <p class="mb-0 opacity-75"><i class="fas fa-info-circle me-1"></i> Manage and track all staff members across your organization</p>
+                        <p class="mb-0 text-white-50"><i class="fas fa-info-circle me-1"></i> Manage and track all staff members across your organization</p>
                     </div>
                     {% if current_user.role in ['super_admin', 'school_admin'] %}
-                    <div class="d-flex gap-2">
-                        <a href="{{ url_for('download_staff_csv') }}" class="btn btn-outline-light btn-sm">
+                    <div class="d-flex gap-2 flex-wrap">
+                        <a href="{{ url_for('download_staff_csv') }}" class="btn btn-light btn-sm">
                             <i class="fas fa-file-export me-1"></i> Export
                         </a>
-                        <button type="button" class="btn btn-outline-light btn-sm" data-bs-toggle="modal" data-bs-target="#uploadModal">
+                        <button type="button" class="btn btn-light btn-sm" data-bs-toggle="modal" data-bs-target="#uploadModal">
                             <i class="fas fa-cloud-upload-alt me-1"></i> Import
                         </button>
                         <button type="button" class="btn btn-warning btn-sm fw-semibold" data-bs-toggle="modal" data-bs-target="#addStaffModal">
@@ -192,58 +192,58 @@
             </thead>
             <tbody>
                 {% for s in staff %}
-                <tr class="{% if not s.is_active %}table-light{% endif %}">
+                <tr class="{% if not s.is_active %}inactive-row{% endif %}">
                     <td class="ps-4">
-                        <code class="bg-light px-2 py-1 rounded">{{ s.staff_id }}</code>
+                        <code class="{% if s.is_active %}bg-light{% else %}bg-danger-subtle text-danger{% endif %} px-2 py-1 rounded">{{ s.staff_id }}</code>
                     </td>
                     <td>
                         <div class="d-flex align-items-center">
-                            <div class="avatar-circle me-3 {% if not s.is_active %}opacity-50{% endif %}">
+                            <div class="avatar-circle me-3 {% if not s.is_active %}avatar-inactive{% endif %}">
                                 {{ s.name[0] | upper }}
                             </div>
                             <div>
-                                <div class="fw-semibold {% if not s.is_active %}text-muted{% endif %}">{{ s.name }}</div>
+                                <div class="fw-semibold {% if not s.is_active %}text-danger{% endif %}">{{ s.name }}</div>
                                 {% if s.email %}
-                                <small class="text-muted">{{ s.email }}</small>
+                                <small class="{% if s.is_active %}text-muted{% else %}text-danger-emphasis{% endif %}">{{ s.email }}</small>
                                 {% endif %}
                             </div>
                         </div>
                     </td>
                     <td>
-                        <span class="badge bg-light text-dark border">
-                            <i class="fas fa-map-marker-alt me-1 text-primary"></i>
+                        <span class="badge {% if s.is_active %}bg-light text-dark border{% else %}bg-danger-subtle text-danger border-danger{% endif %}">
+                            <i class="fas fa-map-marker-alt me-1 {% if s.is_active %}text-primary{% else %}text-danger{% endif %}"></i>
                             {{ s.school.short_name or s.school.name if s.school else 'N/A' }}
                         </span>
                     </td>
                     <td>
-                        <span class="text-dark">{{ s.department }}</span>
+                        <span class="{% if not s.is_active %}text-danger{% endif %}">{{ s.department }}</span>
                     </td>
                     <td>
                         {% if s.email or s.phone %}
-                        <div class="small">
+                        <div class="small {% if not s.is_active %}text-danger{% endif %}">
                             {% if s.phone %}
-                            <div><i class="fas fa-phone text-success me-1"></i> {{ s.phone }}</div>
+                            <div><i class="fas fa-phone {% if s.is_active %}text-success{% else %}text-danger{% endif %} me-1"></i> {{ s.phone }}</div>
                             {% endif %}
                         </div>
                         {% else %}
-                        <span class="badge bg-light text-muted border">No contact</span>
+                        <span class="badge {% if s.is_active %}bg-light text-muted border{% else %}bg-danger-subtle text-danger{% endif %}">No contact</span>
                         {% endif %}
                     </td>
                     <td class="text-center">
                         {% if s.is_active %}
-                        <span class="badge bg-success-subtle text-success px-3 py-2">
+                        <span class="badge bg-success px-3 py-2">
                             <i class="fas fa-check-circle me-1"></i> Active
                         </span>
                         {% else %}
-                        <span class="badge bg-secondary-subtle text-secondary px-3 py-2">
-                            <i class="fas fa-minus-circle me-1"></i> Inactive
+                        <span class="badge bg-danger px-3 py-2">
+                            <i class="fas fa-times-circle me-1"></i> Inactive
                         </span>
                         {% endif %}
                     </td>
                     <td class="text-center pe-4">
                         {% if current_user.role in ['super_admin', 'school_admin'] %}
                         <div class="dropdown">
-                            <button class="btn btn-sm btn-light border dropdown-toggle" type="button" data-bs-toggle="dropdown">
+                            <button class="btn btn-sm {% if s.is_active %}btn-light border{% else %}btn-outline-danger{% endif %} dropdown-toggle" type="button" data-bs-toggle="dropdown">
                                 <i class="fas fa-ellipsis-v"></i>
                             </button>
                             <ul class="dropdown-menu dropdown-menu-end shadow-sm">
@@ -317,12 +317,24 @@
     flex-shrink: 0;
 }
 
-.bg-success-subtle {
-    background-color: rgba(25, 135, 84, 0.1) !important;
+.avatar-inactive {
+    background: linear-gradient(135deg, #dc3545 0%, #c82333 100%) !important;
 }
 
-.bg-secondary-subtle {
-    background-color: rgba(108, 117, 125, 0.1) !important;
+.inactive-row {
+    background-color: rgba(220, 53, 69, 0.05) !important;
+}
+
+.inactive-row:hover {
+    background-color: rgba(220, 53, 69, 0.1) !important;
+}
+
+.bg-danger-subtle {
+    background-color: rgba(220, 53, 69, 0.15) !important;
+}
+
+.text-danger-emphasis {
+    color: #b02a37 !important;
 }
 
 .table > tbody > tr:hover {
@@ -347,15 +359,8 @@
     border-radius: 0.75rem;
 }
 
-.btn-warning {
-    background: linear-gradient(135deg, #f5af19 0%, #f12711 100%);
-    border: none;
-    color: white;
-}
-
-.btn-warning:hover {
-    background: linear-gradient(135deg, #f12711 0%, #f5af19 100%);
-    color: white;
+.text-white-50 {
+    color: rgba(255, 255, 255, 0.7) !important;
 }
 </style>
 
