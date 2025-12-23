@@ -23,26 +23,40 @@
 <!-- Filters -->
 <div class="card mb-4">
     <div class="card-body">
-        <div class="row g-3 align-items-end">
-            {% if current_user.role == 'super_admin' %}
-            <div class="col-md-4">
-                <label class="form-label">Filter by Organization</label>
-                <select id="organizationFilter" class="form-select" onchange="filterByOrganization()">
-                    <option value="">All Organizations</option>
-                    {% for org in organizations %}
-                    <option value="{{ org.id }}" {% if selected_organization == org.id %}selected{% endif %}>{{ org.name }}</option>
-                    {% endfor %}
-                </select>
+        <form method="GET" id="filterForm">
+            <div class="row g-3 align-items-end">
+                {% if current_user.role == 'super_admin' %}
+                <div class="col-md-3">
+                    <label class="form-label">Organization</label>
+                    <select name="organization_id" id="organizationFilter" class="form-select" onchange="filterByOrganization()">
+                        <option value="">All Organizations</option>
+                        {% for org in organizations %}
+                        <option value="{{ org.id }}" {% if selected_organization == org.id %}selected{% endif %}>{{ org.name }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+                {% endif %}
+                <div class="col-md-3">
+                    <label class="form-label">Branch</label>
+                    <select name="branch_id" id="branchFilter" class="form-select" onchange="this.form.submit()">
+                        <option value="">All Branches</option>
+                        {% for branch in branches %}
+                        <option value="{{ branch.id }}" {% if selected_branch == branch.id %}selected{% endif %}>{{ branch.name }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+                <div class="col-md-3">
+                    <label class="form-label">Search Staff</label>
+                    <input type="text" id="searchInput" class="form-control" placeholder="Search by name or ID..." onkeyup="searchStaff()">
+                </div>
+                <div class="col-md-3 d-flex justify-content-between align-items-center">
+                    <span class="text-muted" id="staffCount">Showing {{ staff|length }} staff</span>
+                    <a href="{{ url_for('staff_list') }}" class="btn btn-outline-secondary btn-sm">
+                        <i class="fas fa-redo me-1"></i> Reset
+                    </a>
+                </div>
             </div>
-            {% endif %}
-            <div class="col-md-4">
-                <label class="form-label">Search Staff</label>
-                <input type="text" id="searchInput" class="form-control" placeholder="Search by name or ID..." onkeyup="searchStaff()">
-            </div>
-            <div class="col-md-4">
-                <span class="text-muted" id="staffCount">Showing {{ staff|length }} staff</span>
-            </div>
-        </div>
+        </form>
     </div>
 </div>
 
@@ -222,14 +236,32 @@ const allBranches = [
 
 function filterByOrganization() {
     const orgId = document.getElementById('organizationFilter').value;
+    const branchSelect = document.getElementById('branchFilter');
     const currentUrl = new URL(window.location.href);
     
+    // Update branch dropdown based on selected organization
+    branchSelect.innerHTML = '<option value="">All Branches</option>';
+    
     if (orgId) {
+        const filteredBranches = allBranches.filter(b => b.org_id == orgId);
+        filteredBranches.forEach(branch => {
+            const option = document.createElement('option');
+            option.value = branch.id;
+            option.textContent = branch.name;
+            branchSelect.appendChild(option);
+        });
         currentUrl.searchParams.set('organization_id', orgId);
     } else {
+        allBranches.forEach(branch => {
+            const option = document.createElement('option');
+            option.value = branch.id;
+            option.textContent = branch.name;
+            branchSelect.appendChild(option);
+        });
         currentUrl.searchParams.delete('organization_id');
     }
     
+    currentUrl.searchParams.delete('branch_id');
     window.location.href = currentUrl.toString();
 }
 
