@@ -889,10 +889,11 @@ def edit_staff(id):
     flash(f'Staff "{staff.name}" updated successfully!', 'success')
     return redirect(url_for('staff_list'))
 
-@app.route('/staff/toggle/<int:id>')
+@app.route('/staff/toggle/<int:id>', methods=['GET', 'POST'])
 @login_required
 @role_required('super_admin', 'school_admin')
 def toggle_staff(id):
+
     staff = Staff.query.get_or_404(id)
     if current_user.role == 'school_admin' and staff.school_id not in current_user.get_accessible_school_ids():
         flash('You do not have permission to modify this staff.', 'danger')
@@ -2394,6 +2395,7 @@ if __name__ == '__main__':
     with app.app_context():
         db.create_all()
     app.run(debug=True, host='0.0.0.0', port=int(os.environ.get('PORT', 5000)))
+
 
 
 
