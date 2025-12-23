@@ -5,14 +5,14 @@
 {% block content %}
 <div class="row mb-4">
     <div class="col-12">
-        <div class="card border-0 shadow-sm">
+        <div class="card border-0 shadow-sm bg-danger bg-gradient text-white">
             <div class="card-body">
                 <div class="d-flex justify-content-between align-items-center">
                     <div>
-                        <h4 class="mb-1"><i class="fas fa-paper-plane text-danger me-2"></i>Send Query</h4>
-                        <p class="text-muted mb-0">Select late staff and send query emails</p>
+                        <h4 class="mb-1"><i class="fas fa-paper-plane me-2"></i>Send Query</h4>
+                        <p class="mb-0 opacity-75">Select late staff and send query emails</p>
                     </div>
-                    <a href="{{ url_for('query_tracking') }}" class="btn btn-outline-primary">
+                    <a href="{{ url_for('query_tracking') }}" class="btn btn-light">
                         <i class="fas fa-history me-1"></i> View Query History
                     </a>
                 </div>
@@ -21,9 +21,73 @@
     </div>
 </div>
 
+<!-- Summary Cards -->
+<div class="row mb-4">
+    <div class="col-md-3">
+        <div class="card border-0 shadow-sm border-start border-danger border-4">
+            <div class="card-body py-3">
+                <div class="d-flex justify-content-between align-items-center">
+                    <div>
+                        <div class="text-muted small">Late Staff</div>
+                        <div class="h3 mb-0 fw-bold text-danger">{{ late_staff|length if late_staff else 0 }}</div>
+                    </div>
+                    <div class="bg-danger bg-opacity-10 rounded-circle p-3">
+                        <i class="fas fa-user-clock text-danger fa-lg"></i>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="card border-0 shadow-sm border-start border-warning border-4">
+            <div class="card-body py-3">
+                <div class="d-flex justify-content-between align-items-center">
+                    <div>
+                        <div class="text-muted small">Total Late (Period)</div>
+                        <div class="h3 mb-0 fw-bold text-warning">{{ late_staff|sum(attribute='late_count') if late_staff else 0 }}</div>
+                    </div>
+                    <div class="bg-warning bg-opacity-10 rounded-circle p-3">
+                        <i class="fas fa-clock text-warning fa-lg"></i>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="card border-0 shadow-sm border-start border-info border-4">
+            <div class="card-body py-3">
+                <div class="d-flex justify-content-between align-items-center">
+                    <div>
+                        <div class="text-muted small">Templates</div>
+                        <div class="h3 mb-0 fw-bold text-info">{{ templates|length if templates else 0 }}</div>
+                    </div>
+                    <div class="bg-info bg-opacity-10 rounded-circle p-3">
+                        <i class="fas fa-file-alt text-info fa-lg"></i>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="card border-0 shadow-sm border-start border-success border-4">
+            <div class="card-body py-3">
+                <div class="d-flex justify-content-between align-items-center">
+                    <div>
+                        <div class="text-muted small">Selected</div>
+                        <div class="h3 mb-0 fw-bold text-success" id="selectedDisplay">0</div>
+                    </div>
+                    <div class="bg-success bg-opacity-10 rounded-circle p-3">
+                        <i class="fas fa-check-circle text-success fa-lg"></i>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
 <!-- Filters Card -->
 <div class="card border-0 shadow-sm mb-4">
-    <div class="card-header bg-white py-3">
+    <div class="card-header bg-light py-3">
         <h6 class="mb-0"><i class="fas fa-filter text-muted me-2"></i>Filters</h6>
     </div>
     <div class="card-body">
@@ -69,7 +133,7 @@
             </div>
             
             <!-- Custom Date Range -->
-            <div class="row g-3 mt-1" id="customDateRange" style="display: {% if selected_period == 'custom' %}flex{% else %}none{% endif %};">
+            <div class="row g-3 mt-2" id="customDateRange" style="display: {% if selected_period == 'custom' %}flex{% else %}none{% endif %};">
                 <div class="col-md-3">
                     <label class="form-label small text-muted">Start Date</label>
                     <input type="date" name="start_date" id="startDate" class="form-control" value="{{ start_date }}">
@@ -89,51 +153,13 @@
 </div>
 
 {% if late_staff %}
-<!-- Summary Cards -->
-<div class="row mb-4">
-    <div class="col-md-3">
-        <div class="card border-0 shadow-sm">
-            <div class="card-body text-center py-3">
-                <div class="display-6 text-danger fw-bold">{{ late_staff|length }}</div>
-                <div class="text-muted small">Late Staff</div>
-            </div>
-        </div>
-    </div>
-    <div class="col-md-3">
-        <div class="card border-0 shadow-sm">
-            <div class="card-body text-center py-3">
-                <div class="display-6 text-warning fw-bold">{{ late_staff|sum(attribute='late_count') }}</div>
-                <div class="text-muted small">Total Late (Period)</div>
-            </div>
-        </div>
-    </div>
-    <div class="col-md-3">
-        <div class="card border-0 shadow-sm">
-            <div class="card-body text-center py-3">
-                <div class="display-6 text-info fw-bold">{{ templates|length }}</div>
-                <div class="text-muted small">Templates Available</div>
-            </div>
-        </div>
-    </div>
-    <div class="col-md-3">
-        <div class="card border-0 shadow-sm">
-            <div class="card-body text-center py-3">
-                <div class="display-6 text-success fw-bold" id="selectedDisplay">0</div>
-                <div class="text-muted small">Selected</div>
-            </div>
-        </div>
-    </div>
-</div>
-
 <form method="POST">
     <!-- Template Selection Card -->
-    <div class="card border-0 shadow-sm mb-4">
-        <div class="card-header bg-white py-3">
-            <h6 class="mb-0"><i class="fas fa-file-alt text-muted me-2"></i>Select Template</h6>
-        </div>
-        <div class="card-body">
+    <div class="card border-0 shadow-sm mb-4 bg-light">
+        <div class="card-body py-4">
             <div class="row align-items-center">
                 <div class="col-md-8">
+                    <label class="form-label fw-semibold">Select Query Template</label>
                     <select name="template_id" class="form-select form-select-lg" required>
                         <option value="">-- Choose a Query Template --</option>
                         {% for template in templates %}
@@ -141,8 +167,9 @@
                         {% endfor %}
                     </select>
                 </div>
-                <div class="col-md-4">
-                    <button type="submit" class="btn btn-primary btn-lg w-100">
+                <div class="col-md-4 mt-3 mt-md-0">
+                    <label class="form-label d-none d-md-block">&nbsp;</label>
+                    <button type="submit" class="btn btn-danger btn-lg w-100">
                         <i class="fas fa-paper-plane me-2"></i>Send Query
                     </button>
                 </div>
@@ -152,9 +179,12 @@
 
     <!-- Staff List Card -->
     <div class="card border-0 shadow-sm">
-        <div class="card-header bg-white py-3 d-flex justify-content-between align-items-center">
-            <h6 class="mb-0"><i class="fas fa-users text-muted me-2"></i>Late Staff (<span id="staffCount">{{ late_staff|length }}</span>)</h6>
-            <div class="form-check">
+        <div class="card-header bg-light py-3 d-flex justify-content-between align-items-center">
+            <h6 class="mb-0">
+                <i class="fas fa-users text-muted me-2"></i>Late Staff
+                <span class="badge bg-danger ms-2">{{ late_staff|length }}</span>
+            </h6>
+            <div class="form-check mb-0">
                 <input type="checkbox" id="selectAll" class="form-check-input" onclick="toggleAll(this)">
                 <label class="form-check-label" for="selectAll">Select All</label>
             </div>
@@ -170,12 +200,12 @@
                             <th>Department</th>
                             <th class="text-center">Late (Period)</th>
                             <th class="text-center">Late (All Time)</th>
-                            <th class="text-center">Queries</th>
+                            <th class="text-center">Queries Sent</th>
                         </tr>
                     </thead>
                     <tbody>
                         {% for item in late_staff %}
-                        <tr>
+                        <tr class="{% if item.late_count >= 10 %}table-danger{% elif item.late_count >= 5 %}table-warning{% endif %}">
                             <td class="ps-3">
                                 <input type="checkbox" name="staff_ids" value="{{ item.staff.id }}" class="form-check-input staff-checkbox">
                             </td>
@@ -189,38 +219,38 @@
                                         <div class="small text-muted">
                                             {{ item.staff.staff_id }}
                                             {% if item.staff.email %}
-                                            <span class="ms-2"><i class="fas fa-envelope text-success"></i></span>
+                                            <i class="fas fa-envelope text-success ms-2" title="Email available"></i>
                                             {% else %}
-                                            <span class="ms-2" title="No email"><i class="fas fa-envelope text-danger"></i></span>
+                                            <i class="fas fa-exclamation-triangle text-danger ms-2" title="No email address"></i>
                                             {% endif %}
                                         </div>
                                     </div>
                                 </div>
                             </td>
                             <td>
-                                <span class="badge bg-light text-dark">{{ item.staff.school.short_name or item.staff.school.name if item.staff.school else 'N/A' }}</span>
+                                <span class="badge bg-secondary">{{ item.staff.school.short_name or item.staff.school.name if item.staff.school else 'N/A' }}</span>
                             </td>
                             <td>{{ item.staff.department }}</td>
                             <td class="text-center">
                                 {% if item.late_count >= 10 %}
-                                <span class="badge bg-danger px-3 py-2">{{ item.late_count }}</span>
+                                <span class="badge bg-danger px-3 py-2 fs-6">{{ item.late_count }}</span>
                                 {% elif item.late_count >= 5 %}
-                                <span class="badge bg-warning text-dark px-3 py-2">{{ item.late_count }}</span>
+                                <span class="badge bg-warning text-dark px-3 py-2 fs-6">{{ item.late_count }}</span>
                                 {% else %}
                                 <span class="badge bg-secondary px-3 py-2">{{ item.late_count }}</span>
                                 {% endif %}
                             </td>
                             <td class="text-center">
-                                <span class="text-muted">{{ item.total_late }}</span>
+                                <span class="text-muted fw-semibold">{{ item.total_late }}</span>
                             </td>
                             <td class="text-center">
                                 {% set query_count = item.staff.queries_received | length %}
                                 {% if query_count > 0 %}
-                                <a href="{{ url_for('staff_query_history', staff_id=item.staff.id) }}" class="btn btn-sm btn-outline-info">
+                                <a href="{{ url_for('staff_query_history', staff_id=item.staff.id) }}" class="btn btn-sm btn-outline-primary">
                                     {{ query_count }} <i class="fas fa-external-link-alt ms-1"></i>
                                 </a>
                                 {% else %}
-                                <span class="text-muted">0</span>
+                                <span class="badge bg-light text-muted">0</span>
                                 {% endif %}
                             </td>
                         </tr>
@@ -229,12 +259,12 @@
                 </table>
             </div>
         </div>
-        <div class="card-footer bg-white py-3">
+        <div class="card-footer bg-light py-3">
             <div class="d-flex justify-content-between align-items-center">
-                <div>
-                    <span class="fw-semibold" id="selectedCount">0</span> staff member(s) selected
+                <div class="fw-semibold">
+                    <span id="selectedCount">0</span> staff member(s) selected
                 </div>
-                <button type="submit" class="btn btn-primary">
+                <button type="submit" class="btn btn-danger">
                     <i class="fas fa-paper-plane me-2"></i>Send Query to Selected
                 </button>
             </div>
@@ -246,7 +276,9 @@
 <div class="card border-0 shadow-sm">
     <div class="card-body text-center py-5">
         <div class="mb-4">
-            <i class="fas fa-check-circle fa-4x text-success"></i>
+            <div class="bg-success bg-opacity-10 rounded-circle d-inline-flex p-4">
+                <i class="fas fa-check-circle fa-4x text-success"></i>
+            </div>
         </div>
         <h4>No Late Staff Found</h4>
         <p class="text-muted mb-0">
@@ -262,8 +294,8 @@
 
 <style>
 .avatar-circle {
-    width: 40px;
-    height: 40px;
+    width: 42px;
+    height: 42px;
     border-radius: 50%;
     background: linear-gradient(135deg, #dc3545 0%, #c82333 100%);
     color: white;
@@ -273,8 +305,14 @@
     font-weight: 600;
     font-size: 1rem;
 }
-.display-6 {
-    font-size: 1.75rem;
+.border-4 {
+    border-width: 4px !important;
+}
+.table-danger {
+    --bs-table-bg: rgba(220, 53, 69, 0.1);
+}
+.table-warning {
+    --bs-table-bg: rgba(255, 193, 7, 0.1);
 }
 </style>
 
