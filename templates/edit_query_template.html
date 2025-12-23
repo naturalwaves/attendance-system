@@ -3,97 +3,162 @@
 {% block title %}Edit Query Template - Attendance System{% endblock %}
 
 {% block content %}
-<div class="d-flex justify-content-between align-items-center mb-4">
-    <h2><i class="fas fa-edit me-2"></i>Edit Query Template</h2>
-    <a href="{{ url_for('query_templates') }}" class="btn btn-secondary">
-        <i class="fas fa-arrow-left me-2"></i>Back
-    </a>
+<div class="row mb-4">
+    <div class="col-12">
+        <div class="card border-0 shadow-lg" style="background: linear-gradient(135deg, #1e3c72 0%, #2a5298 100%);">
+            <div class="card-body py-4">
+                <div class="d-flex justify-content-between align-items-center flex-wrap gap-3">
+                    <div>
+                        <h3 class="mb-1 fw-bold text-white">
+                            <i class="fas fa-edit me-2"></i>Edit Query Template
+                        </h3>
+                        <p class="mb-0 text-white-50"><i class="fas fa-info-circle me-1"></i> Modify your email template for staff queries</p>
+                    </div>
+                    <a href="{{ url_for('query_templates') }}" class="btn btn-light btn-sm">
+                        <i class="fas fa-arrow-left me-1"></i> Back to Templates
+                    </a>
+                </div>
+            </div>
+        </div>
+    </div>
 </div>
 
-<div class="card">
+<div class="card border-0 shadow-sm">
+    <div class="card-header bg-white py-3">
+        <h6 class="mb-0 fw-semibold">
+            <i class="fas fa-file-alt me-2 text-primary"></i>Template Details
+        </h6>
+    </div>
     <div class="card-body">
         <form method="POST">
-            <div class="mb-3">
-                <label class="form-label">Organization</label>
-                <input type="text" class="form-control" value="{{ template.organization.name if template.organization else 'N/A' }}" disabled>
+            <div class="row g-3">
+                <div class="col-md-6">
+                    <label class="form-label small fw-semibold">Organization</label>
+                    <div class="form-control bg-light">
+                        {% if template.organization %}
+                        <i class="fas fa-sitemap me-2 text-info"></i>{{ template.organization.name }}
+                        {% else %}
+                        <span class="text-muted">N/A</span>
+                        {% endif %}
+                    </div>
+                </div>
+                
+                <div class="col-md-6">
+                    <label class="form-label small fw-semibold">Template Title <span class="text-danger">*</span></label>
+                    <input type="text" name="title" class="form-control" value="{{ template.title }}" required>
+                </div>
+                
+                <div class="col-12">
+                    <label class="form-label small fw-semibold">Email Subject <span class="text-danger">*</span></label>
+                    <input type="text" name="subject" class="form-control" value="{{ template.subject }}" required>
+                    <small class="text-muted"><i class="fas fa-lightbulb me-1"></i> Placeholders: <code>{staff_name}</code>, <code>{date}</code></small>
+                </div>
+                
+                <div class="col-12">
+                    <label class="form-label small fw-semibold">Email Body <span class="text-danger">*</span></label>
+                    <textarea name="body" id="editor">{{ template.body }}</textarea>
+                    <div class="mt-2">
+                        <small class="text-muted">
+                            <i class="fas fa-lightbulb me-1"></i> Available placeholders: 
+                            <code>{staff_name}</code>, 
+                            <code>{times_late}</code>, 
+                            <code>{date}</code>, 
+                            <code>{organization_name}</code>, 
+                            <code>{branch_name}</code>
+                        </small>
+                    </div>
+                </div>
             </div>
             
-            <div class="mb-3">
-                <label class="form-label">Template Title <span class="text-danger">*</span></label>
-                <input type="text" name="title" class="form-control" value="{{ template.title }}" required>
-            </div>
-            
-            <div class="mb-3">
-                <label class="form-label">Email Subject <span class="text-danger">*</span></label>
-                <input type="text" name="subject" class="form-control" value="{{ template.subject }}" required>
-                <small class="text-muted">You can use: {staff_name}, {date}</small>
-            </div>
-            
-            <div class="mb-3">
-                <label class="form-label">Email Body <span class="text-danger">*</span></label>
-                <textarea name="body" id="editor">{{ template.body }}</textarea>
-                <small class="text-muted">Available placeholders: {staff_name}, {times_late}, {date}, {organization_name}, {branch_name}</small>
-            </div>
+            <hr class="my-4">
             
             <div class="d-flex gap-2">
                 <button type="submit" class="btn btn-primary">
                     <i class="fas fa-save me-2"></i>Update Template
                 </button>
-                <a href="{{ url_for('query_templates') }}" class="btn btn-secondary">Cancel</a>
+                <a href="{{ url_for('query_templates') }}" class="btn btn-outline-secondary">Cancel</a>
             </div>
         </form>
     </div>
 </div>
 
-<!-- TinyMCE CDN -->
-<script src="https://cdn.tiny.cloud/1/no-api-key/tinymce/6/tinymce.min.js" referrerpolicy="origin"></script>
+<!-- Summernote CSS -->
+<link href="https://cdn.jsdelivr.net/npm/summernote@0.8.20/dist/summernote-bs5.min.css" rel="stylesheet">
+
+<!-- Summernote JS -->
+<script src="https://cdn.jsdelivr.net/npm/summernote@0.8.20/dist/summernote-bs5.min.js"></script>
+
 <script>
-tinymce.init({
-    selector: '#editor',
-    height: 400,
-    plugins: 'anchor autolink charmap codesample emoticons image link lists media searchreplace table visualblocks wordcount',
-    toolbar: 'undo redo | fontfamily fontsize | bold italic underline strikethrough | forecolor backcolor | alignleft aligncenter alignright alignjustify | bullist numlist outdent indent | link table | removeformat',
-    font_family_formats: `
-        Andale Mono=andale mono,times;
-        Arial=arial,helvetica,sans-serif;
-        Arial Black=arial black,avant garde;
-        Book Antiqua=book antiqua,palatino;
-        Calibri=calibri,sans-serif;
-        Cambria=cambria,serif;
-        Candara=candara,sans-serif;
-        Century Gothic=century gothic,sans-serif;
-        Comic Sans MS=comic sans ms,sans-serif;
-        Consolas=consolas,monaco,monospace;
-        Constantia=constantia,serif;
-        Corbel=corbel,sans-serif;
-        Courier New=courier new,courier;
-        Georgia=georgia,palatino;
-        Helvetica=helvetica;
-        Impact=impact,chicago;
-        Lucida Console=lucida console,monaco;
-        Lucida Sans=lucida sans unicode,lucida grande,sans-serif;
-        Open Sans=open sans,sans-serif;
-        Palatino Linotype=palatino linotype,book antiqua,palatino;
-        Roboto=roboto,sans-serif;
-        Segoe UI=segoe ui,sans-serif;
-        Tahoma=tahoma,arial,helvetica,sans-serif;
-        Times New Roman=times new roman,times;
-        Trebuchet MS=trebuchet ms,geneva;
-        Verdana=verdana,geneva;
-    `,
-    fontsize_formats: '8pt 9pt 10pt 11pt 12pt 14pt 16pt 18pt 20pt 24pt 28pt 32pt 36pt 48pt 72pt',
-    content_style: `
-        @import url('https://fonts.googleapis.com/css2?family=Open+Sans:wght@400;600;700&family=Roboto:wght@400;500;700&display=swap');
-        body { font-family: Arial, sans-serif; font-size: 12pt; }
-    `,
-    menubar: false,
-    branding: false,
-    promotion: false,
-    setup: function(editor) {
-        editor.on('change', function() {
-            editor.save();
-        });
-    }
+$(document).ready(function() {
+    $('#editor').summernote({
+        height: 350,
+        placeholder: 'Compose your query email here...',
+        toolbar: [
+            ['style', ['style']],
+            ['font', ['bold', 'italic', 'underline', 'strikethrough', 'clear']],
+            ['fontname', ['fontname']],
+            ['fontsize', ['fontsize']],
+            ['color', ['color']],
+            ['para', ['ul', 'ol', 'paragraph']],
+            ['table', ['table']],
+            ['insert', ['link', 'hr']],
+            ['view', ['fullscreen', 'codeview', 'undo', 'redo', 'help']]
+        ],
+        fontNames: [
+            'Arial', 'Arial Black', 'Calibri', 'Cambria', 'Candara', 'Century Gothic',
+            'Comic Sans MS', 'Consolas', 'Constantia', 'Corbel', 'Courier New',
+            'Georgia', 'Helvetica', 'Impact', 'Lucida Console', 'Lucida Sans',
+            'Open Sans', 'Palatino Linotype', 'Roboto', 'Segoe UI', 'Tahoma',
+            'Times New Roman', 'Trebuchet MS', 'Verdana'
+        ],
+        fontNamesIgnoreCheck: ['Calibri', 'Cambria', 'Candara', 'Century Gothic', 'Consolas', 'Constantia', 'Corbel', 'Lucida Sans', 'Open Sans', 'Roboto', 'Segoe UI'],
+        fontSizes: ['8', '9', '10', '11', '12', '14', '16', '18', '20', '24', '28', '32', '36', '48', '72'],
+        styleTags: ['p', 'h1', 'h2', 'h3', 'h4', 'h5', 'h6'],
+        callbacks: {
+            onInit: function() {
+                $('.note-editable').css('font-family', 'Arial, sans-serif');
+                $('.note-editable').css('font-size', '12pt');
+            }
+        }
+    });
 });
 </script>
+
+<style>
+.note-editor.note-frame {
+    border: 1px solid #dee2e6;
+    border-radius: 0.5rem;
+}
+
+.note-editor.note-frame .note-editing-area .note-editable {
+    padding: 15px;
+    background-color: #fff;
+}
+
+.note-toolbar {
+    background-color: #f8f9fc;
+    border-bottom: 1px solid #dee2e6;
+    border-radius: 0.5rem 0.5rem 0 0;
+    padding: 8px;
+}
+
+.note-btn {
+    border-radius: 4px !important;
+}
+
+.text-white-50 {
+    color: rgba(255, 255, 255, 0.7) !important;
+}
+
+.card {
+    border-radius: 0.75rem;
+}
+
+code {
+    background-color: #e9ecef;
+    padding: 2px 6px;
+    border-radius: 4px;
+    color: #d63384;
+}
+</style>
 {% endblock %}
