@@ -56,7 +56,6 @@
             <div class="mt-2">
                 <small class="text-muted"><i class="fas fa-lightbulb me-1"></i> Subject placeholders: <code>{staff_name}</code>, <code>{date}</code></small>
             </div>
-        </form>
     </div>
 </div>
 
@@ -67,8 +66,8 @@
             <i class="fas fa-envelope me-2 text-primary"></i>Email Body <span class="text-danger">*</span>
         </h6>
     </div>
-    <div class="card-body p-0">
-        <textarea name="body" id="editor" form="templateForm"></textarea>
+    <div class="card-body">
+        <textarea name="body" id="editor"></textarea>
     </div>
     <div class="card-footer bg-light">
         <small class="text-muted">
@@ -93,75 +92,99 @@
         </div>
     </div>
 </div>
+</form>
 
-<!-- Summernote CSS -->
-<link href="https://cdn.jsdelivr.net/npm/summernote@0.8.20/dist/summernote-bs5.min.css" rel="stylesheet">
-
-<!-- Summernote JS -->
-<script src="https://cdn.jsdelivr.net/npm/summernote@0.8.20/dist/summernote-bs5.min.js"></script>
+<!-- CKEditor 5 -->
+<script src="https://cdn.ckeditor.com/ckeditor5/41.0.0/super-build/ckeditor.js"></script>
 
 <script>
-$(document).ready(function() {
-    $('#editor').summernote({
-        height: 700,
-        placeholder: 'Compose your query email here...\n\nTip: You can use placeholders like {staff_name} which will be replaced with actual values when sending.',
-        toolbar: [
-            ['style', ['style']],
-            ['font', ['bold', 'italic', 'underline', 'strikethrough', 'clear']],
-            ['fontname', ['fontname']],
-            ['fontsize', ['fontsize']],
-            ['color', ['color']],
-            ['para', ['ul', 'ol', 'paragraph']],
-            ['height', ['height']],
-            ['table', ['table']],
-            ['insert', ['link', 'hr']],
-            ['view', ['fullscreen', 'codeview', 'undo', 'redo', 'help']]
+CKEDITOR.ClassicEditor.create(document.getElementById("editor"), {
+    toolbar: {
+        items: [
+            'heading', '|',
+            'fontFamily', 'fontSize', 'fontColor', 'fontBackgroundColor', '|',
+            'bold', 'italic', 'underline', 'strikethrough', '|',
+            'alignment', '|',
+            'bulletedList', 'numberedList', 'outdent', 'indent', '|',
+            'link', 'insertTable', 'horizontalLine', '|',
+            'undo', 'redo'
         ],
-        fontNames: [
-            'Arial', 'Arial Black', 'Calibri', 'Cambria', 'Candara', 'Century Gothic',
-            'Comic Sans MS', 'Consolas', 'Constantia', 'Corbel', 'Courier New',
-            'Georgia', 'Helvetica', 'Impact', 'Lucida Console', 'Lucida Sans',
-            'Open Sans', 'Palatino Linotype', 'Roboto', 'Segoe UI', 'Tahoma',
-            'Times New Roman', 'Trebuchet MS', 'Verdana'
+        shouldNotGroupWhenFull: true
+    },
+    fontFamily: {
+        options: [
+            'default',
+            'Arial, Helvetica, sans-serif',
+            'Calibri, sans-serif',
+            'Cambria, serif',
+            'Candara, sans-serif',
+            'Century Gothic, sans-serif',
+            'Comic Sans MS, cursive',
+            'Consolas, monospace',
+            'Constantia, serif',
+            'Corbel, sans-serif',
+            'Courier New, Courier, monospace',
+            'Georgia, serif',
+            'Lucida Console, monospace',
+            'Lucida Sans Unicode, sans-serif',
+            'Palatino Linotype, serif',
+            'Segoe UI, sans-serif',
+            'Tahoma, Geneva, sans-serif',
+            'Times New Roman, Times, serif',
+            'Trebuchet MS, Helvetica, sans-serif',
+            'Verdana, Geneva, sans-serif'
         ],
-        fontNamesIgnoreCheck: ['Calibri', 'Cambria', 'Candara', 'Century Gothic', 'Consolas', 'Constantia', 'Corbel', 'Lucida Sans', 'Open Sans', 'Roboto', 'Segoe UI'],
-        fontSizes: ['8', '9', '10', '11', '12', '14', '16', '18', '20', '24', '28', '32', '36', '48', '72'],
-        styleTags: ['p', 'h1', 'h2', 'h3', 'h4', 'h5', 'h6'],
-        callbacks: {
-            onInit: function() {
-                $('.note-editable').css('font-family', 'Arial, sans-serif');
-                $('.note-editable').css('font-size', '14px');
-                $('.note-editable').css('line-height', '1.6');
-            }
-        }
+        supportAllValues: true
+    },
+    fontSize: {
+        options: [8, 9, 10, 11, 12, 14, 16, 18, 20, 22, 24, 26, 28, 32, 36, 48, 72],
+        supportAllValues: true
+    },
+    placeholder: 'Compose your query email here...',
+    htmlSupport: {
+        allow: [
+            { name: /.*/, attributes: true, classes: true, styles: true }
+        ]
+    },
+    removePlugins: ['MediaEmbed', 'MediaEmbedToolbar']
+}).then(editor => {
+    window.editor = editor;
+    
+    // Set minimum height
+    editor.editing.view.change(writer => {
+        writer.setStyle('min-height', '500px', editor.editing.view.document.getRoot());
     });
+    
+    // Sync content to textarea on form submit
+    document.getElementById('templateForm').addEventListener('submit', function() {
+        document.getElementById('editor').value = editor.getData();
+    });
+}).catch(error => {
+    console.error(error);
 });
 </script>
 
 <style>
-.note-editor.note-frame {
-    border: none !important;
-    border-radius: 0;
+.ck-editor__editable {
+    min-height: 500px !important;
+    font-size: 14px;
+    line-height: 1.6;
 }
 
-.note-editor.note-frame .note-editing-area .note-editable {
-    padding: 25px;
+.ck.ck-editor {
+    border-radius: 8px;
+    overflow: hidden;
+}
+
+.ck.ck-toolbar {
+    background-color: #f8f9fc !important;
+    border-bottom: 1px solid #dee2e6 !important;
+    padding: 8px !important;
+}
+
+.ck.ck-editor__main > .ck-editor__editable {
     background-color: #fff;
-    min-height: 700px;
-}
-
-.note-toolbar {
-    background-color: #f8f9fc;
-    border-bottom: 1px solid #dee2e6;
-    padding: 10px 15px;
-}
-
-.note-btn {
-    border-radius: 4px !important;
-}
-
-.note-toolbar .note-btn-group {
-    margin-right: 8px;
+    padding: 20px;
 }
 
 .text-white-50 {
@@ -177,10 +200,6 @@ code {
     padding: 2px 6px;
     border-radius: 4px;
     color: #d63384;
-}
-
-.note-editable {
-    font-size: 14px !important;
 }
 </style>
 {% endblock %}
