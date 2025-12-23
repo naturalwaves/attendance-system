@@ -90,7 +90,7 @@
 <script>
 $(document).ready(function() {
     $('#editor').summernote({
-        height: 350,
+        height: 500,
         placeholder: 'Compose your query email here...',
         toolbar: [
             ['style', ['style']],
@@ -115,7 +115,6 @@ $(document).ready(function() {
         styleTags: ['p', 'h1', 'h2', 'h3', 'h4', 'h5', 'h6'],
         callbacks: {
             onInit: function() {
-                // Add custom styling to the editor
                 $('.note-editable').css('font-family', 'Arial, sans-serif');
                 $('.note-editable').css('font-size', '12pt');
             }
