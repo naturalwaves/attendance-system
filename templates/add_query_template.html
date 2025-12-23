@@ -30,8 +30,8 @@
                 </div>
                 <div class="card-body" style="padding: 25px;">
                     <div class="row g-4">
-                        <div class="col-md-4">
-                            <label class="form-label fw-semibold">Organization</label>
+                        <div class="col-md-6">
+                            <label class="form-label fw-semibold">Organization <span class="text-danger">*</span></label>
                             <select name="organization_id" class="form-select form-select-lg" required>
                                 <option value="">Select Organization</option>
                                 {% for org in organizations %}
@@ -39,12 +39,17 @@
                                 {% endfor %}
                             </select>
                         </div>
-                        <div class="col-md-8">
-                            <label class="form-label fw-semibold">Template Title</label>
+                        <div class="col-md-6">
+                            <label class="form-label fw-semibold">Template Title <span class="text-danger">*</span></label>
                             <input type="text" name="title" class="form-control form-control-lg" placeholder="e.g., Late Arrival Warning" required>
                         </div>
-                        <div class="col-12">
-                            <label class="form-label fw-semibold">Email Subject Line</label>
+                        <div class="col-md-6">
+                            <label class="form-label fw-semibold">From Email</label>
+                            <input type="email" name="from_email" class="form-control form-control-lg" placeholder="e.g., hr@corona.edu.ng">
+                            <div class="form-text">Leave blank to use organization default</div>
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label fw-semibold">Email Subject <span class="text-danger">*</span></label>
                             <input type="text" name="subject" class="form-control form-control-lg" placeholder="e.g., Attendance Notice - Action Required" required>
                         </div>
                     </div>
@@ -57,10 +62,39 @@
                     <h6 class="mb-0"><i class="fas fa-envelope-open-text text-primary me-2"></i>Email Body</h6>
                 </div>
                 <div class="card-body" style="padding: 25px;">
-                    <p class="text-muted small mb-3">
-                        <i class="fas fa-lightbulb text-warning me-1"></i>
-                        <strong>Tip:</strong> Use <code>{staff_name}</code> to auto-insert the staff member's name
-                    </p>
+                    <!-- Placeholder Buttons -->
+                    <div class="mb-4">
+                        <label class="form-label fw-semibold d-block mb-2">
+                            <i class="fas fa-code text-primary me-1"></i>Click to Insert Placeholder:
+                        </label>
+                        <div class="d-flex flex-wrap gap-2">
+                            <button type="button" class="btn btn-outline-primary btn-sm placeholder-btn" data-placeholder="{staff_name}">
+                                <i class="fas fa-user me-1"></i>{staff_name}
+                            </button>
+                            <button type="button" class="btn btn-outline-primary btn-sm placeholder-btn" data-placeholder="{staff_id}">
+                                <i class="fas fa-id-badge me-1"></i>{staff_id}
+                            </button>
+                            <button type="button" class="btn btn-outline-primary btn-sm placeholder-btn" data-placeholder="{department}">
+                                <i class="fas fa-building me-1"></i>{department}
+                            </button>
+                            <button type="button" class="btn btn-outline-primary btn-sm placeholder-btn" data-placeholder="{branch}">
+                                <i class="fas fa-map-marker-alt me-1"></i>{branch}
+                            </button>
+                            <button type="button" class="btn btn-outline-warning btn-sm placeholder-btn" data-placeholder="{late_count}">
+                                <i class="fas fa-clock me-1"></i>{late_count}
+                            </button>
+                            <button type="button" class="btn btn-outline-warning btn-sm placeholder-btn" data-placeholder="{period}">
+                                <i class="fas fa-calendar-alt me-1"></i>{period}
+                            </button>
+                            <button type="button" class="btn btn-outline-secondary btn-sm placeholder-btn" data-placeholder="{current_date}">
+                                <i class="fas fa-calendar-day me-1"></i>{current_date}
+                            </button>
+                        </div>
+                        <div class="form-text mt-2">
+                            <i class="fas fa-info-circle me-1"></i>
+                            Placeholders are automatically replaced with actual values when sending emails
+                        </div>
+                    </div>
                     
                     <!-- Quill Editor Container -->
                     <div id="editor-container"></div>
@@ -113,6 +147,18 @@
 
 .ql-container.ql-snow {
     border-radius: 0 0 0.375rem 0.375rem;
+}
+
+/* Placeholder buttons */
+.placeholder-btn {
+    font-family: 'Consolas', 'Monaco', monospace;
+    font-size: 0.85rem;
+    transition: all 0.2s ease;
+}
+
+.placeholder-btn:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 4px 8px rgba(0,0,0,0.15);
 }
 
 /* Custom fonts for Quill */
@@ -237,6 +283,16 @@ document.addEventListener('DOMContentLoaded', function() {
                 ['clean']
             ]
         }
+    });
+
+    // Placeholder button click handlers
+    document.querySelectorAll('.placeholder-btn').forEach(function(btn) {
+        btn.addEventListener('click', function() {
+            const placeholder = this.getAttribute('data-placeholder');
+            const range = quill.getSelection(true);
+            quill.insertText(range.index, placeholder);
+            quill.setSelection(range.index + placeholder.length);
+        });
     });
 
     // Sync content to hidden input on form submit
