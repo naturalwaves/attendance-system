@@ -304,8 +304,8 @@
                     
                     {% if current_user.role in ['super_admin', 'school_admin', 'hr_viewer'] %}
                     <li class="nav-item dropdown">
-                        <a class="nav-link dropdown-toggle {% if request.endpoint in ['query_templates', 'add_query_template', 'edit_query_template', 'send_query', 'query_tracking', 'staff_query_history'] %}active{% endif %}" href="#" id="queryDropdown" role="button" data-bs-toggle="dropdown">
-                            <i class="fas fa-envelope-open-text me-1"></i> HR Queries
+                        <a class="nav-link dropdown-toggle {% if request.endpoint in ['query_templates', 'send_query', 'query_tracking'] %}active{% endif %}" href="#" id="queryDropdown" role="button" data-bs-toggle="dropdown">
+                            <i class="fas fa-envelope me-1"></i> HR Queries
                         </a>
                         <ul class="dropdown-menu">
                             {% if current_user.role in ['super_admin', 'school_admin'] %}
