@@ -5,37 +5,37 @@
 {% block content %}
 <div class="row mb-4">
     <div class="col-12">
-        <div class="card border-0 shadow-sm">
+        <div class="card border-0 shadow-sm bg-primary bg-gradient text-white">
             <div class="card-body">
                 <div class="d-flex justify-content-between align-items-center">
                     <div>
                         <h4 class="mb-1">
-                            <i class="fas fa-users text-primary me-2"></i>Staff List
+                            <i class="fas fa-users me-2"></i>Staff List
                             {% if selected_branch and branches %}
                                 {% for branch in branches %}
                                     {% if branch.id == selected_branch %}
-                                        <span class="text-muted">- {{ branch.name }}</span>
+                                        - {{ branch.name }}
                                     {% endif %}
                                 {% endfor %}
                             {% elif selected_organization and organizations %}
                                 {% for org in organizations %}
                                     {% if org.id == selected_organization %}
-                                        <span class="text-muted">- {{ org.name }}</span>
+                                        - {{ org.name }}
                                     {% endif %}
                                 {% endfor %}
                             {% endif %}
                         </h4>
-                        <p class="text-muted mb-0">Manage staff members and their information</p>
+                        <p class="mb-0 opacity-75">Manage staff members and their information</p>
                     </div>
                     {% if current_user.role in ['super_admin', 'school_admin'] %}
                     <div class="d-flex gap-2">
-                        <a href="{{ url_for('export_staff_csv') }}" class="btn btn-outline-success">
-                            <i class="fas fa-download me-1"></i> Export CSV
+                        <a href="{{ url_for('download_staff_csv') }}" class="btn btn-light">
+                            <i class="fas fa-download me-1"></i> Export
                         </a>
-                        <button type="button" class="btn btn-outline-primary" data-bs-toggle="modal" data-bs-target="#uploadModal">
-                            <i class="fas fa-upload me-1"></i> Bulk Upload
+                        <button type="button" class="btn btn-light" data-bs-toggle="modal" data-bs-target="#uploadModal">
+                            <i class="fas fa-upload me-1"></i> Upload
                         </button>
-                        <button type="button" class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#addStaffModal">
+                        <button type="button" class="btn btn-warning" data-bs-toggle="modal" data-bs-target="#addStaffModal">
                             <i class="fas fa-plus me-1"></i> Add Staff
                         </button>
                     </div>
@@ -49,58 +49,85 @@
 <!-- Summary Cards -->
 <div class="row mb-4">
     <div class="col-md-3">
-        <div class="card border-0 shadow-sm bg-primary bg-gradient text-white">
-            <div class="card-body text-center py-3">
-                <div class="display-6 fw-bold">{{ staff|length }}</div>
-                <div class="small opacity-75">Total Staff</div>
-            </div>
-        </div>
-    </div>
-    <div class="col-md-3">
-        <div class="card border-0 shadow-sm bg-success bg-gradient text-white">
-            <div class="card-body text-center py-3">
-                <div class="display-6 fw-bold">{{ staff|selectattr('is_active')|list|length }}</div>
-                <div class="small opacity-75">Active</div>
-            </div>
-        </div>
-    </div>
-    <div class="col-md-3">
-        <div class="card border-0 shadow-sm bg-secondary bg-gradient text-white">
-            <div class="card-body text-center py-3">
-                <div class="display-6 fw-bold">{{ staff|rejectattr('is_active')|list|length }}</div>
-                <div class="small opacity-75">Inactive</div>
-            </div>
-        </div>
-    </div>
-    <div class="col-md-3">
-        <div class="card border-0 shadow-sm bg-info bg-gradient text-white">
-            <div class="card-body text-center py-3">
-                <div class="display-6 fw-bold">
-                    {% if selected_branch %}
-                        1
-                    {% elif selected_organization %}
-                        {{ branches|length }}
-                    {% else %}
-                        {{ schools|length }}
-                    {% endif %}
+        <div class="card border-0 shadow-sm border-start border-primary border-4">
+            <div class="card-body py-3">
+                <div class="d-flex justify-content-between align-items-center">
+                    <div>
+                        <div class="text-muted small">Total Staff</div>
+                        <div class="h3 mb-0 fw-bold text-primary">{{ staff|length }}</div>
+                    </div>
+                    <div class="bg-primary bg-opacity-10 rounded-circle p-3">
+                        <i class="fas fa-users text-primary fa-lg"></i>
+                    </div>
                 </div>
-                <div class="small opacity-75">Branches</div>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="card border-0 shadow-sm border-start border-success border-4">
+            <div class="card-body py-3">
+                <div class="d-flex justify-content-between align-items-center">
+                    <div>
+                        <div class="text-muted small">Active</div>
+                        <div class="h3 mb-0 fw-bold text-success">{{ staff|selectattr('is_active')|list|length }}</div>
+                    </div>
+                    <div class="bg-success bg-opacity-10 rounded-circle p-3">
+                        <i class="fas fa-user-check text-success fa-lg"></i>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="card border-0 shadow-sm border-start border-secondary border-4">
+            <div class="card-body py-3">
+                <div class="d-flex justify-content-between align-items-center">
+                    <div>
+                        <div class="text-muted small">Inactive</div>
+                        <div class="h3 mb-0 fw-bold text-secondary">{{ staff|rejectattr('is_active')|list|length }}</div>
+                    </div>
+                    <div class="bg-secondary bg-opacity-10 rounded-circle p-3">
+                        <i class="fas fa-user-times text-secondary fa-lg"></i>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="card border-0 shadow-sm border-start border-info border-4">
+            <div class="card-body py-3">
+                <div class="d-flex justify-content-between align-items-center">
+                    <div>
+                        <div class="text-muted small">Branches</div>
+                        <div class="h3 mb-0 fw-bold text-info">
+                            {% if selected_branch %}
+                                1
+                            {% elif selected_organization %}
+                                {{ branches|length }}
+                            {% else %}
+                                {{ schools|length }}
+                            {% endif %}
+                        </div>
+                    </div>
+                    <div class="bg-info bg-opacity-10 rounded-circle p-3">
+                        <i class="fas fa-building text-info fa-lg"></i>
+                    </div>
+                </div>
             </div>
         </div>
     </div>
 </div>
 
-<!-- Filters Card -->
+<!-- Filters Card - All in One Line -->
 <div class="card border-0 shadow-sm mb-4">
-    <div class="card-header bg-white py-3">
-        <h6 class="mb-0"><i class="fas fa-filter text-muted me-2"></i>Filters</h6>
-    </div>
-    <div class="card-body">
+    <div class="card-body py-3">
         <form method="GET" id="filterForm">
-            <div class="row g-3">
-                {% if current_user.role == 'super_admin' %}
-                <div class="col-md-4">
-                    <label class="form-label small text-muted">Organization</label>
+            <div class="row g-2 align-items-center">
+                <div class="col-auto">
+                    <i class="fas fa-filter text-muted"></i>
+                </div>
+                {% if organizations %}
+                <div class="col-md-3">
                     <select name="organization_id" id="organizationFilter" class="form-select" onchange="updateBranches()">
                         <option value="">All Organizations</option>
                         {% for org in organizations %}
@@ -109,8 +136,7 @@
                     </select>
                 </div>
                 {% endif %}
-                <div class="col-md-4">
-                    <label class="form-label small text-muted">Branch</label>
+                <div class="col-md-3">
                     <select name="branch_id" id="branchFilter" class="form-select" onchange="this.form.submit()">
                         <option value="">All Branches</option>
                         {% for branch in branches %}
@@ -118,23 +144,19 @@
                         {% endfor %}
                     </select>
                 </div>
-                <div class="col-md-4 d-flex align-items-end">
-                    <a href="{{ url_for('staff_list') }}" class="btn btn-outline-secondary w-100">
-                        <i class="fas fa-redo me-1"></i> Reset Filters
+                <div class="col-md-3">
+                    <div class="input-group">
+                        <span class="input-group-text bg-white"><i class="fas fa-search text-muted"></i></span>
+                        <input type="text" id="searchInput" class="form-control" placeholder="Search..." onkeyup="searchStaff()">
+                    </div>
+                </div>
+                <div class="col-auto">
+                    <a href="{{ url_for('staff_list') }}" class="btn btn-outline-secondary">
+                        <i class="fas fa-redo me-1"></i> Reset
                     </a>
                 </div>
             </div>
         </form>
-    </div>
-</div>
-
-<!-- Search Box -->
-<div class="card border-0 shadow-sm mb-4">
-    <div class="card-body py-2">
-        <div class="input-group">
-            <span class="input-group-text bg-white border-end-0"><i class="fas fa-search text-muted"></i></span>
-            <input type="text" id="searchInput" class="form-control border-start-0" placeholder="Search by name, ID, or department..." onkeyup="searchStaff()">
-        </div>
     </div>
 </div>
 
@@ -170,7 +192,9 @@
                                 </div>
                             </div>
                         </td>
-                        <td>{{ s.school.short_name or s.school.name if s.school else 'N/A' }}</td>
+                        <td>
+                            <span class="badge bg-secondary">{{ s.school.short_name or s.school.name if s.school else 'N/A' }}</span>
+                        </td>
                         <td>{{ s.department }}</td>
                         <td>
                             <div class="small">
@@ -215,7 +239,9 @@
     </div>
     {% if staff|length == 0 %}
     <div class="card-body text-center py-5">
-        <i class="fas fa-users fa-3x text-muted mb-3"></i>
+        <div class="bg-light rounded-circle d-inline-flex p-4 mb-3">
+            <i class="fas fa-users fa-3x text-muted"></i>
+        </div>
         <h5 class="text-muted">No Staff Found</h5>
         <p class="text-muted mb-0">Try adjusting your filters or add new staff members.</p>
     </div>
@@ -235,8 +261,8 @@
     font-weight: 600;
     font-size: 0.9rem;
 }
-.display-6 {
-    font-size: 1.75rem;
+.border-4 {
+    border-width: 4px !important;
 }
 </style>
 
@@ -348,9 +374,24 @@
             </div>
             <form action="{{ url_for('bulk_upload') }}" method="POST" enctype="multipart/form-data">
                 <div class="modal-body">
-                    <p class="text-muted small">Upload a CSV file with columns: staff_id, name, school_id, department, email, phone</p>
+                    <p class="text-muted small">Upload a CSV file with columns: staff_id, name, department, email, phone</p>
                     <div class="mb-3">
+                        <label class="form-label">Select Branch</label>
+                        <select name="school_id" class="form-select" required>
+                            <option value="">Select Branch</option>
+                            {% for school in schools %}
+                            <option value="{{ school.id }}">{{ school.name }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">CSV File</label>
                         <input type="file" name="file" class="form-control" accept=".csv" required>
+                    </div>
+                    <div class="mb-3">
+                        <a href="{{ url_for('download_staff_template') }}" class="btn btn-sm btn-outline-info">
+                            <i class="fas fa-download me-1"></i> Download Template
+                        </a>
                     </div>
                 </div>
                 <div class="modal-footer">
@@ -386,10 +427,7 @@ function editStaff(id, staffId, name, schoolId, department, email, phone) {
 }
 
 function updateBranches() {
-    const orgId = document.getElementById('organizationFilter').value;
-    const branchSelect = document.getElementById('branchFilter');
-    
-    branchSelect.value = '';
+    document.getElementById('branchFilter').value = '';
     document.getElementById('filterForm').submit();
 }
 </script>
