@@ -215,6 +215,11 @@
                             </button>
                             <ul class="dropdown-menu dropdown-menu-end shadow-sm">
                                 <li>
+                                    <a class="dropdown-item" href="{{ url_for('branch_settings', id=school.id) }}">
+                                        <i class="fas fa-cog me-2 text-info"></i> Branch Settings
+                                    </a>
+                                </li>
+                                <li>
                                     <a class="dropdown-item" href="{{ url_for('edit_school', id=school.id) }}">
                                         <i class="fas fa-edit me-2 text-primary"></i> Edit Branch
                                     </a>
