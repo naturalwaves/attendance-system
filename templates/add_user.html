@@ -27,7 +27,7 @@
             <div class="row">
                 <div class="col-md-6 mb-3">
                     <label class="form-label">Role</label>
-                    <select name="role" class="form-select" required>
+                    <select name="role" id="roleSelect" class="form-select" required onchange="toggleBranchSection()">
                         {% for role in roles %}
                         <option value="{{ role }}">{{ role | replace('_', ' ') | title }}</option>
                         {% endfor %}
@@ -35,15 +35,18 @@
                 </div>
             </div>
             
-            <div class="mb-3">
-                <label class="form-label">Allowed Schools</label>
-                <p class="text-muted small">Select one or more schools this user can access. Super Admin has access to all schools automatically.</p>
+            <div class="mb-3" id="branchSection">
+                <label class="form-label">Allowed Branches</label>
+                <p class="text-muted small">Select one or more branches this user can access.</p>
                 <div class="row">
                     {% for school in schools %}
                     <div class="col-md-4 mb-2">
                         <div class="form-check">
                             <input class="form-check-input" type="checkbox" name="school_ids" value="{{ school.id }}" id="school_{{ school.id }}">
                             <label class="form-check-label" for="school_{{ school.id }}">
+                                {% if school.organization %}
+                                    <small class="text-muted">{{ school.organization.name }} -</small>
+                                {% endif %}
                                 {{ school.name }}
                             </label>
                         </div>
@@ -51,14 +54,19 @@
                     {% endfor %}
                 </div>
             </div>
+
+            <div id="superAdminNote" class="alert alert-warning" style="display: none;">
+                <i class="fas fa-info-circle me-2"></i>
+                <strong>Super Admin</strong> has automatic access to all branches. No need to select branches.
+            </div>
             
             <div class="alert alert-info">
                 <strong>Role Descriptions:</strong>
                 <ul class="mb-0 mt-2">
-                    <li><strong>Super Admin:</strong> Full access to all features and all schools</li>
-                    <li><strong>HR Viewer:</strong> View-only access to selected schools' data</li>
-                    <li><strong>CEO Viewer:</strong> View-only access to selected schools' data</li>
-                    <li><strong>School Admin:</strong> Manage staff and view reports for selected schools</li>
+                    <li><strong>Super Admin:</strong> Full access to all features and all branches</li>
+                    <li><strong>HR Viewer:</strong> View data and send queries for selected branches</li>
+                    <li><strong>CEO Viewer:</strong> View-only access to selected branches' data</li>
+                    <li><strong>School Admin:</strong> Manage staff and view reports for selected branches</li>
                     <li><strong>Staff:</strong> View own attendance records only</li>
                 </ul>
             </div>
@@ -72,4 +80,25 @@
         </form>
     </div>
 </div>
+
+<script>
+function toggleBranchSection() {
+    const role = document.getElementById('roleSelect').value;
+    const branchSection = document.getElementById('branchSection');
+    const superAdminNote = document.getElementById('superAdminNote');
+    
+    if (role === 'super_admin') {
+        branchSection.style.display = 'none';
+        superAdminNote.style.display = 'block';
+    } else {
+        branchSection.style.display = 'block';
+        superAdminNote.style.display = 'none';
+    }
+}
+
+// Run on page load to set initial state
+document.addEventListener('DOMContentLoaded', function() {
+    toggleBranchSection();
+});
+</script>
 {% endblock %}
