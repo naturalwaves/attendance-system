@@ -48,12 +48,11 @@ class SystemSettings(db.Model):
 class Organization(db.Model):
     __tablename__ = 'organizations'
     id = db.Column(db.Integer, primary_key=True)
-    name = db.Column(db.String(100), nullable=False)
-    logo_url = db.Column(db.String(500), nullable=True)
-    hr_email = db.Column(db.String(120), nullable=True)
-    hr_email_name = db.Column(db.String(100), nullable=True)
-    branches = db.relationship('School', backref='organization', lazy=True)
-    departments = db.relationship('Department', backref='organization', lazy=True, cascade='all, delete-orphan')
+    name = db.Column(db.String(200), nullable=False)
+    is_active = db.Column(db.Boolean, default=True)
+    time_format = db.Column(db.String(3), default='12h')
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+
 
 
 class Department(db.Model):
@@ -384,6 +383,30 @@ def get_staff_schedule_for_date(staff, check_date):
         start_time, end_time = get_school_schedule(school, day_of_week)
         return start_time, end_time, grace_period
 
+def format_time_for_org(time_value, org_id):
+    """Format time based on organization's time format preference"""
+    if time_value is None:
+        return '-'
+    
+    org = Organization.query.get(org_id)
+    time_format = org.time_format if org and org.time_format else '12h'
+    
+    if isinstance(time_value, str):
+        try:
+            time_obj = datetime.strptime(time_value, '%H:%M')
+        except ValueError:
+            return time_value
+    elif isinstance(time_value, datetime):
+        time_obj = time_value
+    elif hasattr(time_value, 'strftime'):
+        time_obj = time_value
+    else:
+        return str(time_value)
+    
+    if time_format == '12h':
+        return time_obj.strftime('%I:%M %p').lstrip('0')
+    else:
+        return time_obj.strftime('%H:%M')
 
 def calculate_late_status(staff, sign_in_datetime, check_date):
     """
@@ -3001,7 +3024,11 @@ def init_db():
             db.session.commit()
         except:
             db.session.rollback()
-        
+        try:
+            db.session.execute(text("ALTER TABLE organizations ADD COLUMN time_format VARCHAR(3) DEFAULT '12h'"))
+            db.session.commit()
+        except Exception as e:
+             db.session.rollback()  
         try:
             db.session.execute(db.text('''CREATE TABLE IF NOT EXISTS staff_queries (id SERIAL PRIMARY KEY, staff_id INTEGER NOT NULL REFERENCES staff(id), template_id INTEGER NOT NULL REFERENCES query_templates(id), sent_by INTEGER NOT NULL REFERENCES users(id), sent_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP, times_late_at_query INTEGER DEFAULT 0, email_status VARCHAR(20) DEFAULT 'pending')'''))
             db.session.commit()
@@ -3065,3 +3092,4 @@ if __name__ == '__main__':
     with app.app_context():
         db.create_all()
     app.run(debug=True, host='0.0.0.0', port=int(os.environ.get('PORT', 5000)))
+
