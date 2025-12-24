@@ -1,0 +1,560 @@
+{% extends "base.html" %}
+
+{% block title %}Branch Settings - {{ school.name }}{% endblock %}
+
+{% block content %}
+<div class="container-fluid py-4">
+    <!-- Header -->
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <div>
+            <h1 class="h3 mb-1">Branch Settings</h1>
+            <nav aria-label="breadcrumb">
+                <ol class="breadcrumb mb-0">
+                    <li class="breadcrumb-item"><a href="{{ url_for('schools') }}">Branches</a></li>
+                    <li class="breadcrumb-item active">{{ school.name }}</li>
+                </ol>
+            </nav>
+        </div>
+        <a href="{{ url_for('schools') }}" class="btn btn-outline-secondary">
+            <i class="bi bi-arrow-left me-1"></i> Back to Branches
+        </a>
+    </div>
+
+    <div class="row">
+        <!-- Left Column: Settings -->
+        <div class="col-lg-4 mb-4">
+            <!-- General Settings Card -->
+            <div class="card shadow-sm mb-4">
+                <div class="card-header bg-white py-3">
+                    <h5 class="mb-0"><i class="bi bi-gear me-2"></i>General Settings</h5>
+                </div>
+                <div class="card-body">
+                    <form method="POST" action="{{ url_for('branch_settings', id=school.id) }}">
+                        <!-- Shift System Toggle -->
+                        <div class="mb-4">
+                            <div class="form-check form-switch">
+                                <input class="form-check-input" type="checkbox" role="switch" 
+                                       id="uses_shift_system" name="uses_shift_system"
+                                       {{ 'checked' if school.uses_shift_system else '' }}
+                                       onchange="toggleShiftSection()">
+                                <label class="form-check-label fw-semibold" for="uses_shift_system">
+                                    Enable Shift System
+                                </label>
+                            </div>
+                            <small class="text-muted d-block mt-1">
+                                Turn this on if staff work in different shifts (Morning, Afternoon, Night).
+                                Leave off for standard office hours.
+                            </small>
+                        </div>
+
+                        <!-- Grace Period -->
+                        <div class="mb-4">
+                            <label for="grace_period_minutes" class="form-label fw-semibold">
+                                Grace Period (minutes)
+                            </label>
+                            <select class="form-select" id="grace_period_minutes" name="grace_period_minutes">
+                                <option value="0" {{ 'selected' if school.grace_period_minutes == 0 else '' }}>No grace period (strict)</option>
+                                <option value="5" {{ 'selected' if school.grace_period_minutes == 5 else '' }}>5 minutes</option>
+                                <option value="10" {{ 'selected' if school.grace_period_minutes == 10 else '' }}>10 minutes</option>
+                                <option value="15" {{ 'selected' if school.grace_period_minutes == 15 else '' }}>15 minutes</option>
+                                <option value="20" {{ 'selected' if school.grace_period_minutes == 20 else '' }}>20 minutes</option>
+                                <option value="30" {{ 'selected' if school.grace_period_minutes == 30 else '' }}>30 minutes</option>
+                            </select>
+                            <small class="text-muted d-block mt-1">
+                                Extra time allowed after shift/schedule starts before marking staff as late.
+                                Example: If shift starts at 8:00 AM and grace is 15 mins, staff arriving by 8:15 AM are "On Time".
+                            </small>
+                        </div>
+
+                        <!-- Work Days -->
+                        <div class="mb-4">
+                            <label class="form-label fw-semibold">Work Days</label>
+                            <div class="d-flex flex-wrap gap-2">
+                                {% set days = [('0', 'Mon'), ('1', 'Tue'), ('2', 'Wed'), ('3', 'Thu'), ('4', 'Fri'), ('5', 'Sat'), ('6', 'Sun')] %}
+                                {% set current_work_days = school.get_work_days_list() %}
+                                {% for value, label in days %}
+                                <div class="form-check">
+                                    <input class="form-check-input" type="checkbox" 
+                                           name="work_days" value="{{ value }}" 
+                                           id="day_{{ value }}"
+                                           {{ 'checked' if value|int in current_work_days else '' }}>
+                                    <label class="form-check-label" for="day_{{ value }}">{{ label }}</label>
+                                </div>
+                                {% endfor %}
+                            </div>
+                            <small class="text-muted d-block mt-1">
+                                Select which days this branch operates. Staff won't be marked absent on non-work days.
+                            </small>
+                        </div>
+
+                        <button type="submit" class="btn btn-primary w-100">
+                            <i class="bi bi-check-lg me-1"></i> Save Settings
+                        </button>
+                    </form>
+                </div>
+            </div>
+
+            <!-- Branch Info Card -->
+            <div class="card shadow-sm">
+                <div class="card-header bg-white py-3">
+                    <h5 class="mb-0"><i class="bi bi-info-circle me-2"></i>Branch Info</h5>
+                </div>
+                <div class="card-body">
+                    <div class="mb-2">
+                        <strong>Name:</strong> {{ school.name }}
+                    </div>
+                    {% if school.short_name %}
+                    <div class="mb-2">
+                        <strong>Short Name:</strong> {{ school.short_name }}
+                    </div>
+                    {% endif %}
+                    {% if school.organization %}
+                    <div class="mb-2">
+                        <strong>Organization:</strong> {{ school.organization.name }}
+                    </div>
+                    {% endif %}
+                    <div class="mb-2">
+                        <strong>Total Staff:</strong> {{ staff_list|length }}
+                    </div>
+                    <div class="mb-2">
+                        <strong>Current Mode:</strong>
+                        {% if school.uses_shift_system %}
+                        <span class="badge bg-info">Shift System</span>
+                        {% else %}
+                        <span class="badge bg-secondary">Regular Schedule</span>
+                        {% endif %}
+                    </div>
+                    <hr>
+                    <a href="{{ url_for('edit_school', id=school.id) }}" class="btn btn-outline-primary btn-sm w-100">
+                        <i class="bi bi-pencil me-1"></i> Edit Branch Details
+                    </a>
+                </div>
+            </div>
+        </div>
+
+        <!-- Right Column: Shifts & Roster -->
+        <div class="col-lg-8">
+            <!-- Shifts Section (shown only if shift system is enabled) -->
+            <div id="shiftSection" style="{{ 'display: none;' if not school.uses_shift_system else '' }}">
+                <!-- Shifts Card -->
+                <div class="card shadow-sm mb-4">
+                    <div class="card-header bg-white py-3 d-flex justify-content-between align-items-center">
+                        <h5 class="mb-0"><i class="bi bi-clock me-2"></i>Shifts</h5>
+                        <button class="btn btn-primary btn-sm" data-bs-toggle="modal" data-bs-target="#addShiftModal">
+                            <i class="bi bi-plus-lg me-1"></i> Add Shift
+                        </button>
+                    </div>
+                    <div class="card-body">
+                        {% if shifts %}
+                        <div class="table-responsive">
+                            <table class="table table-hover align-middle mb-0">
+                                <thead class="table-light">
+                                    <tr>
+                                        <th>Shift Name</th>
+                                        <th>Start Time</th>
+                                        <th>End Time</th>
+                                        <th>Staff Assigned</th>
+                                        <th class="text-end">Actions</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    {% for shift in shifts %}
+                                    <tr>
+                                        <td>
+                                            <span class="fw-semibold">{{ shift.name }}</span>
+                                        </td>
+                                        <td>
+                                            <span class="badge bg-success-subtle text-success">
+                                                {{ shift.get_start_time_display() }}
+                                            </span>
+                                        </td>
+                                        <td>
+                                            <span class="badge bg-danger-subtle text-danger">
+                                                {{ shift.get_end_time_display() }}
+                                            </span>
+                                        </td>
+                                        <td>
+                                            <span class="badge bg-secondary">
+                                                {{ shift.assignments|selectattr('end_date', 'ge', today)|list|length }} active
+                                            </span>
+                                        </td>
+                                        <td class="text-end">
+                                            <button class="btn btn-outline-primary btn-sm me-1" 
+                                                    onclick="editShift({{ shift.id }}, '{{ shift.name }}', '{{ shift.start_time }}', '{{ shift.end_time }}')">
+                                                <i class="bi bi-pencil"></i>
+                                            </button>
+                                            <a href="{{ url_for('delete_shift', school_id=school.id, shift_id=shift.id) }}" 
+                                               class="btn btn-outline-danger btn-sm"
+                                               onclick="return confirm('Delete this shift? Staff assignments will also be removed.')">
+                                                <i class="bi bi-trash"></i>
+                                            </a>
+                                        </td>
+                                    </tr>
+                                    {% endfor %}
+                                </tbody>
+                            </table>
+                        </div>
+                        {% else %}
+                        <div class="text-center py-4">
+                            <i class="bi bi-clock text-muted" style="font-size: 3rem;"></i>
+                            <p class="text-muted mt-2 mb-0">No shifts created yet.</p>
+                            <p class="text-muted small">Create shifts like "Morning", "Afternoon", "Night" to get started.</p>
+                        </div>
+                        {% endif %}
+                    </div>
+                </div>
+
+                <!-- Staff Roster Card -->
+                <div class="card shadow-sm">
+                    <div class="card-header bg-white py-3 d-flex justify-content-between align-items-center">
+                        <h5 class="mb-0"><i class="bi bi-people me-2"></i>Staff Roster</h5>
+                        {% if shifts %}
+                        <button class="btn btn-primary btn-sm" data-bs-toggle="modal" data-bs-target="#assignShiftModal">
+                            <i class="bi bi-person-plus me-1"></i> Assign Shift
+                        </button>
+                        {% endif %}
+                    </div>
+                    <div class="card-body">
+                        {% if not shifts %}
+                        <div class="alert alert-info mb-0">
+                            <i class="bi bi-info-circle me-2"></i>
+                            Create shifts first before assigning staff to them.
+                        </div>
+                        {% elif staff_list %}
+                        <div class="table-responsive">
+                            <table class="table table-hover align-middle mb-0">
+                                <thead class="table-light">
+                                    <tr>
+                                        <th>Staff</th>
+                                        <th>Department</th>
+                                        <th>Current Shift</th>
+                                        <th>Period</th>
+                                        <th class="text-end">Actions</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    {% for staff in staff_list %}
+                                    {% set assignments = staff_assignments.get(staff.id, []) %}
+                                    {% set current_assignment = None %}
+                                    {% for a in assignments %}
+                                        {% if a.start_date <= today and a.end_date >= today %}
+                                            {% set current_assignment = a %}
+                                        {% endif %}
+                                    {% endfor %}
+                                    <tr>
+                                        <td>
+                                            <div class="d-flex align-items-center">
+                                                <div class="avatar-sm bg-primary text-white rounded-circle d-flex align-items-center justify-content-center me-2" style="width: 35px; height: 35px; font-size: 0.8rem;">
+                                                    {{ staff.name[:2]|upper }}
+                                                </div>
+                                                <div>
+                                                    <div class="fw-semibold">{{ staff.name }}</div>
+                                                    <small class="text-muted">{{ staff.staff_id }}</small>
+                                                </div>
+                                            </div>
+                                        </td>
+                                        <td>{{ staff.department }}</td>
+                                        <td>
+                                            {% if current_assignment %}
+                                            <span class="badge bg-primary">{{ current_assignment.shift.name }}</span>
+                                            {% else %}
+                                            <span class="badge bg-warning text-dark">Not Assigned</span>
+                                            {% endif %}
+                                        </td>
+                                        <td>
+                                            {% if current_assignment %}
+                                            <small class="text-muted">{{ current_assignment.get_date_range_display() }}</small>
+                                            {% else %}
+                                            <small class="text-muted">-</small>
+                                            {% endif %}
+                                        </td>
+                                        <td class="text-end">
+                                            {% if current_assignment %}
+                                            <a href="{{ url_for('delete_shift_assignment', school_id=school.id, assignment_id=current_assignment.id) }}" 
+                                               class="btn btn-outline-danger btn-sm"
+                                               onclick="return confirm('Remove this shift assignment?')">
+                                                <i class="bi bi-x-lg"></i>
+                                            </a>
+                                            {% else %}
+                                            <button class="btn btn-outline-primary btn-sm" 
+                                                    onclick="assignStaff({{ staff.id }}, '{{ staff.name }}')">
+                                                <i class="bi bi-plus-lg"></i> Assign
+                                            </button>
+                                            {% endif %}
+                                        </td>
+                                    </tr>
+                                    {% endfor %}
+                                </tbody>
+                            </table>
+                        </div>
+                        {% else %}
+                        <div class="text-center py-4">
+                            <i class="bi bi-people text-muted" style="font-size: 3rem;"></i>
+                            <p class="text-muted mt-2 mb-0">No staff in this branch yet.</p>
+                        </div>
+                        {% endif %}
+                    </div>
+                </div>
+            </div>
+
+            <!-- Regular Schedule Info (shown when shift system is disabled) -->
+            <div id="regularScheduleSection" style="{{ 'display: none;' if school.uses_shift_system else '' }}">
+                <div class="card shadow-sm">
+                    <div class="card-header bg-white py-3">
+                        <h5 class="mb-0"><i class="bi bi-calendar-week me-2"></i>Regular Schedule</h5>
+                    </div>
+                    <div class="card-body">
+                        <p class="text-muted mb-3">
+                            This branch uses a regular schedule (same hours for all staff). 
+                            The schedule is set in the branch details.
+                        </p>
+                        <div class="table-responsive">
+                            <table class="table table-sm">
+                                <thead class="table-light">
+                                    <tr>
+                                        <th>Day</th>
+                                        <th>Start Time</th>
+                                        <th>End Time</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    <tr>
+                                        <td>Monday</td>
+                                        <td>{{ school.schedule_mon_start }}</td>
+                                        <td>{{ school.schedule_mon_end }}</td>
+                                    </tr>
+                                    <tr>
+                                        <td>Tuesday</td>
+                                        <td>{{ school.schedule_tue_start }}</td>
+                                        <td>{{ school.schedule_tue_end }}</td>
+                                    </tr>
+                                    <tr>
+                                        <td>Wednesday</td>
+                                        <td>{{ school.schedule_wed_start }}</td>
+                                        <td>{{ school.schedule_wed_end }}</td>
+                                    </tr>
+                                    <tr>
+                                        <td>Thursday</td>
+                                        <td>{{ school.schedule_thu_start }}</td>
+                                        <td>{{ school.schedule_thu_end }}</td>
+                                    </tr>
+                                    <tr>
+                                        <td>Friday</td>
+                                        <td>{{ school.schedule_fri_start }}</td>
+                                        <td>{{ school.schedule_fri_end }}</td>
+                                    </tr>
+                                </tbody>
+                            </table>
+                        </div>
+                        <a href="{{ url_for('edit_school', id=school.id) }}" class="btn btn-outline-primary">
+                            <i class="bi bi-pencil me-1"></i> Edit Schedule
+                        </a>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Add Shift Modal -->
+<div class="modal fade" id="addShiftModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <form method="POST" action="{{ url_for('add_shift', school_id=school.id) }}">
+                <div class="modal-header">
+                    <h5 class="modal-title">Add New Shift</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <div class="mb-3">
+                        <label for="shift_name" class="form-label">Shift Name</label>
+                        <input type="text" class="form-control" id="shift_name" name="name" required
+                               placeholder="e.g., Morning, Afternoon, Night">
+                    </div>
+                    <div class="row">
+                        <div class="col-md-6 mb-3">
+                            <label for="shift_start" class="form-label">Start Time</label>
+                            <input type="time" class="form-control" id="shift_start" name="start_time" required>
+                        </div>
+                        <div class="col-md-6 mb-3">
+                            <label for="shift_end" class="form-label">End Time</label>
+                            <input type="time" class="form-control" id="shift_end" name="end_time" required>
+                        </div>
+                    </div>
+                    <div class="alert alert-info small mb-0">
+                        <i class="bi bi-lightbulb me-1"></i>
+                        <strong>Common shifts:</strong><br>
+                        Morning: 6:00 AM - 2:00 PM<br>
+                        Afternoon: 2:00 PM - 10:00 PM<br>
+                        Night: 10:00 PM - 6:00 AM
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                    <button type="submit" class="btn btn-primary">Add Shift</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<!-- Edit Shift Modal -->
+<div class="modal fade" id="editShiftModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <form method="POST" id="editShiftForm">
+                <div class="modal-header">
+                    <h5 class="modal-title">Edit Shift</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <div class="mb-3">
+                        <label for="edit_shift_name" class="form-label">Shift Name</label>
+                        <input type="text" class="form-control" id="edit_shift_name" name="name" required>
+                    </div>
+                    <div class="row">
+                        <div class="col-md-6 mb-3">
+                            <label for="edit_shift_start" class="form-label">Start Time</label>
+                            <input type="time" class="form-control" id="edit_shift_start" name="start_time" required>
+                        </div>
+                        <div class="col-md-6 mb-3">
+                            <label for="edit_shift_end" class="form-label">End Time</label>
+                            <input type="time" class="form-control" id="edit_shift_end" name="end_time" required>
+                        </div>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                    <button type="submit" class="btn btn-primary">Save Changes</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<!-- Assign Shift Modal -->
+<div class="modal fade" id="assignShiftModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <form method="POST" action="{{ url_for('assign_shift_roster', school_id=school.id) }}">
+                <div class="modal-header">
+                    <h5 class="modal-title">Assign Shift to Staff</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <div class="mb-3">
+                        <label for="assign_staff_id" class="form-label">Staff Member</label>
+                        <select class="form-select" id="assign_staff_id" name="staff_id" required>
+                            <option value="">Select Staff</option>
+                            {% for staff in staff_list %}
+                            <option value="{{ staff.id }}">{{ staff.name }} ({{ staff.staff_id }})</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    <div class="mb-3">
+                        <label for="assign_shift_id" class="form-label">Shift</label>
+                        <select class="form-select" id="assign_shift_id" name="shift_id" required>
+                            <option value="">Select Shift</option>
+                            {% for shift in shifts %}
+                            <option value="{{ shift.id }}">{{ shift.name }} ({{ shift.get_start_time_display() }} - {{ shift.get_end_time_display() }})</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    <div class="row">
+                        <div class="col-md-6 mb-3">
+                            <label for="assign_start_date" class="form-label">Start Date</label>
+                            <input type="date" class="form-control" id="assign_start_date" name="start_date" required
+                                   value="{{ today.strftime('%Y-%m-%d') }}">
+                        </div>
+                        <div class="col-md-6 mb-3">
+                            <label for="assign_end_date" class="form-label">End Date</label>
+                            <input type="date" class="form-control" id="assign_end_date" name="end_date" required>
+                        </div>
+                    </div>
+                    <div class="alert alert-info small mb-0">
+                        <i class="bi bi-info-circle me-1"></i>
+                        <strong>Tips:</strong><br>
+                        • For fixed shifts: Set a long end date (e.g., Dec 2025)<br>
+                        • For rotating shifts: Set weekly/monthly periods
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                    <button type="submit" class="btn btn-primary">Assign Shift</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<script>
+function toggleShiftSection() {
+    const checkbox = document.getElementById('uses_shift_system');
+    const shiftSection = document.getElementById('shiftSection');
+    const regularSection = document.getElementById('regularScheduleSection');
+    
+    if (checkbox.checked) {
+        shiftSection.style.display = 'block';
+        regularSection.style.display = 'none';
+    } else {
+        shiftSection.style.display = 'none';
+        regularSection.style.display = 'block';
+    }
+}
+
+function editShift(shiftId, name, startTime, endTime) {
+    document.getElementById('edit_shift_name').value = name;
+    document.getElementById('edit_shift_start').value = startTime;
+    document.getElementById('edit_shift_end').value = endTime;
+    document.getElementById('editShiftForm').action = '/schools/{{ school.id }}/shifts/' + shiftId + '/edit';
+    
+    new bootstrap.Modal(document.getElementById('editShiftModal')).show();
+}
+
+function assignStaff(staffId, staffName) {
+    document.getElementById('assign_staff_id').value = staffId;
+    new bootstrap.Modal(document.getElementById('assignShiftModal')).show();
+}
+
+// Set default end date to 3 months from now
+document.addEventListener('DOMContentLoaded', function() {
+    const endDateInput = document.getElementById('assign_end_date');
+    if (endDateInput && !endDateInput.value) {
+        const threeMonthsLater = new Date();
+        threeMonthsLater.setMonth(threeMonthsLater.getMonth() + 3);
+        endDateInput.value = threeMonthsLater.toISOString().split('T')[0];
+    }
+});
+</script>
+
+<style>
+.avatar-sm {
+    font-weight: 600;
+}
+
+.form-check-input:checked {
+    background-color: #0d6efd;
+    border-color: #0d6efd;
+}
+
+.form-switch .form-check-input {
+    width: 3em;
+    height: 1.5em;
+}
+
+.bg-success-subtle {
+    background-color: rgba(25, 135, 84, 0.1) !important;
+}
+
+.bg-danger-subtle {
+    background-color: rgba(220, 53, 69, 0.1) !important;
+}
+
+.table th {
+    font-weight: 600;
+    font-size: 0.85rem;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+}
+</style>
+{% endblock %}
