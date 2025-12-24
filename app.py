@@ -828,14 +828,25 @@ def dashboard_stats():
         if first_attendance:
             staff = Staff.query.get(first_attendance.staff_id)
             if staff and staff.school:
-                first_checkin = {'name': staff.name, 'branch': staff.school.short_name or staff.school.name, 'department': staff.department, 'time': first_attendance.sign_in_time.strftime('%H:%M')}
+                org_id = staff.school.organization_id
+                first_checkin = {
+                    'name': staff.name, 
+                    'branch': staff.school.short_name or staff.school.name, 
+                    'department': staff.department, 
+                    'time': format_time_for_org(first_attendance.sign_in_time, org_id)
+                }
     recent_activity = []
     if non_mgmt_ids:
         recent_checkins = Attendance.query.filter(Attendance.staff_id.in_(non_mgmt_ids), Attendance.date == today).order_by(Attendance.sign_in_time.desc()).limit(20).all()
         for checkin in recent_checkins:
             staff = Staff.query.get(checkin.staff_id)
             if staff and staff.school:
-                recent_activity.append({'name': staff.name, 'time': checkin.sign_in_time.strftime('%H:%M') if checkin.sign_in_time else '', 'branch': staff.school.short_name or staff.school.name})
+                org_id = staff.school.organization_id
+                recent_activity.append({
+                    'name': staff.name, 
+                    'time': format_time_for_org(checkin.sign_in_time, org_id) if checkin.sign_in_time else '', 
+                    'branch': staff.school.short_name or staff.school.name
+                })
     return jsonify({'total_schools': total_schools, 'total_staff': total_staff, 'management_count': management_count, 'today_attendance': today_attendance, 'late_today': late_today, 'absent_today': absent_today, 'first_checkin': first_checkin, 'recent_activity': recent_activity})
 
 
@@ -882,6 +893,7 @@ def get_branch_staff(branch_id):
     school = School.query.get(branch_id)
     if not school:
         return jsonify([])
+    org_id = school.organization_id
     staff_list = Staff.query.filter_by(school_id=branch_id, is_active=True).all()
     result = []
     for staff in staff_list:
@@ -889,8 +901,8 @@ def get_branch_staff(branch_id):
         if staff.department == 'Management':
             if attendance:
                 status = 'Signed In'
-                time_in = attendance.sign_in_time.strftime('%H:%M') if attendance.sign_in_time else '-'
-                time_out = attendance.sign_out_time.strftime('%H:%M') if attendance.sign_out_time else '-'
+                time_in = format_time_for_org(attendance.sign_in_time, org_id) if attendance.sign_in_time else '-'
+                time_out = format_time_for_org(attendance.sign_out_time, org_id) if attendance.sign_out_time else '-'
             else:
                 status = 'Not Signed In'
                 time_in = '-'
@@ -901,14 +913,15 @@ def get_branch_staff(branch_id):
                     status = 'Late'
                 else:
                     status = 'Present'
-                time_in = attendance.sign_in_time.strftime('%H:%M') if attendance.sign_in_time else '-'
-                time_out = attendance.sign_out_time.strftime('%H:%M') if attendance.sign_out_time else '-'
+                time_in = format_time_for_org(attendance.sign_in_time, org_id) if attendance.sign_in_time else '-'
+                time_out = format_time_for_org(attendance.sign_out_time, org_id) if attendance.sign_out_time else '-'
             else:
                 status = 'Absent'
                 time_in = '-'
                 time_out = '-'
         result.append({'name': staff.name, 'department': staff.department, 'status': status, 'time_in': time_in, 'time_out': time_out})
     return jsonify(result)
+
 # ==================== SCHOOLS/BRANCHES ====================
 
 @app.route('/schools')
@@ -3071,6 +3084,7 @@ if __name__ == '__main__':
     with app.app_context():
         db.create_all()
     app.run(debug=True, host='0.0.0.0', port=int(os.environ.get('PORT', 5000)))
+
 
 
 
