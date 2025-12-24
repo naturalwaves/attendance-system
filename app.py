@@ -635,10 +635,12 @@ def edit_organization(id):
         org.logo_url = request.form.get('logo_url', '').strip() or None
         org.hr_email = request.form.get('hr_email', '').strip() or None
         org.hr_email_name = request.form.get('hr_email_name', '').strip() or None
+        org.time_format = request.form.get('time_format', '12h')  # NEW LINE
         db.session.commit()
         flash('Organization updated successfully!', 'success')
         return redirect(url_for('settings'))
     return render_template('edit_organization.html', organization=org)
+
 
 
 @app.route('/organizations/delete/<int:id>')
@@ -3069,6 +3071,7 @@ if __name__ == '__main__':
     with app.app_context():
         db.create_all()
     app.run(debug=True, host='0.0.0.0', port=int(os.environ.get('PORT', 5000)))
+
 
 
 
