@@ -3030,6 +3030,11 @@ def init_db():
         except Exception as e:
              db.session.rollback()  
         try:
+            db.session.execute(text("ALTER TABLE organizations ADD COLUMN is_active BOOLEAN DEFAULT TRUE"))
+            db.session.commit()
+        except Exception as e:
+            db.session.rollback()
+        try:
             db.session.execute(db.text('''CREATE TABLE IF NOT EXISTS staff_queries (id SERIAL PRIMARY KEY, staff_id INTEGER NOT NULL REFERENCES staff(id), template_id INTEGER NOT NULL REFERENCES query_templates(id), sent_by INTEGER NOT NULL REFERENCES users(id), sent_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP, times_late_at_query INTEGER DEFAULT 0, email_status VARCHAR(20) DEFAULT 'pending')'''))
             db.session.commit()
         except:
@@ -3092,4 +3097,5 @@ if __name__ == '__main__':
     with app.app_context():
         db.create_all()
     app.run(debug=True, host='0.0.0.0', port=int(os.environ.get('PORT', 5000)))
+
 
