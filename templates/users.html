@@ -33,12 +33,14 @@
                             </span>
                         </td>
                         <td>
-                            {% if user.role == 'school_admin' and user.allowed_schools %}
+                            {% if user.role == 'super_admin' %}
+                                <span class="text-muted">All Branches</span>
+                            {% elif user.allowed_schools %}
                                 {% for school in user.allowed_schools %}
-                                    <span class="badge bg-light text-dark">{{ school.name }}</span>
+                                    <span class="badge bg-light text-dark me-1 mb-1">{{ school.name }}</span>
                                 {% endfor %}
                             {% else %}
-                                -
+                                <span class="text-muted">-</span>
                             {% endif %}
                         </td>
                         <td>
@@ -152,7 +154,8 @@ function openEditModal(id, username, role, allowedSchools, isActive) {
 function toggleBranchSelect() {
     const role = document.getElementById('editRole').value;
     const branchGroup = document.getElementById('editBranchGroup');
-    branchGroup.style.display = (role === 'school_admin') ? 'block' : 'none';
+    // Show branch selection for all roles except super_admin
+    branchGroup.style.display = (role !== 'super_admin') ? 'block' : 'none';
 }
 </script>
 {% endblock %}
