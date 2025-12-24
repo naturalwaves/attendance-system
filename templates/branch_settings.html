@@ -62,7 +62,6 @@
                             </select>
                             <small class="text-muted d-block mt-1">
                                 Extra time allowed after shift/schedule starts before marking staff as late.
-                                Example: If shift starts at 8:00 AM and grace is 15 mins, staff arriving by 8:15 AM are "On Time".
                             </small>
                         </div>
 
@@ -83,7 +82,7 @@
                                 {% endfor %}
                             </div>
                             <small class="text-muted d-block mt-1">
-                                Select which days this branch operates. Staff won't be marked absent on non-work days.
+                                Select which days this branch operates.
                             </small>
                         </div>
 
@@ -134,7 +133,7 @@
 
         <!-- Right Column: Shifts & Roster -->
         <div class="col-lg-8">
-            <!-- Shifts Section (shown only if shift system is enabled) -->
+            <!-- Shifts Section -->
             <div id="shiftSection" style="{{ 'display: none;' if not school.uses_shift_system else '' }}">
                 <!-- Shifts Card -->
                 <div class="card shadow-sm mb-4">
@@ -160,24 +159,10 @@
                                 <tbody>
                                     {% for shift in shifts %}
                                     <tr>
-                                        <td>
-                                            <span class="fw-semibold">{{ shift.name }}</span>
-                                        </td>
-                                        <td>
-                                            <span class="badge bg-success-subtle text-success">
-                                                {{ shift.get_start_time_display() }}
-                                            </span>
-                                        </td>
-                                        <td>
-                                            <span class="badge bg-danger-subtle text-danger">
-                                                {{ shift.get_end_time_display() }}
-                                            </span>
-                                        </td>
-                                        <td>
-                                            <span class="badge bg-secondary">
-                                                {{ shift.assignments|selectattr('end_date', 'ge', today)|list|length }} active
-                                            </span>
-                                        </td>
+                                        <td><span class="fw-semibold">{{ shift.name }}</span></td>
+                                        <td><span class="badge bg-success-subtle text-success">{{ shift.get_start_time_display() }}</span></td>
+                                        <td><span class="badge bg-danger-subtle text-danger">{{ shift.get_end_time_display() }}</span></td>
+                                        <td><span class="badge bg-secondary">{{ shift.assignments|selectattr('end_date', 'ge', today)|list|length }} active</span></td>
                                         <td class="text-end">
                                             <button class="btn btn-outline-primary btn-sm me-1" 
                                                     onclick="editShift({{ shift.id }}, '{{ shift.name }}', '{{ shift.start_time }}', '{{ shift.end_time }}')">
@@ -185,7 +170,7 @@
                                             </button>
                                             <a href="{{ url_for('delete_shift', school_id=school.id, shift_id=shift.id) }}" 
                                                class="btn btn-outline-danger btn-sm"
-                                               onclick="return confirm('Delete this shift? Staff assignments will also be removed.')">
+                                               onclick="return confirm('Delete this shift?')">
                                                 <i class="bi bi-trash"></i>
                                             </a>
                                         </td>
@@ -198,7 +183,6 @@
                         <div class="text-center py-4">
                             <i class="bi bi-clock text-muted" style="font-size: 3rem;"></i>
                             <p class="text-muted mt-2 mb-0">No shifts created yet.</p>
-                            <p class="text-muted small">Create shifts like "Morning", "Afternoon", "Night" to get started.</p>
                         </div>
                         {% endif %}
                     </div>
@@ -217,8 +201,7 @@
                     <div class="card-body">
                         {% if not shifts %}
                         <div class="alert alert-info mb-0">
-                            <i class="bi bi-info-circle me-2"></i>
-                            Create shifts first before assigning staff to them.
+                            <i class="bi bi-info-circle me-2"></i>Create shifts first before assigning staff.
                         </div>
                         {% elif staff_list %}
                         <div class="table-responsive">
@@ -234,11 +217,10 @@
                                 </thead>
                                 <tbody>
                                     {% for staff in staff_list %}
-                                    {% set assignments = staff_assignments.get(staff.id, []) %}
-                                    {% set current_assignment = None %}
-                                    {% for a in assignments %}
+                                    {% set current_assignment = namespace(value=None) %}
+                                    {% for a in staff_assignments.get(staff.id, []) %}
                                         {% if a.start_date <= today and a.end_date >= today %}
-                                            {% set current_assignment = a %}
+                                            {% set current_assignment.value = a %}
                                         {% endif %}
                                     {% endfor %}
                                     <tr>
@@ -255,22 +237,22 @@
                                         </td>
                                         <td>{{ staff.department }}</td>
                                         <td>
-                                            {% if current_assignment %}
-                                            <span class="badge bg-primary">{{ current_assignment.shift.name }}</span>
+                                            {% if current_assignment.value %}
+                                            <span class="badge bg-primary">{{ current_assignment.value.shift.name }}</span>
                                             {% else %}
                                             <span class="badge bg-warning text-dark">Not Assigned</span>
                                             {% endif %}
                                         </td>
                                         <td>
-                                            {% if current_assignment %}
-                                            <small class="text-muted">{{ current_assignment.get_date_range_display() }}</small>
+                                            {% if current_assignment.value %}
+                                            <small class="text-muted">{{ current_assignment.value.get_date_range_display() }}</small>
                                             {% else %}
                                             <small class="text-muted">-</small>
                                             {% endif %}
                                         </td>
                                         <td class="text-end">
-                                            {% if current_assignment %}
-                                            <a href="{{ url_for('delete_shift_assignment', school_id=school.id, assignment_id=current_assignment.id) }}" 
+                                            {% if current_assignment.value %}
+                                            <a href="{{ url_for('delete_shift_assignment', school_id=school.id, assignment_id=current_assignment.value.id) }}" 
                                                class="btn btn-outline-danger btn-sm"
                                                onclick="return confirm('Remove this shift assignment?')">
                                                 <i class="bi bi-x-lg"></i>
@@ -297,55 +279,14 @@
                 </div>
             </div>
 
-            <!-- Regular Schedule Info (shown when shift system is disabled) -->
+            <!-- Regular Schedule Section -->
             <div id="regularScheduleSection" style="{{ 'display: none;' if school.uses_shift_system else '' }}">
                 <div class="card shadow-sm">
                     <div class="card-header bg-white py-3">
                         <h5 class="mb-0"><i class="bi bi-calendar-week me-2"></i>Regular Schedule</h5>
                     </div>
                     <div class="card-body">
-                        <p class="text-muted mb-3">
-                            This branch uses a regular schedule (same hours for all staff). 
-                            The schedule is set in the branch details.
-                        </p>
-                        <div class="table-responsive">
-                            <table class="table table-sm">
-                                <thead class="table-light">
-                                    <tr>
-                                        <th>Day</th>
-                                        <th>Start Time</th>
-                                        <th>End Time</th>
-                                    </tr>
-                                </thead>
-                                <tbody>
-                                    <tr>
-                                        <td>Monday</td>
-                                        <td>{{ school.schedule_mon_start }}</td>
-                                        <td>{{ school.schedule_mon_end }}</td>
-                                    </tr>
-                                    <tr>
-                                        <td>Tuesday</td>
-                                        <td>{{ school.schedule_tue_start }}</td>
-                                        <td>{{ school.schedule_tue_end }}</td>
-                                    </tr>
-                                    <tr>
-                                        <td>Wednesday</td>
-                                        <td>{{ school.schedule_wed_start }}</td>
-                                        <td>{{ school.schedule_wed_end }}</td>
-                                    </tr>
-                                    <tr>
-                                        <td>Thursday</td>
-                                        <td>{{ school.schedule_thu_start }}</td>
-                                        <td>{{ school.schedule_thu_end }}</td>
-                                    </tr>
-                                    <tr>
-                                        <td>Friday</td>
-                                        <td>{{ school.schedule_fri_start }}</td>
-                                        <td>{{ school.schedule_fri_end }}</td>
-                                    </tr>
-                                </tbody>
-                            </table>
-                        </div>
+                        <p class="text-muted mb-3">This branch uses a regular schedule. Edit in branch details.</p>
                         <a href="{{ url_for('edit_school', id=school.id) }}" class="btn btn-outline-primary">
                             <i class="bi bi-pencil me-1"></i> Edit Schedule
                         </a>
@@ -374,11 +315,15 @@
                     <div class="row">
                         <div class="col-md-6 mb-3">
                             <label for="shift_start" class="form-label">Start Time</label>
-                            <input type="time" class="form-control" id="shift_start" name="start_time" required>
+                            <select class="form-select" id="shift_start" name="start_time" required>
+                                <option value="">Select Time</option>
+                            </select>
                         </div>
                         <div class="col-md-6 mb-3">
                             <label for="shift_end" class="form-label">End Time</label>
-                            <input type="time" class="form-control" id="shift_end" name="end_time" required>
+                            <select class="form-select" id="shift_end" name="end_time" required>
+                                <option value="">Select Time</option>
+                            </select>
                         </div>
                     </div>
                     <div class="alert alert-info small mb-0">
@@ -415,11 +360,15 @@
                     <div class="row">
                         <div class="col-md-6 mb-3">
                             <label for="edit_shift_start" class="form-label">Start Time</label>
-                            <input type="time" class="form-control" id="edit_shift_start" name="start_time" required>
+                            <select class="form-select" id="edit_shift_start" name="start_time" required>
+                                <option value="">Select Time</option>
+                            </select>
                         </div>
                         <div class="col-md-6 mb-3">
                             <label for="edit_shift_end" class="form-label">End Time</label>
-                            <input type="time" class="form-control" id="edit_shift_end" name="end_time" required>
+                            <select class="form-select" id="edit_shift_end" name="end_time" required>
+                                <option value="">Select Time</option>
+                            </select>
                         </div>
                     </div>
                 </div>
@@ -471,12 +420,6 @@
                             <input type="date" class="form-control" id="assign_end_date" name="end_date" required>
                         </div>
                     </div>
-                    <div class="alert alert-info small mb-0">
-                        <i class="bi bi-info-circle me-1"></i>
-                        <strong>Tips:</strong><br>
-                        • For fixed shifts: Set a long end date (e.g., Dec 2025)<br>
-                        • For rotating shifts: Set weekly/monthly periods
-                    </div>
                 </div>
                 <div class="modal-footer">
                     <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
@@ -488,6 +431,39 @@
 </div>
 
 <script>
+// Time format from organization settings
+const timeFormat = '{{ time_format }}';
+
+function generateTimeOptions(selectId, selectedValue) {
+    const select = document.getElementById(selectId);
+    select.innerHTML = '<option value="">Select Time</option>';
+    
+    for (let h = 0; h < 24; h++) {
+        for (let m = 0; m < 60; m += 30) {
+            const hour24 = h.toString().padStart(2, '0');
+            const minute = m.toString().padStart(2, '0');
+            const value = `${hour24}:${minute}`;
+            
+            let display;
+            if (timeFormat === '24h') {
+                display = value;
+            } else {
+                const hour12 = h === 0 ? 12 : (h > 12 ? h - 12 : h);
+                const ampm = h < 12 ? 'AM' : 'PM';
+                display = `${hour12}:${minute} ${ampm}`;
+            }
+            
+            const option = document.createElement('option');
+            option.value = value;
+            option.textContent = display;
+            if (value === selectedValue) {
+                option.selected = true;
+            }
+            select.appendChild(option);
+        }
+    }
+}
+
 function toggleShiftSection() {
     const checkbox = document.getElementById('uses_shift_system');
     const shiftSection = document.getElementById('shiftSection');
@@ -504,8 +480,8 @@ function toggleShiftSection() {
 
 function editShift(shiftId, name, startTime, endTime) {
     document.getElementById('edit_shift_name').value = name;
-    document.getElementById('edit_shift_start').value = startTime;
-    document.getElementById('edit_shift_end').value = endTime;
+    generateTimeOptions('edit_shift_start', startTime);
+    generateTimeOptions('edit_shift_end', endTime);
     document.getElementById('editShiftForm').action = '/schools/{{ school.id }}/shifts/' + shiftId + '/edit';
     
     new bootstrap.Modal(document.getElementById('editShiftModal')).show();
@@ -516,8 +492,14 @@ function assignStaff(staffId, staffName) {
     new bootstrap.Modal(document.getElementById('assignShiftModal')).show();
 }
 
-// Set default end date to 3 months from now
+// Initialize time dropdowns on page load
 document.addEventListener('DOMContentLoaded', function() {
+    generateTimeOptions('shift_start', '');
+    generateTimeOptions('shift_end', '');
+    generateTimeOptions('edit_shift_start', '');
+    generateTimeOptions('edit_shift_end', '');
+    
+    // Set default end date to 3 months from now
     const endDateInput = document.getElementById('assign_end_date');
     if (endDateInput && !endDateInput.value) {
         const threeMonthsLater = new Date();
@@ -528,33 +510,11 @@ document.addEventListener('DOMContentLoaded', function() {
 </script>
 
 <style>
-.avatar-sm {
-    font-weight: 600;
-}
-
-.form-check-input:checked {
-    background-color: #0d6efd;
-    border-color: #0d6efd;
-}
-
-.form-switch .form-check-input {
-    width: 3em;
-    height: 1.5em;
-}
-
-.bg-success-subtle {
-    background-color: rgba(25, 135, 84, 0.1) !important;
-}
-
-.bg-danger-subtle {
-    background-color: rgba(220, 53, 69, 0.1) !important;
-}
-
-.table th {
-    font-weight: 600;
-    font-size: 0.85rem;
-    text-transform: uppercase;
-    letter-spacing: 0.5px;
-}
+.avatar-sm { font-weight: 600; }
+.form-check-input:checked { background-color: #0d6efd; border-color: #0d6efd; }
+.form-switch .form-check-input { width: 3em; height: 1.5em; }
+.bg-success-subtle { background-color: rgba(25, 135, 84, 0.1) !important; }
+.bg-danger-subtle { background-color: rgba(220, 53, 69, 0.1) !important; }
+.table th { font-weight: 600; font-size: 0.85rem; text-transform: uppercase; letter-spacing: 0.5px; }
 </style>
 {% endblock %}
