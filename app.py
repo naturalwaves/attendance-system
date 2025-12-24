@@ -127,28 +127,31 @@ class Shift(db.Model):
     name = db.Column(db.String(50), nullable=False)
     start_time = db.Column(db.String(5), nullable=False)
     end_time = db.Column(db.String(5), nullable=False)
-    is_active = db.Column(db.Boolean, default=True)
-    created_at = db.Column(db.DateTime, default=datetime.utcnow)
     
-    assignments = db.relationship('StaffShiftAssignment', backref='shift', lazy=True, cascade='all, delete-orphan')
+    school = db.relationship('School', backref='shifts')
     
-    def get_start_time_display(self, org_id=None):
-        if org_id:
-            return format_time_for_org(self.start_time, org_id)
+    def get_start_time_display(self):
+        org = self.school.organization if self.school else None
+        time_format = org.time_format if org and hasattr(org, 'time_format') else '12h'
+        return self._format_time(self.start_time, time_format)
+    
+    def get_end_time_display(self):
+        org = self.school.organization if self.school else None
+        time_format = org.time_format if org and hasattr(org, 'time_format') else '12h'
+        return self._format_time(self.end_time, time_format)
+    
+    def _format_time(self, time_str, time_format):
+        if not time_str:
+            return ''
         try:
-            t = datetime.strptime(self.start_time, '%H:%M')
-            return t.strftime('%I:%M %p').lstrip('0')
+            t = datetime.strptime(time_str, '%H:%M')
+            if time_format == '24h':
+                return t.strftime('%H:%M')
+            else:
+                return t.strftime('%I:%M %p').lstrip('0')
         except:
-            return self.start_time
-    
-    def get_end_time_display(self, org_id=None):
-        if org_id:
-            return format_time_for_org(self.end_time, org_id)
-        try:
-            t = datetime.strptime(self.end_time, '%H:%M')
-            return t.strftime('%I:%M %p').lstrip('0')
-        except:
-            return self.end_time
+            return time_str
+
 
 
 class StaffShiftAssignment(db.Model):
@@ -3172,3 +3175,4 @@ if __name__ == '__main__':
     with app.app_context():
         db.create_all()
     app.run(debug=True, host='0.0.0.0', port=int(os.environ.get('PORT', 5000)))
+
