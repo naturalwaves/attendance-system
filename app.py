@@ -1064,11 +1064,29 @@ def regenerate_api_key(id):
 def branch_settings(id):
     school = School.query.get_or_404(id)
     
-    # ... existing POST handling code ...
+    # Check access
+    if current_user.role == 'school_admin':
+        allowed_ids = [s.id for s in current_user.allowed_schools]
+        if school.id not in allowed_ids:
+            flash('Access denied', 'danger')
+            return redirect(url_for('schools'))
+    
+    if request.method == 'POST':
+        school.uses_shift_system = 'uses_shift_system' in request.form
+        school.grace_period_minutes = int(request.form.get('grace_period_minutes', 0))
+        
+        # Handle work days
+        work_days = request.form.getlist('work_days')
+        school.set_work_days_list([int(d) for d in work_days])
+        
+        db.session.commit()
+        flash('Branch settings updated successfully', 'success')
+        return redirect(url_for('branch_settings', id=id))
     
     shifts = Shift.query.filter_by(school_id=id).all()
     staff_list = Staff.query.filter_by(school_id=id, is_active=True).all()
     
+    # Get staff assignments
     staff_assignments = {}
     for staff in staff_list:
         assignments = StaffShiftAssignment.query.filter_by(staff_id=staff.id).all()
@@ -1076,8 +1094,10 @@ def branch_settings(id):
     
     # Get organization time format
     time_format = '12h'
-    if school.organization and hasattr(school.organization, 'time_format'):
-        time_format = school.organization.time_format or '12h'
+    if school.organization_id:
+        org = Organization.query.get(school.organization_id)
+        if org and hasattr(org, 'time_format') and org.time_format:
+            time_format = org.time_format
     
     return render_template('branch_settings.html', 
                            school=school, 
@@ -1086,6 +1106,7 @@ def branch_settings(id):
                            staff_assignments=staff_assignments,
                            today=date.today(),
                            time_format=time_format)
+
 
 
 @app.route('/schools/<int:school_id>/shifts/add', methods=['POST'])
@@ -3155,6 +3176,7 @@ if __name__ == '__main__':
     with app.app_context():
         db.create_all()
     app.run(debug=True, host='0.0.0.0', port=int(os.environ.get('PORT', 5000)))
+
 
 
 
