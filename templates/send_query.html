@@ -3,323 +3,479 @@
 {% block title %}Send Query - Attendance System{% endblock %}
 
 {% block content %}
-<div class="row mb-4">
-    <div class="col-12">
-        <div class="card border-0 shadow-sm bg-danger bg-gradient text-white">
-            <div class="card-body">
-                <div class="d-flex justify-content-between align-items-center">
-                    <div>
-                        <h4 class="mb-1"><i class="fas fa-paper-plane me-2"></i>Send Query</h4>
-                        <p class="mb-0 opacity-75">Select late staff and send query emails</p>
+<div class="container-fluid py-4">
+    <!-- Header -->
+    <div class="row mb-4">
+        <div class="col-12">
+            <div class="card border-0 shadow-sm bg-gradient" style="background: linear-gradient(135deg, #dc3545 0%, #b02a37 100%);">
+                <div class="card-body py-4 text-white">
+                    <div class="d-flex justify-content-between align-items-center">
+                        <div>
+                            <h4 class="mb-1 fw-bold"><i class="fas fa-paper-plane me-2"></i>Send Query</h4>
+                            <p class="mb-0 opacity-75">Select late staff and send query emails</p>
+                        </div>
+                        <a href="{{ url_for('query_tracking') }}" class="btn btn-light btn-sm px-3">
+                            <i class="fas fa-history me-1"></i> Query History
+                        </a>
                     </div>
-                    <a href="{{ url_for('query_tracking') }}" class="btn btn-light">
-                        <i class="fas fa-history me-1"></i> View Query History
-                    </a>
                 </div>
             </div>
         </div>
     </div>
-</div>
 
-<!-- Summary Cards -->
-<div class="row mb-4">
-    <div class="col-md-3">
-        <div class="card border-0 shadow-sm border-start border-danger border-4">
-            <div class="card-body py-3">
-                <div class="d-flex justify-content-between align-items-center">
-                    <div>
-                        <div class="text-muted small">Late Staff</div>
-                        <div class="h3 mb-0 fw-bold text-danger">{{ late_staff|length if late_staff else 0 }}</div>
+    <!-- Stats Cards -->
+    <div class="row g-3 mb-4">
+        <div class="col-6 col-md-3">
+            <div class="card border-0 shadow-sm h-100">
+                <div class="card-body p-3">
+                    <div class="d-flex align-items-center">
+                        <div class="flex-shrink-0">
+                            <div class="stats-icon bg-danger bg-opacity-10 text-danger">
+                                <i class="fas fa-user-clock"></i>
+                            </div>
+                        </div>
+                        <div class="flex-grow-1 ms-3">
+                            <div class="text-muted small">Late Staff</div>
+                            <div class="h4 mb-0 fw-bold">{{ late_staff|length if late_staff else 0 }}</div>
+                        </div>
                     </div>
-                    <div class="bg-danger bg-opacity-10 rounded-circle p-3">
-                        <i class="fas fa-user-clock text-danger fa-lg"></i>
+                </div>
+            </div>
+        </div>
+        <div class="col-6 col-md-3">
+            <div class="card border-0 shadow-sm h-100">
+                <div class="card-body p-3">
+                    <div class="d-flex align-items-center">
+                        <div class="flex-shrink-0">
+                            <div class="stats-icon bg-warning bg-opacity-10 text-warning">
+                                <i class="fas fa-clock"></i>
+                            </div>
+                        </div>
+                        <div class="flex-grow-1 ms-3">
+                            <div class="text-muted small">Total Late</div>
+                            <div class="h4 mb-0 fw-bold">{{ late_staff|sum(attribute='late_count') if late_staff else 0 }}</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="col-6 col-md-3">
+            <div class="card border-0 shadow-sm h-100">
+                <div class="card-body p-3">
+                    <div class="d-flex align-items-center">
+                        <div class="flex-shrink-0">
+                            <div class="stats-icon bg-info bg-opacity-10 text-info">
+                                <i class="fas fa-file-alt"></i>
+                            </div>
+                        </div>
+                        <div class="flex-grow-1 ms-3">
+                            <div class="text-muted small">Templates</div>
+                            <div class="h4 mb-0 fw-bold">{{ templates|length if templates else 0 }}</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="col-6 col-md-3">
+            <div class="card border-0 shadow-sm h-100">
+                <div class="card-body p-3">
+                    <div class="d-flex align-items-center">
+                        <div class="flex-shrink-0">
+                            <div class="stats-icon bg-success bg-opacity-10 text-success">
+                                <i class="fas fa-check-circle"></i>
+                            </div>
+                        </div>
+                        <div class="flex-grow-1 ms-3">
+                            <div class="text-muted small">Selected</div>
+                            <div class="h4 mb-0 fw-bold" id="selectedDisplay">0</div>
+                        </div>
                     </div>
                 </div>
             </div>
         </div>
     </div>
-    <div class="col-md-3">
-        <div class="card border-0 shadow-sm border-start border-warning border-4">
-            <div class="card-body py-3">
-                <div class="d-flex justify-content-between align-items-center">
-                    <div>
-                        <div class="text-muted small">Total Late (Period)</div>
-                        <div class="h3 mb-0 fw-bold text-warning">{{ late_staff|sum(attribute='late_count') if late_staff else 0 }}</div>
-                    </div>
-                    <div class="bg-warning bg-opacity-10 rounded-circle p-3">
-                        <i class="fas fa-clock text-warning fa-lg"></i>
-                    </div>
-                </div>
-            </div>
-        </div>
-    </div>
-    <div class="col-md-3">
-        <div class="card border-0 shadow-sm border-start border-info border-4">
-            <div class="card-body py-3">
-                <div class="d-flex justify-content-between align-items-center">
-                    <div>
-                        <div class="text-muted small">Templates</div>
-                        <div class="h3 mb-0 fw-bold text-info">{{ templates|length if templates else 0 }}</div>
-                    </div>
-                    <div class="bg-info bg-opacity-10 rounded-circle p-3">
-                        <i class="fas fa-file-alt text-info fa-lg"></i>
-                    </div>
-                </div>
-            </div>
-        </div>
-    </div>
-    <div class="col-md-3">
-        <div class="card border-0 shadow-sm border-start border-success border-4">
-            <div class="card-body py-3">
-                <div class="d-flex justify-content-between align-items-center">
-                    <div>
-                        <div class="text-muted small">Selected</div>
-                        <div class="h3 mb-0 fw-bold text-success" id="selectedDisplay">0</div>
-                    </div>
-                    <div class="bg-success bg-opacity-10 rounded-circle p-3">
-                        <i class="fas fa-check-circle text-success fa-lg"></i>
-                    </div>
-                </div>
-            </div>
-        </div>
-    </div>
-</div>
 
-<!-- Filters Card -->
-<div class="card border-0 shadow-sm mb-4">
-    <div class="card-header bg-light py-3">
-        <h6 class="mb-0"><i class="fas fa-filter text-muted me-2"></i>Filters</h6>
+    <!-- Filters -->
+    <div class="card border-0 shadow-sm mb-4">
+        <div class="card-body py-3">
+            <form method="GET" id="filterForm">
+                <div class="row g-3 align-items-end">
+                    <div class="col-md-3">
+                        <label class="form-label small fw-semibold text-muted mb-1">Organization</label>
+                        <select name="organization_id" id="organizationFilter" class="form-select form-select-sm" onchange="this.form.submit()">
+                            <option value="">All Organizations</option>
+                            {% for org in organizations %}
+                            <option value="{{ org.id }}" {% if selected_organization == org.id %}selected{% endif %}>{{ org.name }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    <div class="col-md-3">
+                        <label class="form-label small fw-semibold text-muted mb-1">Branch</label>
+                        <select name="branch_id" id="branchFilter" class="form-select form-select-sm" onchange="this.form.submit()">
+                            <option value="">All Branches</option>
+                            {% for branch in branches %}
+                            <option value="{{ branch.id }}" {% if selected_branch == branch.id %}selected{% endif %}>{{ branch.name }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    <div class="col-md-3">
+                        <label class="form-label small fw-semibold text-muted mb-1">Period</label>
+                        <select name="period" id="periodFilter" class="form-select form-select-sm" onchange="handlePeriodChange()">
+                            <option value="all" {% if selected_period == 'all' %}selected{% endif %}>All Time</option>
+                            <option value="today" {% if selected_period == 'today' %}selected{% endif %}>Today</option>
+                            <option value="7days" {% if selected_period == '7days' %}selected{% endif %}>Last 7 Days</option>
+                            <option value="14days" {% if selected_period == '14days' %}selected{% endif %}>Last 14 Days</option>
+                            <option value="this_week" {% if selected_period == 'this_week' %}selected{% endif %}>This Week</option>
+                            <option value="last_week" {% if selected_period == 'last_week' %}selected{% endif %}>Last Week</option>
+                            <option value="this_month" {% if selected_period == 'this_month' %}selected{% endif %}>This Month</option>
+                            <option value="last_month" {% if selected_period == 'last_month' %}selected{% endif %}>Last Month</option>
+                            <option value="custom" {% if selected_period == 'custom' %}selected{% endif %}>Custom Range</option>
+                        </select>
+                    </div>
+                    <div class="col-md-3">
+                        <a href="{{ url_for('send_query') }}" class="btn btn-outline-secondary btn-sm w-100">
+                            <i class="fas fa-redo me-1"></i> Reset Filters
+                        </a>
+                    </div>
+                </div>
+                
+                <!-- Custom Date Range -->
+                <div class="row g-3 mt-2" id="customDateRange" style="display: {% if selected_period == 'custom' %}flex{% else %}none{% endif %};">
+                    <div class="col-md-3">
+                        <label class="form-label small fw-semibold text-muted mb-1">Start Date</label>
+                        <input type="date" name="start_date" id="startDate" class="form-control form-control-sm" value="{{ start_date }}">
+                    </div>
+                    <div class="col-md-3">
+                        <label class="form-label small fw-semibold text-muted mb-1">End Date</label>
+                        <input type="date" name="end_date" id="endDate" class="form-control form-control-sm" value="{{ end_date }}">
+                    </div>
+                    <div class="col-md-3">
+                        <label class="form-label d-none d-md-block">&nbsp;</label>
+                        <button type="submit" class="btn btn-primary btn-sm w-100">
+                            <i class="fas fa-search me-1"></i> Apply
+                        </button>
+                    </div>
+                </div>
+            </form>
+        </div>
     </div>
-    <div class="card-body">
-        <form method="GET" id="filterForm">
-            <div class="row g-3">
-                <div class="col-md-3">
-                    <label class="form-label small text-muted">Organization</label>
-                    <select name="organization_id" id="organizationFilter" class="form-select" onchange="this.form.submit()">
-                        <option value="">All Organizations</option>
-                        {% for org in organizations %}
-                        <option value="{{ org.id }}" {% if selected_organization == org.id %}selected{% endif %}>{{ org.name }}</option>
-                        {% endfor %}
-                    </select>
-                </div>
-                <div class="col-md-3">
-                    <label class="form-label small text-muted">Branch</label>
-                    <select name="branch_id" id="branchFilter" class="form-select" onchange="this.form.submit()">
-                        <option value="">All Branches</option>
-                        {% for branch in branches %}
-                        <option value="{{ branch.id }}" {% if selected_branch == branch.id %}selected{% endif %}>{{ branch.name }}</option>
-                        {% endfor %}
-                    </select>
-                </div>
-                <div class="col-md-3">
-                    <label class="form-label small text-muted">Period</label>
-                    <select name="period" id="periodFilter" class="form-select" onchange="handlePeriodChange()">
-                        <option value="all" {% if selected_period == 'all' %}selected{% endif %}>All Time</option>
-                        <option value="today" {% if selected_period == 'today' %}selected{% endif %}>Today</option>
-                        <option value="7days" {% if selected_period == '7days' %}selected{% endif %}>Last 7 Days</option>
-                        <option value="14days" {% if selected_period == '14days' %}selected{% endif %}>Last 14 Days</option>
-                        <option value="this_week" {% if selected_period == 'this_week' %}selected{% endif %}>This Week</option>
-                        <option value="last_week" {% if selected_period == 'last_week' %}selected{% endif %}>Last Week</option>
-                        <option value="this_month" {% if selected_period == 'this_month' %}selected{% endif %}>This Month</option>
-                        <option value="last_month" {% if selected_period == 'last_month' %}selected{% endif %}>Last Month</option>
-                        <option value="custom" {% if selected_period == 'custom' %}selected{% endif %}>Custom Range</option>
-                    </select>
-                </div>
-                <div class="col-md-3 d-flex align-items-end">
-                    <a href="{{ url_for('send_query') }}" class="btn btn-outline-secondary w-100">
-                        <i class="fas fa-redo me-1"></i> Reset
-                    </a>
-                </div>
-            </div>
-            
-            <!-- Custom Date Range -->
-            <div class="row g-3 mt-2" id="customDateRange" style="display: {% if selected_period == 'custom' %}flex{% else %}none{% endif %};">
-                <div class="col-md-3">
-                    <label class="form-label small text-muted">Start Date</label>
-                    <input type="date" name="start_date" id="startDate" class="form-control" value="{{ start_date }}">
-                </div>
-                <div class="col-md-3">
-                    <label class="form-label small text-muted">End Date</label>
-                    <input type="date" name="end_date" id="endDate" class="form-control" value="{{ end_date }}">
-                </div>
-                <div class="col-md-3 d-flex align-items-end">
-                    <button type="submit" class="btn btn-primary w-100">
-                        <i class="fas fa-search me-1"></i> Apply
-                    </button>
-                </div>
-            </div>
-        </form>
-    </div>
-</div>
 
-{% if late_staff %}
-<form method="POST">
-    <!-- Hidden fields for period and late counts -->
-    <input type="hidden" name="period_start" value="{{ start_date }}">
-    <input type="hidden" name="period_end" value="{{ end_date }}">
-    {% for item in late_staff %}
-    <input type="hidden" name="late_count_{{ item.staff.id }}" value="{{ item.late_count }}">
-    {% endfor %}
-    
-    <!-- Template Selection Card -->
-    <div class="card border-0 shadow-sm mb-4 bg-light">
-        <div class="card-body py-4">
-            <div class="row align-items-center">
-                <div class="col-md-8">
-                    <label class="form-label fw-semibold">Select Query Template</label>
-                    <select name="template_id" class="form-select form-select-lg" required>
-                        <option value="">-- Choose a Query Template --</option>
-                        {% for template in templates %}
-                        <option value="{{ template.id }}">{{ template.title }} ({{ template.organization.name }})</option>
-                        {% endfor %}
-                    </select>
+    {% if late_staff %}
+    <form method="POST">
+        <!-- Hidden fields for period and late counts -->
+        <input type="hidden" name="period_start" value="{{ start_date }}">
+        <input type="hidden" name="period_end" value="{{ end_date }}">
+        {% for item in late_staff %}
+        <input type="hidden" name="late_count_{{ item.staff.id }}" value="{{ item.late_count }}">
+        {% endfor %}
+
+        <!-- Template Selection -->
+        <div class="card border-0 shadow-sm mb-4">
+            <div class="card-body py-3">
+                <div class="row align-items-center">
+                    <div class="col-md-8">
+                        <label class="form-label small fw-semibold text-muted mb-1">Select Query Template</label>
+                        <select name="template_id" class="form-select" required>
+                            <option value="">-- Choose a Template --</option>
+                            {% for template in templates %}
+                            <option value="{{ template.id }}">{{ template.title }} ({{ template.organization.name }})</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    <div class="col-md-4 mt-3 mt-md-0">
+                        <label class="form-label d-none d-md-block">&nbsp;</label>
+                        <button type="submit" class="btn btn-danger w-100">
+                            <i class="fas fa-paper-plane me-2"></i>Send Query
+                        </button>
+                    </div>
                 </div>
-                <div class="col-md-4 mt-3 mt-md-0">
-                    <label class="form-label d-none d-md-block">&nbsp;</label>
-                    <button type="submit" class="btn btn-danger btn-lg w-100">
+            </div>
+        </div>
+
+        <!-- Staff List -->
+        <div class="card border-0 shadow-sm">
+            <div class="card-header bg-white py-3 border-0">
+                <div class="d-flex justify-content-between align-items-center">
+                    <div>
+                        <h6 class="mb-0 fw-bold">Late Staff</h6>
+                        <small class="text-muted">{{ late_staff|length }} staff member(s) found</small>
+                    </div>
+                    <div class="form-check mb-0">
+                        <input type="checkbox" id="selectAll" class="form-check-input" onclick="toggleAll(this)">
+                        <label class="form-check-label small" for="selectAll">Select All</label>
+                    </div>
+                </div>
+            </div>
+            <div class="card-body p-0">
+                <div class="table-responsive">
+                    <table class="table table-hover align-middle mb-0">
+                        <thead>
+                            <tr class="bg-light">
+                                <th style="width: 50px;" class="ps-3 border-0"></th>
+                                <th class="border-0">Staff</th>
+                                <th class="border-0">Branch</th>
+                                <th class="border-0">Department</th>
+                                <th class="border-0 text-center">Late (Period)</th>
+                                <th class="border-0 text-center">Late (Total)</th>
+                                <th class="border-0 text-center">Queries</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for item in late_staff %}
+                            <tr>
+                                <td class="ps-3">
+                                    <input type="checkbox" name="staff_ids" value="{{ item.staff.id }}" class="form-check-input staff-checkbox">
+                                </td>
+                                <td>
+                                    <div class="d-flex align-items-center">
+                                        <div class="avatar-sm me-3">
+                                            {{ item.staff.name[0] | upper }}
+                                        </div>
+                                        <div>
+                                            <div class="fw-semibold">{{ item.staff.name }}</div>
+                                            <div class="small text-muted">
+                                                {{ item.staff.staff_id }}
+                                                {% if item.staff.email %}
+                                                <i class="fas fa-check-circle text-success ms-1" title="Email available"></i>
+                                                {% else %}
+                                                <i class="fas fa-exclamation-circle text-danger ms-1" title="No email"></i>
+                                                {% endif %}
+                                            </div>
+                                        </div>
+                                    </div>
+                                </td>
+                                <td>
+                                    <span class="badge bg-light text-dark">{{ item.staff.school.short_name or item.staff.school.name if item.staff.school else 'N/A' }}</span>
+                                </td>
+                                <td class="text-muted">{{ item.staff.department }}</td>
+                                <td class="text-center">
+                                    {% if item.late_count >= 10 %}
+                                    <div class="late-indicator late-critical">
+                                        <span class="late-number">{{ item.late_count }}</span>
+                                        <span class="late-label">Critical</span>
+                                    </div>
+                                    {% elif item.late_count >= 5 %}
+                                    <div class="late-indicator late-warning">
+                                        <span class="late-number">{{ item.late_count }}</span>
+                                        <span class="late-label">Warning</span>
+                                    </div>
+                                    {% elif item.late_count >= 3 %}
+                                    <div class="late-indicator late-caution">
+                                        <span class="late-number">{{ item.late_count }}</span>
+                                        <span class="late-label">Caution</span>
+                                    </div>
+                                    {% else %}
+                                    <div class="late-indicator late-minor">
+                                        <span class="late-number">{{ item.late_count }}</span>
+                                        <span class="late-label">Minor</span>
+                                    </div>
+                                    {% endif %}
+                                </td>
+                                <td class="text-center">
+                                    <span class="total-late-badge">{{ item.total_late }}</span>
+                                </td>
+                                <td class="text-center">
+                                    {% set query_count = item.staff.queries_received | length %}
+                                    {% if query_count > 0 %}
+                                    <a href="{{ url_for('staff_query_history', staff_id=item.staff.id) }}" class="query-link">
+                                        {{ query_count }} <i class="fas fa-external-link-alt ms-1"></i>
+                                    </a>
+                                    {% else %}
+                                    <span class="text-muted">0</span>
+                                    {% endif %}
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+            <div class="card-footer bg-white border-0 py-3">
+                <div class="d-flex justify-content-between align-items-center">
+                    <div>
+                        <span class="fw-semibold" id="selectedCount">0</span>
+                        <span class="text-muted">staff selected</span>
+                    </div>
+                    <button type="submit" class="btn btn-danger px-4">
                         <i class="fas fa-paper-plane me-2"></i>Send Query
                     </button>
                 </div>
             </div>
         </div>
-    </div>
+    </form>
 
-    <!-- Staff List Card -->
+    {% else %}
     <div class="card border-0 shadow-sm">
-        <div class="card-header bg-light py-3 d-flex justify-content-between align-items-center">
-            <h6 class="mb-0">
-                <i class="fas fa-users text-muted me-2"></i>Late Staff
-                <span class="badge bg-danger ms-2">{{ late_staff|length }}</span>
-            </h6>
-            <div class="form-check mb-0">
-                <input type="checkbox" id="selectAll" class="form-check-input" onclick="toggleAll(this)">
-                <label class="form-check-label" for="selectAll">Select All</label>
+        <div class="card-body text-center py-5">
+            <div class="empty-state-icon mb-4">
+                <i class="fas fa-check-circle"></i>
             </div>
-        </div>
-        <div class="card-body p-0">
-            <div class="table-responsive">
-                <table class="table table-hover align-middle mb-0">
-                    <thead class="bg-light">
-                        <tr>
-                            <th style="width: 50px;" class="ps-3"></th>
-                            <th>Staff</th>
-                            <th>Branch</th>
-                            <th>Department</th>
-                            <th class="text-center">Late (Period)</th>
-                            <th class="text-center">Late (All Time)</th>
-                            <th class="text-center">Queries Sent</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        {% for item in late_staff %}
-                        <tr class="{% if item.late_count >= 10 %}table-danger{% elif item.late_count >= 5 %}table-warning{% endif %}">
-                            <td class="ps-3">
-                                <input type="checkbox" name="staff_ids" value="{{ item.staff.id }}" class="form-check-input staff-checkbox">
-                            </td>
-                            <td>
-                                <div class="d-flex align-items-center">
-                                    <div class="avatar-circle me-3">
-                                        {{ item.staff.name[0] | upper }}
-                                    </div>
-                                    <div>
-                                        <div class="fw-semibold">{{ item.staff.name }}</div>
-                                        <div class="small text-muted">
-                                            {{ item.staff.staff_id }}
-                                            {% if item.staff.email %}
-                                            <i class="fas fa-envelope text-success ms-2" title="Email available"></i>
-                                            {% else %}
-                                            <i class="fas fa-exclamation-triangle text-danger ms-2" title="No email address"></i>
-                                            {% endif %}
-                                        </div>
-                                    </div>
-                                </div>
-                            </td>
-                            <td>
-                                <span class="badge bg-secondary">{{ item.staff.school.short_name or item.staff.school.name if item.staff.school else 'N/A' }}</span>
-                            </td>
-                            <td>{{ item.staff.department }}</td>
-                            <td class="text-center">
-                                {% if item.late_count >= 10 %}
-                                <span class="badge bg-danger px-3 py-2 fs-6">{{ item.late_count }}</span>
-                                {% elif item.late_count >= 5 %}
-                                <span class="badge bg-warning text-dark px-3 py-2 fs-6">{{ item.late_count }}</span>
-                                {% else %}
-                                <span class="badge bg-secondary px-3 py-2">{{ item.late_count }}</span>
-                                {% endif %}
-                            </td>
-                            <td class="text-center">
-                                <span class="text-muted fw-semibold">{{ item.total_late }}</span>
-                            </td>
-                            <td class="text-center">
-                                {% set query_count = item.staff.queries_received | length %}
-                                {% if query_count > 0 %}
-                                <a href="{{ url_for('staff_query_history', staff_id=item.staff.id) }}" class="btn btn-sm btn-outline-primary">
-                                    {{ query_count }} <i class="fas fa-external-link-alt ms-1"></i>
-                                </a>
-                                {% else %}
-                                <span class="badge bg-light text-muted">0</span>
-                                {% endif %}
-                            </td>
-                        </tr>
-                        {% endfor %}
-                    </tbody>
-                </table>
-            </div>
-        </div>
-        <div class="card-footer bg-light py-3">
-            <div class="d-flex justify-content-between align-items-center">
-                <div class="fw-semibold">
-                    <span id="selectedCount">0</span> staff member(s) selected
-                </div>
-                <button type="submit" class="btn btn-danger">
-                    <i class="fas fa-paper-plane me-2"></i>Send Query to Selected
-                </button>
-            </div>
+            <h5 class="fw-bold">No Late Staff Found</h5>
+            <p class="text-muted mb-0">
+                {% if selected_period != 'all' %}
+                No staff members have been late during the selected period.
+                {% else %}
+                All staff members have perfect attendance records.
+                {% endif %}
+            </p>
         </div>
     </div>
-</form>
-
-{% else %}
-<div class="card border-0 shadow-sm">
-    <div class="card-body text-center py-5">
-        <div class="mb-4">
-            <div class="bg-success bg-opacity-10 rounded-circle d-inline-flex p-4">
-                <i class="fas fa-check-circle fa-4x text-success"></i>
-            </div>
-        </div>
-        <h4>No Late Staff Found</h4>
-        <p class="text-muted mb-0">
-            {% if selected_period != 'all' %}
-            No staff members have been late during the selected period.
-            {% else %}
-            All staff members have perfect attendance records.
-            {% endif %}
-        </p>
-    </div>
+    {% endif %}
 </div>
-{% endif %}
 
 <style>
-.avatar-circle {
-    width: 42px;
-    height: 42px;
-    border-radius: 50%;
-    background: linear-gradient(135deg, #dc3545 0%, #c82333 100%);
+/* Stats Icons */
+.stats-icon {
+    width: 48px;
+    height: 48px;
+    border-radius: 12px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 1.25rem;
+}
+
+/* Avatar */
+.avatar-sm {
+    width: 40px;
+    height: 40px;
+    border-radius: 10px;
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
     color: white;
     display: flex;
     align-items: center;
     justify-content: center;
     font-weight: 600;
-    font-size: 1rem;
+    font-size: 0.9rem;
 }
-.border-4 {
-    border-width: 4px !important;
+
+/* Late Indicators - New Design */
+.late-indicator {
+    display: inline-flex;
+    flex-direction: column;
+    align-items: center;
+    padding: 8px 16px;
+    border-radius: 12px;
+    min-width: 70px;
 }
-.table-danger {
-    --bs-table-bg: rgba(220, 53, 69, 0.1);
+
+.late-number {
+    font-size: 1.25rem;
+    font-weight: 700;
+    line-height: 1;
 }
-.table-warning {
-    --bs-table-bg: rgba(255, 193, 7, 0.1);
+
+.late-label {
+    font-size: 0.65rem;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    margin-top: 2px;
+    opacity: 0.9;
+}
+
+.late-critical {
+    background: linear-gradient(135deg, #ff6b6b 0%, #ee5a5a 100%);
+    color: white;
+    box-shadow: 0 4px 15px rgba(238, 90, 90, 0.3);
+}
+
+.late-warning {
+    background: linear-gradient(135deg, #feca57 0%, #ff9f43 100%);
+    color: #5a3e00;
+    box-shadow: 0 4px 15px rgba(255, 159, 67, 0.3);
+}
+
+.late-caution {
+    background: linear-gradient(135deg, #48dbfb 0%, #0abde3 100%);
+    color: #004466;
+    box-shadow: 0 4px 15px rgba(10, 189, 227, 0.3);
+}
+
+.late-minor {
+    background: linear-gradient(135deg, #a5b1c2 0%, #8395a7 100%);
+    color: white;
+    box-shadow: 0 4px 15px rgba(131, 149, 167, 0.3);
+}
+
+/* Total Late Badge */
+.total-late-badge {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 36px;
+    height: 36px;
+    border-radius: 50%;
+    background: #f1f2f6;
+    color: #57606f;
+    font-weight: 600;
+    font-size: 0.9rem;
+}
+
+/* Query Link */
+.query-link {
+    color: #5f27cd;
+    text-decoration: none;
+    font-weight: 500;
+    font-size: 0.875rem;
+}
+
+.query-link:hover {
+    color: #341f97;
+    text-decoration: underline;
+}
+
+/* Empty State */
+.empty-state-icon {
+    width: 80px;
+    height: 80px;
+    border-radius: 50%;
+    background: linear-gradient(135deg, #d4efdf 0%, #a9dfbf 100%);
+    color: #27ae60;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 2.5rem;
+}
+
+/* Table Styling */
+.table > :not(caption) > * > * {
+    padding: 1rem 0.75rem;
+}
+
+.table tbody tr {
+    transition: background-color 0.15s ease;
+}
+
+.table tbody tr:hover {
+    background-color: #f8f9fa;
+}
+
+/* Card Refinements */
+.card {
+    border-radius: 16px;
+}
+
+.card-header {
+    border-radius: 16px 16px 0 0;
+}
+
+/* Form Controls */
+.form-select:focus,
+.form-control:focus {
+    border-color: #667eea;
+    box-shadow: 0 0 0 0.2rem rgba(102, 126, 234, 0.15);
+}
+
+/* Buttons */
+.btn-danger {
+    background: linear-gradient(135deg, #ee5a5a 0%, #dc3545 100%);
+    border: none;
+    box-shadow: 0 4px 15px rgba(220, 53, 69, 0.3);
+}
+
+.btn-danger:hover {
+    background: linear-gradient(135deg, #dc3545 0%, #c82333 100%);
+    box-shadow: 0 6px 20px rgba(220, 53, 69, 0.4);
 }
 </style>
 
