@@ -128,15 +128,15 @@ class Shift(db.Model):
     start_time = db.Column(db.String(5), nullable=False)
     end_time = db.Column(db.String(5), nullable=False)
     
-    school = db.relationship('School', backref='shifts')
-    
     def get_start_time_display(self):
-        org = self.school.organization if self.school else None
+        school = School.query.get(self.school_id)
+        org = school.organization if school else None
         time_format = org.time_format if org and hasattr(org, 'time_format') else '12h'
         return self._format_time(self.start_time, time_format)
     
     def get_end_time_display(self):
-        org = self.school.organization if self.school else None
+        school = School.query.get(self.school_id)
+        org = school.organization if school else None
         time_format = org.time_format if org and hasattr(org, 'time_format') else '12h'
         return self._format_time(self.end_time, time_format)
     
@@ -151,6 +151,7 @@ class Shift(db.Model):
                 return t.strftime('%I:%M %p').lstrip('0')
         except:
             return time_str
+
 
 
 
@@ -3154,5 +3155,6 @@ if __name__ == '__main__':
     with app.app_context():
         db.create_all()
     app.run(debug=True, host='0.0.0.0', port=int(os.environ.get('PORT', 5000)))
+
 
 
