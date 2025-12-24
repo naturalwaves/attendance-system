@@ -3043,6 +3043,7 @@ def init_db():
 
 @app.route('/fix-org-table')
 def fix_org_table():
+    from sqlalchemy import text
     results = []
     
     try:
@@ -3056,17 +3057,19 @@ def fix_org_table():
     try:
         db.session.execute(text("ALTER TABLE organizations ADD COLUMN time_format VARCHAR(3) DEFAULT '12h'"))
         db.session.commit()
-        results.append("time_format column added")
+        results.append(f"time_format column added")
     except Exception as e:
         db.session.rollback()
         results.append(f"time_format: {str(e)}")
     
     return "<br>".join(results)
 
+
 if __name__ == '__main__':
     with app.app_context():
         db.create_all()
     app.run(debug=True, host='0.0.0.0', port=int(os.environ.get('PORT', 5000)))
+
 
 
 
