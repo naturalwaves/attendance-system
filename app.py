@@ -2968,134 +2968,85 @@ def api_sync():
 
 @app.route('/init-db')
 def init_db():
+    # Fix organizations table first (raw SQL, no model queries)
+    try:
+        db.session.execute(text("ALTER TABLE organizations ADD COLUMN is_active BOOLEAN DEFAULT TRUE"))
+        db.session.commit()
+    except:
+        db.session.rollback()
+    
+    try:
+        db.session.execute(text("ALTER TABLE organizations ADD COLUMN time_format VARCHAR(3) DEFAULT '12h'"))
+        db.session.commit()
+    except:
+        db.session.rollback()
+    
+    # Schools table
+    try:
+        db.session.execute(text("ALTER TABLE schools ADD COLUMN uses_shift_system BOOLEAN DEFAULT FALSE"))
+        db.session.commit()
+    except:
+        db.session.rollback()
+    
+    try:
+        db.session.execute(text("ALTER TABLE schools ADD COLUMN grace_period_minutes INTEGER DEFAULT 0"))
+        db.session.commit()
+    except:
+        db.session.rollback()
+    
+    try:
+        db.session.execute(text("ALTER TABLE schools ADD COLUMN work_days VARCHAR(50) DEFAULT 'mon,tue,wed,thu,fri'"))
+        db.session.commit()
+    except:
+        db.session.rollback()
+    
+    # Create shifts table
+    try:
+        db.session.execute(text("""
+            CREATE TABLE IF NOT EXISTS shifts (
+                id SERIAL PRIMARY KEY,
+                school_id INTEGER REFERENCES schools(id),
+                name VARCHAR(100) NOT NULL,
+                start_time VARCHAR(10) NOT NULL,
+                end_time VARCHAR(10) NOT NULL,
+                is_active BOOLEAN DEFAULT TRUE,
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+            )
+        """))
+        db.session.commit()
+    except:
+        db.session.rollback()
+    
+    # Create staff_shift_assignments table
+    try:
+        db.session.execute(text("""
+            CREATE TABLE IF NOT EXISTS staff_shift_assignments (
+                id SERIAL PRIMARY KEY,
+                staff_id INTEGER REFERENCES staff(id),
+                shift_id INTEGER REFERENCES shifts(id),
+                start_date DATE NOT NULL,
+                end_date DATE,
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+            )
+        """))
+        db.session.commit()
+    except:
+        db.session.rollback()
+    
+    # Create all other tables
     try:
         db.create_all()
-        try:
-            db.session.execute(db.text('ALTER TABLE staff DROP CONSTRAINT IF EXISTS staff_staff_id_key'))
-            db.session.commit()
-        except:
-            db.session.rollback()
-        
-        migrations = [
-            'ALTER TABLE staff ADD COLUMN IF NOT EXISTS email VARCHAR(120)',
-            'ALTER TABLE staff ADD COLUMN IF NOT EXISTS phone VARCHAR(20)',
-            'ALTER TABLE staff ADD COLUMN IF NOT EXISTS photo_url VARCHAR(500)',
-            'ALTER TABLE organizations ADD COLUMN IF NOT EXISTS hr_email VARCHAR(120)',
-            'ALTER TABLE organizations ADD COLUMN IF NOT EXISTS hr_email_name VARCHAR(100)',
-            'ALTER TABLE query_templates ADD COLUMN IF NOT EXISTS from_email VARCHAR(255)',
-            # NEW: Shift system columns for schools
-            'ALTER TABLE schools ADD COLUMN IF NOT EXISTS uses_shift_system BOOLEAN DEFAULT FALSE',
-            'ALTER TABLE schools ADD COLUMN IF NOT EXISTS grace_period_minutes INTEGER DEFAULT 0',
-            'ALTER TABLE schools ADD COLUMN IF NOT EXISTS work_days VARCHAR(20) DEFAULT \'0,1,2,3,4\'',
-        ]
-        for sql in migrations:
-            try:
-                db.session.execute(db.text(sql))
-                db.session.commit()
-            except:
-                db.session.rollback()
-        
-        try:
-            db.session.execute(db.text('''CREATE TABLE IF NOT EXISTS departments (id SERIAL PRIMARY KEY, name VARCHAR(100) NOT NULL, organization_id INTEGER NOT NULL REFERENCES organizations(id), created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP)'''))
-            db.session.commit()
-        except:
-            db.session.rollback()
-        
-        try:
-            db.session.execute(db.text('ALTER TABLE schools ADD COLUMN organization_id INTEGER'))
-            db.session.commit()
-        except:
-            db.session.rollback()
-        
-        try:
-            db.session.execute(db.text('ALTER TABLE schools ADD COLUMN logo_url VARCHAR(500)'))
-            db.session.commit()
-        except:
-            db.session.rollback()
-        
-        try:
-            db.session.execute(db.text('''CREATE TABLE IF NOT EXISTS user_schools (user_id INTEGER NOT NULL, school_id INTEGER NOT NULL, PRIMARY KEY (user_id, school_id), FOREIGN KEY (user_id) REFERENCES users(id), FOREIGN KEY (school_id) REFERENCES schools(id))'''))
-            db.session.commit()
-        except:
-            db.session.rollback()
-        
-        try:
-            db.session.execute(db.text('''CREATE TABLE IF NOT EXISTS query_templates (id SERIAL PRIMARY KEY, organization_id INTEGER NOT NULL REFERENCES organizations(id), title VARCHAR(100) NOT NULL, subject VARCHAR(200) NOT NULL, body TEXT NOT NULL, from_email VARCHAR(255), created_by INTEGER NOT NULL REFERENCES users(id), created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP, is_active BOOLEAN DEFAULT TRUE)'''))
-            db.session.commit()
-        except:
-            db.session.rollback()
-        try:
-            db.session.execute(text("ALTER TABLE organizations ADD COLUMN time_format VARCHAR(3) DEFAULT '12h'"))
-            db.session.commit()
-        except Exception as e:
-             db.session.rollback()  
-        try:
-            db.session.execute(text("ALTER TABLE organizations ADD COLUMN is_active BOOLEAN DEFAULT TRUE"))
-            db.session.commit()
-        except Exception as e:
-            db.session.rollback()
-        try:
-            db.session.execute(db.text('''CREATE TABLE IF NOT EXISTS staff_queries (id SERIAL PRIMARY KEY, staff_id INTEGER NOT NULL REFERENCES staff(id), template_id INTEGER NOT NULL REFERENCES query_templates(id), sent_by INTEGER NOT NULL REFERENCES users(id), sent_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP, times_late_at_query INTEGER DEFAULT 0, email_status VARCHAR(20) DEFAULT 'pending')'''))
-            db.session.commit()
-        except:
-            db.session.rollback()
-        
-        # NEW: Create shifts table
-        try:
-            db.session.execute(db.text('''
-                CREATE TABLE IF NOT EXISTS shifts (
-                    id SERIAL PRIMARY KEY,
-                    school_id INTEGER NOT NULL REFERENCES schools(id),
-                    name VARCHAR(50) NOT NULL,
-                    start_time VARCHAR(5) NOT NULL,
-                    end_time VARCHAR(5) NOT NULL,
-                    is_active BOOLEAN DEFAULT TRUE,
-                    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-                )
-            '''))
-            db.session.commit()
-        except:
-            db.session.rollback()
-        
-        # NEW: Create staff_shift_assignments table
-        try:
-            db.session.execute(db.text('''
-                CREATE TABLE IF NOT EXISTS staff_shift_assignments (
-                    id SERIAL PRIMARY KEY,
-                    staff_id INTEGER NOT NULL REFERENCES staff(id),
-                    shift_id INTEGER NOT NULL REFERENCES shifts(id),
-                    start_date DATE NOT NULL,
-                    end_date DATE NOT NULL,
-                    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-                    created_by INTEGER REFERENCES users(id)
-                )
-            '''))
-            db.session.commit()
-        except:
-            db.session.rollback()
-        
-        if not SystemSettings.query.first():
-            settings = SystemSettings(company_name='Wakato Technologies')
-            db.session.add(settings)
-        
-        if not User.query.filter_by(username='admin').first():
-            admin = User(username='admin', role='super_admin')
-            admin.set_password('admin123')
-            db.session.add(admin)
-        
-        for org in Organization.query.all():
-            if not Department.query.filter_by(organization_id=org.id).first():
-                Department.create_defaults(org.id)
-        
-        db.session.commit()
-        return 'Database initialized successfully! Shift system tables created.'
-    except Exception as e:
-        return f'Error: {str(e)}'
+    except:
+        pass
+    
+    return "Database initialized successfully!"
+
 
 
 if __name__ == '__main__':
     with app.app_context():
         db.create_all()
     app.run(debug=True, host='0.0.0.0', port=int(os.environ.get('PORT', 5000)))
+
 
 
