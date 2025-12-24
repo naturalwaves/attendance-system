@@ -3041,12 +3041,33 @@ def init_db():
     
     return "Database initialized successfully!"
 
-
+@app.route('/fix-org-table')
+def fix_org_table():
+    results = []
+    
+    try:
+        db.session.execute(text("ALTER TABLE organizations ADD COLUMN is_active BOOLEAN DEFAULT TRUE"))
+        db.session.commit()
+        results.append("is_active column added")
+    except Exception as e:
+        db.session.rollback()
+        results.append(f"is_active: {str(e)}")
+    
+    try:
+        db.session.execute(text("ALTER TABLE organizations ADD COLUMN time_format VARCHAR(3) DEFAULT '12h'"))
+        db.session.commit()
+        results.append("time_format column added")
+    except Exception as e:
+        db.session.rollback()
+        results.append(f"time_format: {str(e)}")
+    
+    return "<br>".join(results)
 
 if __name__ == '__main__':
     with app.app_context():
         db.create_all()
     app.run(debug=True, host='0.0.0.0', port=int(os.environ.get('PORT', 5000)))
+
 
 
 
