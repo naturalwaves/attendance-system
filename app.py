@@ -129,21 +129,22 @@ class Shift(db.Model):
     end_time = db.Column(db.String(5), nullable=False)
     
     def get_start_time_display(self):
-        school = School.query.get(self.school_id)
-        org = school.organization if school else None
-        time_format = org.time_format if org and hasattr(org, 'time_format') else '12h'
-        return self._format_time(self.start_time, time_format)
+        return self._format_time(self.start_time)
     
     def get_end_time_display(self):
-        school = School.query.get(self.school_id)
-        org = school.organization if school else None
-        time_format = org.time_format if org and hasattr(org, 'time_format') else '12h'
-        return self._format_time(self.end_time, time_format)
+        return self._format_time(self.end_time)
     
-    def _format_time(self, time_str, time_format):
+    def _format_time(self, time_str):
         if not time_str:
             return ''
         try:
+            time_format = '12h'
+            school = School.query.get(self.school_id)
+            if school and school.organization_id:
+                org = Organization.query.get(school.organization_id)
+                if org and hasattr(org, 'time_format') and org.time_format:
+                    time_format = org.time_format
+            
             t = datetime.strptime(time_str, '%H:%M')
             if time_format == '24h':
                 return t.strftime('%H:%M')
@@ -3176,6 +3177,7 @@ if __name__ == '__main__':
     with app.app_context():
         db.create_all()
     app.run(debug=True, host='0.0.0.0', port=int(os.environ.get('PORT', 5000)))
+
 
 
 
