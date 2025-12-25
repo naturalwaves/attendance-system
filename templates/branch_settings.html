@@ -5,7 +5,7 @@
 {% block content %}
 <div class="container-fluid">
     <!-- Header -->
-    <div class="page-header d-flex justify-content-between align-items-center">
+    <div class="page-header d-flex justify-content-between align-items-center mb-4">
         <div>
             <h4 class="mb-1"><i class="fas fa-cog me-2"></i>Branch Settings</h4>
             <p class="text-muted mb-0">{{ school.name }}</p>
@@ -61,14 +61,35 @@
                         <!-- Work Days -->
                         <div class="mb-4">
                             <label class="form-label fw-bold">Work Days</label>
-                            <div class="d-flex flex-wrap gap-2">
-                                {% set days = [('mon', 'Monday'), ('tue', 'Tuesday'), ('wed', 'Wednesday'), ('thu', 'Thursday'), ('fri', 'Friday'), ('sat', 'Saturday'), ('sun', 'Sunday')] %}
-                                {% for day_code, day_name in days %}
+                            <div class="d-flex flex-wrap gap-3">
                                 <div class="form-check">
-                                    <input class="form-check-input" type="checkbox" name="work_days" value="{{ day_code }}" id="day_{{ day_code }}" {{ 'checked' if day_code in work_days_list else '' }}>
-                                    <label class="form-check-label" for="day_{{ day_code }}">{{ day_name[:3] }}</label>
+                                    <input class="form-check-input" type="checkbox" name="work_days" value="mon" id="day_mon" {{ 'checked' if 'mon' in work_days_list else '' }}>
+                                    <label class="form-check-label" for="day_mon">Mon</label>
                                 </div>
-                                {% endfor %}
+                                <div class="form-check">
+                                    <input class="form-check-input" type="checkbox" name="work_days" value="tue" id="day_tue" {{ 'checked' if 'tue' in work_days_list else '' }}>
+                                    <label class="form-check-label" for="day_tue">Tue</label>
+                                </div>
+                                <div class="form-check">
+                                    <input class="form-check-input" type="checkbox" name="work_days" value="wed" id="day_wed" {{ 'checked' if 'wed' in work_days_list else '' }}>
+                                    <label class="form-check-label" for="day_wed">Wed</label>
+                                </div>
+                                <div class="form-check">
+                                    <input class="form-check-input" type="checkbox" name="work_days" value="thu" id="day_thu" {{ 'checked' if 'thu' in work_days_list else '' }}>
+                                    <label class="form-check-label" for="day_thu">Thu</label>
+                                </div>
+                                <div class="form-check">
+                                    <input class="form-check-input" type="checkbox" name="work_days" value="fri" id="day_fri" {{ 'checked' if 'fri' in work_days_list else '' }}>
+                                    <label class="form-check-label" for="day_fri">Fri</label>
+                                </div>
+                                <div class="form-check">
+                                    <input class="form-check-input" type="checkbox" name="work_days" value="sat" id="day_sat" {{ 'checked' if 'sat' in work_days_list else '' }}>
+                                    <label class="form-check-label" for="day_sat">Sat</label>
+                                </div>
+                                <div class="form-check">
+                                    <input class="form-check-input" type="checkbox" name="work_days" value="sun" id="day_sun" {{ 'checked' if 'sun' in work_days_list else '' }}>
+                                    <label class="form-check-label" for="day_sun">Sun</label>
+                                </div>
                             </div>
                         </div>
 
@@ -85,18 +106,41 @@
                                         </tr>
                                     </thead>
                                     <tbody>
-                                        {% set day_names = {'mon': 'Monday', 'tue': 'Tuesday', 'wed': 'Wednesday', 'thu': 'Thursday', 'fri': 'Friday', 'sat': 'Saturday', 'sun': 'Sunday'} %}
-                                        {% for day_code, day_name in day_names.items() %}
                                         <tr>
-                                            <td>{{ day_name }}</td>
-                                            <td>
-                                                <input type="time" class="form-control form-control-sm" name="schedule_{{ day_code }}_start" value="{{ school['schedule_' ~ day_code ~ '_start'] or '08:00' }}">
-                                            </td>
-                                            <td>
-                                                <input type="time" class="form-control form-control-sm" name="schedule_{{ day_code }}_end" value="{{ school['schedule_' ~ day_code ~ '_end'] or '17:00' }}">
-                                            </td>
+                                            <td>Monday</td>
+                                            <td><input type="time" class="form-control form-control-sm" name="schedule_mon_start" value="{{ school.schedule_mon_start or '08:00' }}"></td>
+                                            <td><input type="time" class="form-control form-control-sm" name="schedule_mon_end" value="{{ school.schedule_mon_end or '17:00' }}"></td>
                                         </tr>
-                                        {% endfor %}
+                                        <tr>
+                                            <td>Tuesday</td>
+                                            <td><input type="time" class="form-control form-control-sm" name="schedule_tue_start" value="{{ school.schedule_tue_start or '08:00' }}"></td>
+                                            <td><input type="time" class="form-control form-control-sm" name="schedule_tue_end" value="{{ school.schedule_tue_end or '17:00' }}"></td>
+                                        </tr>
+                                        <tr>
+                                            <td>Wednesday</td>
+                                            <td><input type="time" class="form-control form-control-sm" name="schedule_wed_start" value="{{ school.schedule_wed_start or '08:00' }}"></td>
+                                            <td><input type="time" class="form-control form-control-sm" name="schedule_wed_end" value="{{ school.schedule_wed_end or '17:00' }}"></td>
+                                        </tr>
+                                        <tr>
+                                            <td>Thursday</td>
+                                            <td><input type="time" class="form-control form-control-sm" name="schedule_thu_start" value="{{ school.schedule_thu_start or '08:00' }}"></td>
+                                            <td><input type="time" class="form-control form-control-sm" name="schedule_thu_end" value="{{ school.schedule_thu_end or '17:00' }}"></td>
+                                        </tr>
+                                        <tr>
+                                            <td>Friday</td>
+                                            <td><input type="time" class="form-control form-control-sm" name="schedule_fri_start" value="{{ school.schedule_fri_start or '08:00' }}"></td>
+                                            <td><input type="time" class="form-control form-control-sm" name="schedule_fri_end" value="{{ school.schedule_fri_end or '17:00' }}"></td>
+                                        </tr>
+                                        <tr>
+                                            <td>Saturday</td>
+                                            <td><input type="time" class="form-control form-control-sm" name="schedule_sat_start" value="{{ school.schedule_sat_start or '08:00' }}"></td>
+                                            <td><input type="time" class="form-control form-control-sm" name="schedule_sat_end" value="{{ school.schedule_sat_end or '17:00' }}"></td>
+                                        </tr>
+                                        <tr>
+                                            <td>Sunday</td>
+                                            <td><input type="time" class="form-control form-control-sm" name="schedule_sun_start" value="{{ school.schedule_sun_start or '08:00' }}"></td>
+                                            <td><input type="time" class="form-control form-control-sm" name="schedule_sun_end" value="{{ school.schedule_sun_end or '17:00' }}"></td>
+                                        </tr>
                                     </tbody>
                                 </table>
                             </div>
@@ -159,7 +203,13 @@
                                 {% for shift in shifts %}
                                 <tr>
                                     <td><strong>{{ shift.name }}</strong></td>
-                                    <td>{{ shift.start_time }} - {{ shift.end_time }}</td>
+                                    <td>
+                                        {% if school.time_format_24h %}
+                                            {{ shift.start_time }} - {{ shift.end_time }}
+                                        {% else %}
+                                            {{ shift.start_time | convert_to_12h }} - {{ shift.end_time | convert_to_12h }}
+                                        {% endif %}
+                                    </td>
                                     <td>{{ shift.grace_period_minutes }} mins</td>
                                     <td>
                                         <button class="btn btn-sm btn-outline-primary me-1" onclick="editShift({{ shift.id }}, '{{ shift.name }}', '{{ shift.start_time }}', '{{ shift.end_time }}', {{ shift.grace_period_minutes }})">
@@ -212,7 +262,7 @@
                         <div class="row mb-3">
                             <div class="col-6">
                                 <label class="form-label">Effective From</label>
-                                <input type="date" class="form-control" name="effective_from" value="{{ today if today else '' }}" required>
+                                <input type="date" class="form-control" name="effective_from" required>
                             </div>
                             <div class="col-6">
                                 <label class="form-label">Effective To (Optional)</label>
