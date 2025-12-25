@@ -859,7 +859,7 @@ def api_dashboard_stats():
         absent_today = 0
     
     # First check-in today
-    first_checkin = Attendance.query.join(Staff).join(School).filter(
+    first_checkin = Attendance.query.join(Staff).filter(
         Staff.school_id.in_(school_ids),
         Attendance.date == today,
         Attendance.sign_in_time.isnot(None)
@@ -868,8 +868,8 @@ def api_dashboard_stats():
     first_checkin_data = None
     if first_checkin:
         staff = first_checkin.staff
-        school = staff.school
-        use_24h = school.time_format_24h if school.time_format_24h is not None else True
+        school = School.query.get(staff.school_id)
+        use_24h = school.time_format_24h if school and school.time_format_24h is not None else True
         
         if use_24h:
             time_str = first_checkin.sign_in_time.strftime('%H:%M')
@@ -884,7 +884,7 @@ def api_dashboard_stats():
         }
     
     # Recent activity (last 10 check-ins/outs)
-    recent = Attendance.query.join(Staff).join(School).filter(
+    recent = Attendance.query.join(Staff).filter(
         Staff.school_id.in_(school_ids),
         Attendance.date == today
     ).order_by(Attendance.updated_at.desc()).limit(10).all()
@@ -892,8 +892,8 @@ def api_dashboard_stats():
     recent_activity = []
     for r in recent:
         staff = r.staff
-        school = staff.school
-        use_24h = school.time_format_24h if school.time_format_24h is not None else True
+        school = School.query.get(staff.school_id)
+        use_24h = school.time_format_24h if school and school.time_format_24h is not None else True
         
         if r.sign_out_time:
             action = 'signed out'
@@ -927,6 +927,7 @@ def api_dashboard_stats():
         'first_checkin': first_checkin_data,
         'recent_activity': recent_activity
     })
+
 
 
 @app.route('/api/search-staff')
@@ -3435,6 +3436,7 @@ if __name__ == '__main__':
     with app.app_context():
         db.create_all()
     app.run(debug=True, host='0.0.0.0', port=int(os.environ.get('PORT', 5000)))
+
 
 
 
