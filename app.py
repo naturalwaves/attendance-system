@@ -976,26 +976,55 @@ def add_school():
     return render_template('add_school.html', organizations=organizations)
 
 
-@app.route('/schools/edit/<int:id>', methods=['GET', 'POST'])
+@app.route('/schools/<int:id>/settings', methods=['GET', 'POST'])
 @login_required
-@role_required('super_admin')
-def edit_school(id):
+def branch_settings(id):
     school = School.query.get_or_404(id)
+    
+    # Check access for both super_admin and school_admin
+    if current_user.role == 'school_admin':
+        if school.id not in current_user.get_accessible_school_ids():
+            flash('Access denied', 'danger')
+            return redirect(url_for('dashboard'))
+    elif current_user.role != 'super_admin':
+        flash('Access denied', 'danger')
+        return redirect(url_for('dashboard'))
+    
     if request.method == 'POST':
-        school.name = request.form.get('name')
-        school.short_name = request.form.get('short_name')
-        school.logo_url = request.form.get('logo_url', '').strip() or None
-        school.organization_id = request.form.get('organization_id') or None
-        for day in ['mon', 'tue', 'wed', 'thu', 'fri']:
-            start = request.form.get(f'schedule_{day}_start', '08:00')
-            end = request.form.get(f'schedule_{day}_end', '17:00')
-            setattr(school, f'schedule_{day}_start', start)
-            setattr(school, f'schedule_{day}_end', end)
+        school.uses_shift_system = 'uses_shift_system' in request.form
+        school.grace_period_minutes = int(request.form.get('grace_period_minutes', 0))
+        work_days = request.form.getlist('work_days')
+        school.set_work_days_list([int(d) for d in work_days])
         db.session.commit()
-        flash('Branch updated successfully!', 'success')
-        return redirect(url_for('schools'))
-    organizations = Organization.query.all()
-    return render_template('edit_school.html', school=school, organizations=organizations)
+        flash('Branch settings updated successfully', 'success')
+        return redirect(url_for('branch_settings', id=id))
+    
+    shifts = Shift.query.filter_by(school_id=id).all()
+    staff_list = Staff.query.filter_by(school_id=id, is_active=True).all()
+    
+    staff_assignments = {}
+    for staff in staff_list:
+        assignments = StaffShiftAssignment.query.filter_by(staff_id=staff.id).all()
+        staff_assignments[staff.id] = assignments
+    
+    time_format = '12h'
+    if school.organization_id:
+        org = Organization.query.get(school.organization_id)
+        if org and hasattr(org, 'time_format') and org.time_format:
+            time_format = org.time_format
+    
+    # Flag to hide API key section for non-super_admin
+    show_api_section = current_user.role == 'super_admin'
+    
+    return render_template('branch_settings.html', 
+                           school=school, 
+                           shifts=shifts, 
+                           staff_list=staff_list,
+                           staff_assignments=staff_assignments,
+                           today=date.today(),
+                           time_format=time_format,
+                           show_api_section=show_api_section)
+
 
 
 @app.route('/schools/delete/<int:id>')
@@ -3065,3 +3094,4 @@ if __name__ == '__main__':
     with app.app_context():
         db.create_all()
     app.run(debug=True)
+
