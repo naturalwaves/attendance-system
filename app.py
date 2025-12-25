@@ -898,54 +898,61 @@ def search_staff():
 
 @app.route('/api/branch-staff/<int:branch_id>')
 @login_required
-def get_branch_staff(branch_id):
+def api_branch_staff(branch_id):
+    school = School.query.get_or_404(branch_id)
+    
+    # Access check
+    if current_user.role != 'super_admin':
+        if school.id not in current_user.get_accessible_school_ids():
+            return jsonify([])
+    
     today = date.today()
-    school = School.query.get(branch_id)
-    if not school:
-        return jsonify([])
     staff_list = Staff.query.filter_by(school_id=branch_id, is_active=True).all()
+    
+    use_24h = school.time_format_24h if school.time_format_24h is not None else True
+    
     result = []
     for staff in staff_list:
-        attendance = Attendance.query.filter_by(staff_id=staff.id, date=today).first()
+        attendance = Attendance.query.filter_by(
+            staff_id=staff.id,
+            date=today
+        ).first()
         
-        # Get shift info if applicable
+        time_in = ''
+        time_out = ''
+        status = 'Absent'
+        
+        if attendance:
+            if attendance.sign_in_time:
+                if use_24h:
+                    time_in = attendance.sign_in_time.strftime('%H:%M')
+                else:
+                    time_in = attendance.sign_in_time.strftime('%I:%M %p')
+                status = 'Late' if attendance.is_late else 'Present'
+            if attendance.sign_out_time:
+                if use_24h:
+                    time_out = attendance.sign_out_time.strftime('%H:%M')
+                else:
+                    time_out = attendance.sign_out_time.strftime('%I:%M %p')
+        
         shift_name = None
         if school.shift_mode_enabled:
             current_shift = get_staff_current_shift(staff)
             if current_shift:
                 shift_name = current_shift.name
         
-        if staff.department == 'Management':
-            if attendance:
-                status = 'Signed In'
-                time_in = attendance.sign_in_time.strftime('%H:%M') if attendance.sign_in_time else '-'
-                time_out = attendance.sign_out_time.strftime('%H:%M') if attendance.sign_out_time else '-'
-            else:
-                status = 'Not Signed In'
-                time_in = '-'
-                time_out = '-'
-        else:
-            if attendance:
-                if attendance.is_late:
-                    status = 'Late'
-                else:
-                    status = 'Present'
-                time_in = attendance.sign_in_time.strftime('%H:%M') if attendance.sign_in_time else '-'
-                time_out = attendance.sign_out_time.strftime('%H:%M') if attendance.sign_out_time else '-'
-            else:
-                status = 'Absent'
-                time_in = '-'
-                time_out = '-'
-        
         result.append({
-            'name': staff.name, 
-            'department': staff.department, 
-            'status': status, 
-            'time_in': time_in, 
+            'id': staff.id,
+            'name': f"{staff.first_name} {staff.last_name}",
+            'department': staff.department or '-',
+            'status': status,
+            'time_in': time_in,
             'time_out': time_out,
             'shift': shift_name
         })
+    
     return jsonify(result)
+
 # ==================== SCHOOLS/BRANCHES ====================
 
 @app.route('/schools')
@@ -3359,6 +3366,7 @@ if __name__ == '__main__':
     with app.app_context():
         db.create_all()
     app.run(debug=True, host='0.0.0.0', port=int(os.environ.get('PORT', 5000)))
+
 
 
 
