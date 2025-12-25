@@ -1,4 +1,4 @@
-{% extends "base.html" %}
+{% extends 'base.html' %}
 
 {% block title %}Branch Settings - {{ school.name }}{% endblock %}
 
@@ -162,25 +162,17 @@
                             {% for i in range(5) %}
                             <tr>
                                 <td>{{ days_full[i] }}</td>
-                                <td>
-                                    {% set start = school['schedule_' ~ days_short[i] ~ '_start'] %}
-                                    {{ start if time_format == '24h' else start }}
-                                </td>
-                                <td>
-                                    {% set end = school['schedule_' ~ days_short[i] ~ '_end'] %}
-                                    {{ end if time_format == '24h' else end }}
-                                </td>
+                                <td>{{ school['schedule_' ~ days_short[i] ~ '_start'] or '08:00' }}</td>
+                                <td>{{ school['schedule_' ~ days_short[i] ~ '_end'] or '17:00' }}</td>
                             </tr>
                             {% endfor %}
                         </tbody>
                     </table>
-                    {% if show_api_section %}
                     <div class="mt-3">
-                        <a href="{{ url_for('edit_school', id=school.id) }}" class="btn btn-outline-primary btn-sm">
+                        <a href="{{ url_for('edit_branch_schedule', id=school.id) }}" class="btn btn-outline-primary btn-sm">
                             <i class="fas fa-edit me-2"></i>Edit Schedule
                         </a>
                     </div>
-                    {% endif %}
                 </div>
             </div>
             {% endif %}
@@ -219,8 +211,15 @@
                                     <td>{{ shift.get_start_time_display() }}</td>
                                     <td>{{ shift.get_end_time_display() }}</td>
                                     <td>
-                                        {% set assigned_count = staff_assignments.values()|sum(start=[]) | selectattr('shift_id', 'equalto', shift.id) | list | length %}
-                                        <span class="badge bg-secondary">{{ assigned_count }} staff</span>
+                                        {% set assigned_count = namespace(value=0) %}
+                                        {% for staff_id, assignments in staff_assignments.items() %}
+                                            {% for a in assignments %}
+                                                {% if a.shift_id == shift.id %}
+                                                    {% set assigned_count.value = assigned_count.value + 1 %}
+                                                {% endif %}
+                                            {% endfor %}
+                                        {% endfor %}
+                                        <span class="badge bg-secondary">{{ assigned_count.value }} staff</span>
                                     </td>
                                     <td class="text-end">
                                         <button type="button" class="btn btn-outline-primary btn-sm" data-bs-toggle="modal" data-bs-target="#editShiftModal{{ shift.id }}">
@@ -469,7 +468,6 @@ function copyApiKey() {
     apiKeyInput.select();
     document.execCommand('copy');
     
-    // Show feedback
     var btn = event.target.closest('button');
     var originalHtml = btn.innerHTML;
     btn.innerHTML = '<i class="fas fa-check"></i>';
