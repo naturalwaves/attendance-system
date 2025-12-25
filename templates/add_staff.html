@@ -28,7 +28,7 @@
             <div class="row">
                 <div class="col-md-6 mb-3">
                     <label for="organization" class="form-label">Organization <span class="text-danger">*</span></label>
-                    <select class="form-select" id="organization" name="organization" required>
+                    <select class="form-select" id="organization" name="organization" required onchange="loadBranches(this.value)">
                         <option value="">Select Organization</option>
                         {% for org in organizations %}
                         <option value="{{ org.id }}">{{ org.name }}</option>
@@ -37,7 +37,7 @@
                 </div>
                 <div class="col-md-6 mb-3">
                     <label for="school_id" class="form-label">Branch <span class="text-danger">*</span></label>
-                    <select class="form-select" id="school_id" name="school_id" required>
+                    <select class="form-select" id="school_id" name="school_id" required onchange="loadDepartments(this.value)">
                         <option value="">Select Organization First</option>
                     </select>
                 </div>
@@ -54,7 +54,7 @@
             <div class="row">
                 <div class="col-md-6 mb-3">
                     <label for="school_id" class="form-label">Branch <span class="text-danger">*</span></label>
-                    <select class="form-select" id="school_id" name="school_id" required>
+                    <select class="form-select" id="school_id" name="school_id" required onchange="loadDepartments(this.value)">
                         <option value="">Select Branch</option>
                         {% for school in schools %}
                         <option value="{{ school.id }}">{{ school.name }}</option>
@@ -102,79 +102,80 @@
     </div>
 </div>
 
-<script type="text/javascript">
-(function() {
-    var orgSelect = document.getElementById('organization');
+<script>
+function loadDepartments(branchId) {
+    var deptSelect = document.getElementById('department');
+    
+    if (!branchId) {
+        deptSelect.innerHTML = '<option value="">Select Branch First</option>';
+        return;
+    }
+    
+    deptSelect.innerHTML = '<option value="">Loading...</option>';
+    
+    var xhr = new XMLHttpRequest();
+    xhr.open('GET', '/api/branch-departments/' + branchId, true);
+    xhr.onreadystatechange = function() {
+        if (xhr.readyState === 4) {
+            if (xhr.status === 200) {
+                var data = JSON.parse(xhr.responseText);
+                deptSelect.innerHTML = '<option value="">Select Department</option>';
+                for (var i = 0; i < data.length; i++) {
+                    var option = document.createElement('option');
+                    option.value = data[i].name;
+                    option.text = data[i].name;
+                    deptSelect.appendChild(option);
+                }
+            } else {
+                deptSelect.innerHTML = '<option value="">Error loading departments</option>';
+            }
+        }
+    };
+    xhr.send();
+}
+
+function loadBranches(orgId) {
     var branchSelect = document.getElementById('school_id');
     var deptSelect = document.getElementById('department');
-
-    if (orgSelect) {
-        orgSelect.addEventListener('change', function() {
-            var orgId = this.value;
-            deptSelect.innerHTML = '<option value="">Select Branch First</option>';
-            
-            if (!orgId) {
-                branchSelect.innerHTML = '<option value="">Select Organization First</option>';
-                return;
-            }
-            
-            branchSelect.innerHTML = '<option value="">Loading...</option>';
-            
-            fetch('/api/organization-branches/' + orgId)
-                .then(function(response) { return response.json(); })
-                .then(function(data) {
-                    branchSelect.innerHTML = '<option value="">Select Branch</option>';
-                    data.branches.forEach(function(branch) {
-                        var opt = document.createElement('option');
-                        opt.value = branch.id;
-                        opt.textContent = branch.name;
-                        branchSelect.appendChild(opt);
-                    });
-                })
-                .catch(function() {
-                    branchSelect.innerHTML = '<option value="">Error loading branches</option>';
-                });
-        });
+    
+    deptSelect.innerHTML = '<option value="">Select Branch First</option>';
+    
+    if (!orgId) {
+        branchSelect.innerHTML = '<option value="">Select Organization First</option>';
+        return;
     }
-
-    if (branchSelect) {
-        branchSelect.addEventListener('change', function() {
-            var branchId = this.value;
-            
-            if (!branchId) {
-                deptSelect.innerHTML = '<option value="">Select Branch First</option>';
-                return;
+    
+    branchSelect.innerHTML = '<option value="">Loading...</option>';
+    
+    var xhr = new XMLHttpRequest();
+    xhr.open('GET', '/api/organization-branches/' + orgId, true);
+    xhr.onreadystatechange = function() {
+        if (xhr.readyState === 4) {
+            if (xhr.status === 200) {
+                var data = JSON.parse(xhr.responseText);
+                branchSelect.innerHTML = '<option value="">Select Branch</option>';
+                for (var i = 0; i < data.branches.length; i++) {
+                    var option = document.createElement('option');
+                    option.value = data.branches[i].id;
+                    option.text = data.branches[i].name;
+                    branchSelect.appendChild(option);
+                }
+            } else {
+                branchSelect.innerHTML = '<option value="">Error loading branches</option>';
             }
-            
-            deptSelect.innerHTML = '<option value="">Loading...</option>';
-            
-            fetch('/api/branch-departments/' + branchId)
-                .then(function(response) { return response.json(); })
-                .then(function(data) {
-                    deptSelect.innerHTML = '<option value="">Select Department</option>';
-                    data.forEach(function(dept) {
-                        var opt = document.createElement('option');
-                        opt.value = dept.name;
-                        opt.textContent = dept.name;
-                        deptSelect.appendChild(opt);
-                    });
-                })
-                .catch(function() {
-                    deptSelect.innerHTML = '<option value="">Error loading departments</option>';
-                });
-        });
-    }
+        }
+    };
+    xhr.send();
+}
 
-    var form = document.getElementById('addStaffForm');
-    if (form) {
-        form.addEventListener('submit', function(e) {
-            if (!deptSelect.value) {
-                alert('Please select a department');
-                e.preventDefault();
-                return false;
-            }
-        });
+document.getElementById('addStaffForm').onsubmit = function(e) {
+    var deptSelect = document.getElementById('department');
+    if (!deptSelect.value || deptSelect.value === '') {
+        alert('Please select a department from the dropdown');
+        e.preventDefault();
+        return false;
     }
-})();
+    return true;
+};
 </script>
 {% endblock %}
