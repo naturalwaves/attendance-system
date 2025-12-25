@@ -399,12 +399,6 @@
                             <i class="fas fa-building"></i> <span>Branches</span>
                         </a>
                     </li>
-                    {% elif current_user.role == 'school_admin' %}
-                    <li class="nav-item">
-                        <a class="nav-link {% if request.endpoint in ['schools', 'branch_settings'] %}active{% endif %}" href="{{ url_for('schools') }}">
-                            <i class="fas fa-cog"></i> <span>Branch Settings</span>
-                        </a>
-                    </li>
                     {% endif %}
                     
                     {% if current_user.role in ['super_admin', 'school_admin', 'hr_viewer', 'ceo_viewer'] %}
@@ -454,6 +448,12 @@
                     <li class="nav-item">
                         <a class="nav-link {% if request.endpoint == 'settings' %}active{% endif %}" href="{{ url_for('settings') }}">
                             <i class="fas fa-cog"></i> <span>Settings</span>
+                        </a>
+                    </li>
+                    {% elif current_user.role == 'school_admin' %}
+                    <li class="nav-item">
+                        <a class="nav-link {% if request.endpoint in ['schools', 'branch_settings'] %}active{% endif %}" href="{{ url_for('schools') }}">
+                            <i class="fas fa-cog"></i> <span>Branch Settings</span>
                         </a>
                     </li>
                     {% endif %}
