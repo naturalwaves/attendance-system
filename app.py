@@ -771,6 +771,11 @@ def get_branch_departments(branch_id):
         {'id': 0, 'name': 'Support Staff'}
     ])
 
+@app.route('/api/organization-departments/<int:org_id>')
+@login_required
+def get_organization_departments(org_id):
+    departments = Department.query.filter_by(organization_id=org_id).order_by(Department.name).all()
+    return jsonify([{'id': d.id, 'name': d.name} for d in departments])
 
 
 @app.route('/api/organization-branches/<int:org_id>')
@@ -3455,6 +3460,7 @@ if __name__ == '__main__':
     with app.app_context():
         db.create_all()
     app.run(debug=True, host='0.0.0.0', port=int(os.environ.get('PORT', 5000)))
+
 
 
 
