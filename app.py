@@ -3217,6 +3217,8 @@ def init_db():
             'ALTER TABLE staff_shift_assignments ADD COLUMN IF NOT EXISTS effective_to DATE',
             'ALTER TABLE staff_shift_assignments ADD COLUMN IF NOT EXISTS is_active BOOLEAN DEFAULT TRUE',
             'ALTER TABLE staff_shift_assignments ADD COLUMN IF NOT EXISTS created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP',
+            'ALTER TABLE staff_shift_assignments DROP COLUMN IF EXISTS start_date',
+            'ALTER TABLE staff_shift_assignments DROP COLUMN IF EXISTS end_date',
         ]
         for sql in migrations:
             try:
@@ -3296,7 +3298,15 @@ def init_db():
         except:
             db.session.rollback()
         
-        # Create shifts table
+        # Drop and recreate shifts table to ensure correct structure
+        try:
+            db.session.execute(db.text('DROP TABLE IF EXISTS staff_shift_assignments CASCADE'))
+            db.session.execute(db.text('DROP TABLE IF EXISTS shifts CASCADE'))
+            db.session.commit()
+        except:
+            db.session.rollback()
+        
+        # Create shifts table fresh
         try:
             db.session.execute(db.text('''CREATE TABLE IF NOT EXISTS shifts (
                 id SERIAL PRIMARY KEY, 
@@ -3312,7 +3322,7 @@ def init_db():
         except:
             db.session.rollback()
         
-        # Create staff shift assignments table
+        # Create staff shift assignments table fresh
         try:
             db.session.execute(db.text('''CREATE TABLE IF NOT EXISTS staff_shift_assignments (
                 id SERIAL PRIMARY KEY, 
@@ -3341,7 +3351,7 @@ def init_db():
                 Department.create_defaults(org.id)
         
         db.session.commit()
-        return 'Database initialized successfully! Shift system tables and columns created.'
+        return 'Database initialized successfully! Shift tables recreated with correct structure.'
     except Exception as e:
         return f'Error: {str(e)}'
 
@@ -3350,5 +3360,6 @@ if __name__ == '__main__':
     with app.app_context():
         db.create_all()
     app.run(debug=True, host='0.0.0.0', port=int(os.environ.get('PORT', 5000)))
+
 
 
