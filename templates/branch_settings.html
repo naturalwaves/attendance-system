@@ -233,14 +233,14 @@
                 </div>
             </div>
 
-            <!-- Assign Staff to Shift -->
+            <!-- Assign Staff to Shift - UPDATED WITH CHECKBOXES -->
             <div class="card mb-4">
                 <div class="card-header bg-white">
                     <h5 class="mb-0"><i class="fas fa-user-clock me-2 text-danger"></i>Assign Staff to Shift</h5>
                 </div>
                 <div class="card-body">
                     {% if shifts %}
-                    <form method="POST" action="{{ url_for('assign_shift', id=school.id) }}">
+                    <form method="POST" action="{{ url_for('assign_shift', id=school.id) }}" id="assignShiftForm">
                         <div class="mb-3">
                             <label class="form-label fw-bold">Select Shift</label>
                             <select class="form-select" name="shift_id" required>
@@ -252,12 +252,28 @@
                         </div>
                         <div class="mb-3">
                             <label class="form-label fw-bold">Select Staff</label>
-                            <select class="form-select" name="staff_ids" multiple required style="height: 150px;">
+                            
+                            <!-- Search and Select All/Clear All -->
+                            <div class="d-flex gap-2 mb-2">
+                                <input type="text" class="form-control form-control-sm" id="staffSearch" placeholder="Search staff..." onkeyup="filterStaff()">
+                                <button type="button" class="btn btn-outline-secondary btn-sm" onclick="selectAllStaff()">Select All</button>
+                                <button type="button" class="btn btn-outline-secondary btn-sm" onclick="clearAllStaff()">Clear All</button>
+                            </div>
+                            
+                            <!-- Staff Checkboxes -->
+                            <div class="border rounded p-2" style="max-height: 200px; overflow-y: auto;" id="staffCheckboxContainer">
                                 {% for staff in staff_list %}
-                                <option value="{{ staff.id }}">{{ staff.name }} ({{ staff.staff_id }}) - {{ staff.department }}</option>
+                                <div class="form-check staff-item">
+                                    <input class="form-check-input staff-checkbox" type="checkbox" name="staff_ids" value="{{ staff.id }}" id="staff_{{ staff.id }}">
+                                    <label class="form-check-label" for="staff_{{ staff.id }}">
+                                        {{ staff.name }} <span class="text-muted">({{ staff.staff_id }})</span> - <small class="text-secondary">{{ staff.department }}</small>
+                                    </label>
+                                </div>
                                 {% endfor %}
-                            </select>
-                            <small class="text-muted">Hold Ctrl/Cmd to select multiple staff members.</small>
+                            </div>
+                            
+                            <!-- Selected Count -->
+                            <small class="text-muted"><span id="selectedCount">0</span> staff selected</small>
                         </div>
                         <div class="row mb-3">
                             <div class="col-6">
@@ -451,6 +467,64 @@ document.addEventListener('DOMContentLoaded', function() {
     
     toggleShiftSection();
     shiftToggle.addEventListener('change', toggleShiftSection);
+    
+    // Initialize staff checkbox counter
+    var checkboxes = document.querySelectorAll('.staff-checkbox');
+    checkboxes.forEach(function(checkbox) {
+        checkbox.addEventListener('change', updateSelectedCount);
+    });
 });
+
+// Staff selection functions for shift assignment
+function updateSelectedCount() {
+    var checkboxes = document.querySelectorAll('.staff-checkbox:checked');
+    var countElement = document.getElementById('selectedCount');
+    if (countElement) {
+        countElement.textContent = checkboxes.length;
+    }
+}
+
+function selectAllStaff() {
+    var visibleCheckboxes = document.querySelectorAll('.staff-item:not([style*="display: none"]) .staff-checkbox');
+    visibleCheckboxes.forEach(function(checkbox) {
+        checkbox.checked = true;
+    });
+    updateSelectedCount();
+}
+
+function clearAllStaff() {
+    var checkboxes = document.querySelectorAll('.staff-checkbox');
+    checkboxes.forEach(function(checkbox) {
+        checkbox.checked = false;
+    });
+    updateSelectedCount();
+}
+
+function filterStaff() {
+    var searchText = document.getElementById('staffSearch').value.toLowerCase();
+    var staffItems = document.querySelectorAll('.staff-item');
+    
+    staffItems.forEach(function(item) {
+        var label = item.querySelector('label').textContent.toLowerCase();
+        if (label.includes(searchText)) {
+            item.style.display = 'block';
+        } else {
+            item.style.display = 'none';
+        }
+    });
+}
+
+// Validate at least one staff selected before submit
+var assignForm = document.getElementById('assignShiftForm');
+if (assignForm) {
+    assignForm.addEventListener('submit', function(e) {
+        var checked = document.querySelectorAll('.staff-checkbox:checked');
+        if (checked.length === 0) {
+            e.preventDefault();
+            alert('Please select at least one staff member');
+            return false;
+        }
+    });
+}
 </script>
 {% endblock %}
