@@ -883,11 +883,11 @@ def api_dashboard_stats():
             'time': time_str
         }
     
-    # Recent activity (last 10 check-ins/outs)
+    # Recent activity (last 10 check-ins/outs) - order by sign_in_time desc
     recent = Attendance.query.join(Staff).filter(
         Staff.school_id.in_(school_ids),
         Attendance.date == today
-    ).order_by(Attendance.updated_at.desc()).limit(10).all()
+    ).order_by(Attendance.sign_in_time.desc()).limit(10).all()
     
     recent_activity = []
     for r in recent:
@@ -927,6 +927,7 @@ def api_dashboard_stats():
         'first_checkin': first_checkin_data,
         'recent_activity': recent_activity
     })
+
 
 
 
@@ -3436,6 +3437,7 @@ if __name__ == '__main__':
     with app.app_context():
         db.create_all()
     app.run(debug=True, host='0.0.0.0', port=int(os.environ.get('PORT', 5000)))
+
 
 
 
