@@ -1086,6 +1086,31 @@ def branch_settings(id):
                            today=date.today(),
                            time_format=time_format,
                            show_api_section=show_api_section)
+@app.route('/schools/<int:id>/schedule', methods=['GET', 'POST'])
+@login_required
+def edit_branch_schedule(id):
+    school = School.query.get_or_404(id)
+    
+    if current_user.role == 'school_admin':
+        if school.id not in current_user.get_accessible_school_ids():
+            flash('Access denied', 'danger')
+            return redirect(url_for('dashboard'))
+    elif current_user.role != 'super_admin':
+        flash('Access denied', 'danger')
+        return redirect(url_for('dashboard'))
+    
+    if request.method == 'POST':
+        for day in ['mon', 'tue', 'wed', 'thu', 'fri']:
+            start = request.form.get(f'schedule_{day}_start', '08:00')
+            end = request.form.get(f'schedule_{day}_end', '17:00')
+            setattr(school, f'schedule_{day}_start', start)
+            setattr(school, f'schedule_{day}_end', end)
+        db.session.commit()
+        flash('Schedule updated successfully!', 'success')
+        return redirect(url_for('branch_settings', id=id))
+    
+    return render_template('edit_branch_schedule.html', school=school)
+
 
 @app.route('/schools/<int:school_id>/shifts/add', methods=['POST'])
 @login_required
@@ -3087,6 +3112,7 @@ if __name__ == '__main__':
     with app.app_context():
         db.create_all()
     app.run(debug=True)
+
 
 
 
