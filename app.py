@@ -273,6 +273,16 @@ def inject_settings():
         user_org = current_user.get_display_organization()
         return {'system_settings': settings, 'user_organization': user_org}
     return {'system_settings': None, 'user_organization': None}
+@app.template_filter('convert_to_12h')
+def convert_to_12h(time_str):
+    if not time_str:
+        return ''
+    try:
+        time_obj = datetime.strptime(time_str, '%H:%M')
+        return time_obj.strftime('%I:%M %p')
+    except:
+        return time_str
+
 # ==================== HELPER FUNCTIONS ====================
 
 def role_required(*roles):
@@ -3360,6 +3370,7 @@ if __name__ == '__main__':
     with app.app_context():
         db.create_all()
     app.run(debug=True, host='0.0.0.0', port=int(os.environ.get('PORT', 5000)))
+
 
 
 
