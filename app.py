@@ -2222,6 +2222,21 @@ def late_report():
     return render_template('late_report.html', late_staff=late_staff, schools=schools, organizations=organizations, date_from=date_from, date_to=date_to, school_id=school_id, organization_id=organization_id, calc_mode=calc_mode, show_toggle=show_toggle, today=today.isoformat())
 
 
+@app.route('/reports/analytics')
+@login_required
+def attendance_analytics():
+    if current_user.role == 'super_admin':
+        organizations = Organization.query.all()
+        schools = School.query.all()
+    elif current_user.role == 'school_admin':
+        organizations = current_user.get_accessible_organizations()
+        schools = School.query.filter(School.id.in_(current_user.get_accessible_school_ids())).all()
+    else:
+        flash('Access denied', 'danger')
+        return redirect(url_for('dashboard'))
+    
+    return render_template('attendance_analytics.html', organizations=organizations, schools=schools)
+
 @app.route('/reports/late/download')
 @login_required
 def download_late_report():
@@ -3112,6 +3127,7 @@ if __name__ == '__main__':
     with app.app_context():
         db.create_all()
     app.run(debug=True)
+
 
 
 
