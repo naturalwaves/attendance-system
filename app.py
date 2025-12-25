@@ -992,6 +992,32 @@ def add_school():
     return render_template('add_school.html', organizations=organizations)
 
 
+
+
+@app.route('/schools/delete/<int:id>')
+@login_required
+@role_required('super_admin')
+def delete_school(id):
+    school = School.query.get_or_404(id)
+    db.session.delete(school)
+    db.session.commit()
+    flash('Branch deleted successfully!', 'success')
+    return redirect(url_for('schools'))
+
+
+@app.route('/schools/regenerate-key/<int:id>')
+@login_required
+@role_required('super_admin')
+def regenerate_api_key(id):
+    school = School.query.get_or_404(id)
+    school.api_key = secrets.token_hex(32)
+    db.session.commit()
+    flash('API key regenerated successfully!', 'success')
+    return redirect(url_for('schools'))
+
+
+# ==================== BRANCH SETTINGS (SHIFT SYSTEM) ====================
+
 @app.route('/schools/<int:id>/settings', methods=['GET', 'POST'])
 @login_required
 def branch_settings(id):
@@ -1040,75 +1066,6 @@ def branch_settings(id):
                            today=date.today(),
                            time_format=time_format,
                            show_api_section=show_api_section)
-
-
-
-@app.route('/schools/delete/<int:id>')
-@login_required
-@role_required('super_admin')
-def delete_school(id):
-    school = School.query.get_or_404(id)
-    db.session.delete(school)
-    db.session.commit()
-    flash('Branch deleted successfully!', 'success')
-    return redirect(url_for('schools'))
-
-
-@app.route('/schools/regenerate-key/<int:id>')
-@login_required
-@role_required('super_admin')
-def regenerate_api_key(id):
-    school = School.query.get_or_404(id)
-    school.api_key = secrets.token_hex(32)
-    db.session.commit()
-    flash('API key regenerated successfully!', 'success')
-    return redirect(url_for('schools'))
-
-
-# ==================== BRANCH SETTINGS (SHIFT SYSTEM) ====================
-
-@app.route('/schools/<int:id>/settings', methods=['GET', 'POST'])
-@login_required
-def branch_settings(id):
-    school = School.query.get_or_404(id)
-    
-    if current_user.role == 'school_admin':
-        allowed_ids = [s.id for s in current_user.allowed_schools]
-        if school.id not in allowed_ids:
-            flash('Access denied', 'danger')
-            return redirect(url_for('schools'))
-    
-    if request.method == 'POST':
-        school.uses_shift_system = 'uses_shift_system' in request.form
-        school.grace_period_minutes = int(request.form.get('grace_period_minutes', 0))
-        work_days = request.form.getlist('work_days')
-        school.set_work_days_list([int(d) for d in work_days])
-        db.session.commit()
-        flash('Branch settings updated successfully', 'success')
-        return redirect(url_for('branch_settings', id=id))
-    
-    shifts = Shift.query.filter_by(school_id=id).all()
-    staff_list = Staff.query.filter_by(school_id=id, is_active=True).all()
-    
-    staff_assignments = {}
-    for staff in staff_list:
-        assignments = StaffShiftAssignment.query.filter_by(staff_id=staff.id).all()
-        staff_assignments[staff.id] = assignments
-    
-    time_format = '12h'
-    if school.organization_id:
-        org = Organization.query.get(school.organization_id)
-        if org and hasattr(org, 'time_format') and org.time_format:
-            time_format = org.time_format
-    
-    return render_template('branch_settings.html', 
-                           school=school, 
-                           shifts=shifts, 
-                           staff_list=staff_list,
-                           staff_assignments=staff_assignments,
-                           today=date.today(),
-                           time_format=time_format)
-
 
 @app.route('/schools/<int:school_id>/shifts/add', methods=['POST'])
 @login_required
@@ -3110,5 +3067,6 @@ if __name__ == '__main__':
     with app.app_context():
         db.create_all()
     app.run(debug=True)
+
 
 
