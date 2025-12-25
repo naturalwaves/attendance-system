@@ -378,27 +378,43 @@ def get_school_schedule(school, day_of_week):
 
 
 def get_staff_schedule_for_date(staff, check_date):
-    """Get the schedule for a staff member on a specific date."""
+    """
+    Get the schedule (start_time, end_time, grace_period) for a staff member on a specific date.
+    
+    Logic:
+    - If shift system is enabled AND staff has a shift assigned → Use shift times
+    - If shift system is enabled BUT staff has no shift → Fall back to regular schedule
+    - If shift system is disabled → Use regular schedule
+    
+    This allows organizations to have some staff on shifts while others use regular hours.
+    """
     school = staff.school
     if not school:
         return None, None, 0
     
     day_of_week = check_date.weekday()
     
+    # Check if it's a work day for this branch
     if not school.is_work_day(day_of_week):
         return None, None, 0
     
     grace_period = school.grace_period_minutes or 0
     
     if school.uses_shift_system:
+        # Try to get assigned shift for this staff
         shift = staff.get_shift_for_date(check_date)
         if shift:
+            # Staff has a shift assigned - use shift times
             return shift.start_time, shift.end_time, grace_period
         else:
-            return None, None, grace_period
+            # No shift assigned - fall back to regular schedule
+            start_time, end_time = get_school_schedule(school, day_of_week)
+            return start_time, end_time, grace_period
     else:
+        # Shift system disabled - use regular schedule for everyone
         start_time, end_time = get_school_schedule(school, day_of_week)
         return start_time, end_time, grace_period
+
 
 
 def calculate_late_status(staff, sign_in_datetime, check_date):
@@ -3094,4 +3110,5 @@ if __name__ == '__main__':
     with app.app_context():
         db.create_all()
     app.run(debug=True)
+
 
