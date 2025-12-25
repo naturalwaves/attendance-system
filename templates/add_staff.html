@@ -12,7 +12,7 @@
 
 <div class="card">
     <div class="card-body">
-        <form method="POST">
+        <form method="POST" id="addStaffForm">
             <div class="row">
                 <div class="col-md-6 mb-3">
                     <label for="staff_id" class="form-label">Staff ID <span class="text-danger">*</span></label>
@@ -37,7 +37,7 @@
                 </div>
                 <div class="col-md-6 mb-3">
                     <label for="school_id" class="form-label">Branch <span class="text-danger">*</span></label>
-                    <select class="form-select" id="school_id" name="school_id" required disabled>
+                    <select class="form-select" id="school_id" name="school_id" required>
                         <option value="">Select Organization First</option>
                     </select>
                 </div>
@@ -45,7 +45,7 @@
             <div class="row">
                 <div class="col-md-6 mb-3">
                     <label for="department" class="form-label">Department <span class="text-danger">*</span></label>
-                    <select class="form-select" id="department" name="department" required disabled>
+                    <select class="form-select" id="department" name="department" required>
                         <option value="">Select Branch First</option>
                     </select>
                 </div>
@@ -54,7 +54,7 @@
             <div class="row">
                 <div class="col-md-6 mb-3">
                     <label for="school_id" class="form-label">Branch <span class="text-danger">*</span></label>
-                    <select class="form-select" id="school_id" name="school_id" required onchange="loadDepartments(this.value)">
+                    <select class="form-select" id="school_id" name="school_id" required>
                         <option value="">Select Branch</option>
                         {% for school in schools %}
                         <option value="{{ school.id }}">{{ school.name }}</option>
@@ -63,7 +63,7 @@
                 </div>
                 <div class="col-md-6 mb-3">
                     <label for="department" class="form-label">Department <span class="text-danger">*</span></label>
-                    <select class="form-select" id="department" name="department" required disabled>
+                    <select class="form-select" id="department" name="department" required>
                         <option value="">Select Branch First</option>
                     </select>
                 </div>
@@ -119,13 +119,11 @@ function loadDepartments(branchId) {
                     option.text = data[i].name;
                     deptSelect.appendChild(option);
                 }
-                deptSelect.disabled = false;
             }
         };
         xhr.send();
     } else {
         deptSelect.innerHTML = '<option value="">Select Branch First</option>';
-        deptSelect.disabled = true;
     }
 }
 
@@ -134,7 +132,6 @@ function loadBranches(orgId) {
     var deptSelect = document.getElementById('department');
     
     deptSelect.innerHTML = '<option value="">Select Branch First</option>';
-    deptSelect.disabled = true;
     
     if (orgId) {
         var xhr = new XMLHttpRequest();
@@ -149,23 +146,22 @@ function loadBranches(orgId) {
                     option.text = data.branches[i].name;
                     branchSelect.appendChild(option);
                 }
-                branchSelect.disabled = false;
             }
         };
         xhr.send();
     } else {
         branchSelect.innerHTML = '<option value="">Select Organization First</option>';
-        branchSelect.disabled = true;
     }
 }
+
+// Event listeners
+document.getElementById('school_id').onchange = function() {
+    loadDepartments(this.value);
+};
 
 {% if current_user.role == 'super_admin' %}
 document.getElementById('organization').onchange = function() {
     loadBranches(this.value);
-};
-
-document.getElementById('school_id').onchange = function() {
-    loadDepartments(this.value);
 };
 {% endif %}
 
@@ -178,6 +174,17 @@ window.onload = function() {
         loadDepartments(branchSelect.value);
     }
     {% endif %}
+};
+
+// Form validation - prevent submit if department not selected from dropdown
+document.getElementById('addStaffForm').onsubmit = function(e) {
+    var deptSelect = document.getElementById('department');
+    if (!deptSelect.value || deptSelect.value === '' || deptSelect.selectedIndex === 0) {
+        alert('Please select a department from the dropdown');
+        e.preventDefault();
+        return false;
+    }
+    return true;
 };
 </script>
 {% endblock %}
