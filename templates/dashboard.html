@@ -363,24 +363,6 @@
         padding: 2px 6px;
         border-radius: 4px;
     }
-
-    /* Stat Card Colors */
-    .stat-schools {
-        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-    }
-    .stat-staff {
-        background: linear-gradient(135deg, #11998e 0%, #38ef7d 100%);
-    }
-    .stat-present {
-        background: linear-gradient(135deg, #2193b0 0%, #6dd5ed 100%);
-    }
-    .stat-late {
-        background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
-    }
-    .stat-absent {
-        background: linear-gradient(135deg, #eb3349 0%, #f45c43 100%);
-    }
-
     .sparkline-container {
         height: 25px;
         margin-top: 0.5rem;
@@ -521,14 +503,6 @@
     .status-badge.absent {
         background: linear-gradient(135deg, #fee2e2, #fecaca);
         color: #991b1b;
-    }
-    .status-badge.signed-in {
-        background: linear-gradient(135deg, #d1fae5, #a7f3d0);
-        color: #065f46;
-    }
-    .status-badge.not-signed-in {
-        background: linear-gradient(135deg, #e5e7eb, #d1d5db);
-        color: #4b5563;
     }
     .staff-loading {
         text-align: center;
@@ -1241,7 +1215,7 @@ document.querySelectorAll('.branch-row').forEach(row => {
         
         wrapper.innerHTML = '<div class="staff-loading"><i class="fas fa-spinner"></i> Loading staff...</div>';
         
-        fetch(`/api/branch-staff-details/${branchId}`)
+        fetch(`/api/branch-staff/${branchId}`)
             .then(response => response.json())
             .then(data => {
                 if (data.length === 0) {
@@ -1250,8 +1224,8 @@ document.querySelectorAll('.branch-row').forEach(row => {
                 }
                 
                 data.sort((a, b) => {
-                    const order = { 'Present': 1, 'Late': 2, 'Signed In': 3, 'Not Signed In': 4, 'Absent': 5 };
-                    return (order[a.status] || 6) - (order[b.status] || 6);
+                    const order = { 'Present': 1, 'Late': 2, 'Absent': 3 };
+                    return (order[a.status] || 4) - (order[b.status] || 4);
                 });
                 
                 let html = `
@@ -1272,8 +1246,6 @@ document.querySelectorAll('.branch-row').forEach(row => {
                     let statusClass = 'absent';
                     if (staff.status === 'Present') statusClass = 'present';
                     else if (staff.status === 'Late') statusClass = 'late';
-                    else if (staff.status === 'Signed In') statusClass = 'signed-in';
-                    else if (staff.status === 'Not Signed In') statusClass = 'not-signed-in';
                     
                     html += `
                         <tr>
@@ -1327,9 +1299,6 @@ searchInput.addEventListener('input', function() {
                         } else if (staff.status === 'late') {
                             statusClass = 'late';
                             statusText = staff.time ? `Late ${staff.time}` : 'Late';
-                        } else if (staff.status === 'not_signed_in') {
-                            statusClass = 'absent';
-                            statusText = 'Not Signed In';
                         }
                         
                         html += `
