@@ -2758,10 +2758,16 @@ def analytics():
     previous_start = start_date - timedelta(days=period_days)
     accessible_school_ids = current_user.get_accessible_school_ids()
     
+    # Filter schools based on role and selected organization
     if current_user.role == 'super_admin':
-        schools = School.query.all()
+        if organization_id:
+            schools = School.query.filter_by(organization_id=organization_id).all()
+        else:
+            schools = School.query.all()
     else:
         schools = current_user.get_accessible_schools()
+        if organization_id:
+            schools = [s for s in schools if s.organization_id == int(organization_id)]
     
     organizations = current_user.get_accessible_organizations()
     
@@ -3070,6 +3076,7 @@ def analytics():
         early_arrivals=early_arrivals, perfect_attendance=perfect_attendance,
         most_improved=most_improved, attendance_streaks=attendance_streaks
     )
+
 
 
 @app.route('/reports/analytics/pdf')
@@ -3448,6 +3455,7 @@ if __name__ == '__main__':
     with app.app_context():
         db.create_all()
     app.run(debug=True, host='0.0.0.0', port=int(os.environ.get('PORT', 5000)))
+
 
 
 
