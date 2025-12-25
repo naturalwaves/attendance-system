@@ -768,6 +768,117 @@
         font-size: 0.85rem;
     }
 
+    /* Leaderboard Styles */
+    .leaderboard-card {
+        border: none;
+        border-radius: 12px;
+        overflow: hidden;
+        box-shadow: 0 2px 15px rgba(0,0,0,0.05);
+        height: 100%;
+    }
+    .leaderboard-card .card-header {
+        background: linear-gradient(135deg, #fef3c7 0%, #fde68a 100%);
+        border-bottom: 1px solid rgba(245, 158, 11, 0.2);
+        padding: 1rem 1.25rem;
+        font-weight: 600;
+        color: #92400e;
+    }
+    .leaderboard-card .card-body {
+        padding: 0;
+    }
+    .leaderboard-section {
+        padding: 1rem 1.25rem;
+        border-bottom: 1px solid #f3f3f3;
+    }
+    .leaderboard-section:last-child {
+        border-bottom: none;
+    }
+    .leaderboard-title {
+        font-size: 0.75rem;
+        font-weight: 700;
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+        color: #6c757d;
+        margin-bottom: 0.75rem;
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
+    }
+    .leaderboard-list {
+        list-style: none;
+        padding: 0;
+        margin: 0;
+    }
+    .leaderboard-item {
+        display: flex;
+        align-items: center;
+        gap: 0.75rem;
+        padding: 0.5rem 0;
+        border-bottom: 1px solid #f8f8f8;
+    }
+    .leaderboard-item:last-child {
+        border-bottom: none;
+        padding-bottom: 0;
+    }
+    .leaderboard-rank {
+        width: 24px;
+        height: 24px;
+        border-radius: 50%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 0.7rem;
+        font-weight: 700;
+        flex-shrink: 0;
+    }
+    .leaderboard-rank.gold {
+        background: linear-gradient(135deg, #ffc107 0%, #ff9800 100%);
+        color: #fff;
+        box-shadow: 0 2px 8px rgba(255, 193, 7, 0.4);
+    }
+    .leaderboard-rank.silver {
+        background: linear-gradient(135deg, #e0e0e0 0%, #bdbdbd 100%);
+        color: #424242;
+        box-shadow: 0 2px 8px rgba(189, 189, 189, 0.4);
+    }
+    .leaderboard-rank.bronze {
+        background: linear-gradient(135deg, #d7a574 0%, #cd7f32 100%);
+        color: #fff;
+        box-shadow: 0 2px 8px rgba(205, 127, 50, 0.4);
+    }
+    .leaderboard-rank.normal {
+        background: #f3f4f6;
+        color: #6b7280;
+    }
+    .leaderboard-info {
+        flex: 1;
+        min-width: 0;
+    }
+    .leaderboard-name {
+        font-size: 0.8rem;
+        font-weight: 600;
+        color: #333;
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+    }
+    .leaderboard-meta {
+        font-size: 0.65rem;
+        color: #888;
+    }
+    .leaderboard-value {
+        font-size: 0.7rem;
+        font-weight: 700;
+        color: #10b981;
+        white-space: nowrap;
+    }
+    .leaderboard-empty {
+        text-align: center;
+        padding: 1rem;
+        color: #888;
+        font-size: 0.8rem;
+    }
+
     /* Responsive */
     @media (max-width: 1200px) {
         .dashboard-header {
@@ -780,6 +891,13 @@
         }
         .header-right {
             justify-content: flex-start;
+        }
+        .bottom-section {
+            flex-direction: column;
+        }
+        .bottom-section .branch-table-wrapper,
+        .bottom-section .leaderboard-wrapper {
+            width: 100% !important;
         }
     }
     @media (max-width: 992px) {
@@ -976,68 +1094,114 @@
     </div>
 </div>
 
-<!-- Branch Statistics Table -->
-{% if school_stats %}
-<div class="card branch-table">
-    <div class="card-header">
-        <i class="fas fa-chart-bar me-2 text-primary"></i>Branch Statistics (Today)
-        <small class="text-muted ms-2">— Click a branch to view staff</small>
+<!-- Branch Statistics and Leaderboard Row -->
+<div class="d-flex gap-4 bottom-section">
+    <!-- Branch Statistics Table -->
+    <div class="branch-table-wrapper" style="flex: 7;">
+        {% if school_stats %}
+        <div class="card branch-table">
+            <div class="card-header">
+                <i class="fas fa-chart-bar me-2 text-primary"></i>Branch Statistics (Today)
+                <small class="text-muted ms-2">— Click a branch to view staff</small>
+            </div>
+            <div class="card-body p-0">
+                <div class="table-responsive">
+                    <table class="table table-hover mb-0">
+                        <thead>
+                            <tr>
+                                <th>Branch</th>
+                                <th>Total Staff</th>
+                                <th>Present</th>
+                                <th>Late</th>
+                                <th>Attendance Rate</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for stat in school_stats %}
+                            <tr class="branch-row" data-branch-id="{{ stat.id }}">
+                                <td>
+                                    <i class="fas fa-chevron-right expand-icon"></i>
+                                    <strong>{{ stat.school.name }}</strong>
+                                    {% if stat.school.short_name %}
+                                    <small class="text-muted ms-1">({{ stat.school.short_name }})</small>
+                                    {% endif %}
+                                </td>
+                                <td>{{ stat.total_staff }}</td>
+                                <td><span class="badge bg-success">{{ stat.present }}</span></td>
+                                <td><span class="badge bg-warning text-dark">{{ stat.late }}</span></td>
+                                <td style="min-width: 150px;">
+                                    {% if stat.total_staff > 0 %}
+                                    {% set rate = (stat.present / stat.total_staff * 100)|round(1) %}
+                                    <div class="d-flex align-items-center gap-2">
+                                        <div class="progress flex-grow-1">
+                                            <div class="progress-bar {% if rate >= 80 %}bg-success{% elif rate >= 50 %}bg-warning{% else %}bg-danger{% endif %}" style="width: {{ rate }}%"></div>
+                                        </div>
+                                        <small class="text-muted" style="width: 40px;">{{ rate }}%</small>
+                                    </div>
+                                    {% else %}
+                                    <span class="text-muted">N/A</span>
+                                    {% endif %}
+                                </td>
+                            </tr>
+                            <tr class="staff-details" data-branch-id="{{ stat.id }}">
+                                <td colspan="5">
+                                    <div class="staff-list-wrapper">
+                                        <div class="staff-loading">
+                                            <i class="fas fa-spinner"></i> Loading staff...
+                                        </div>
+                                    </div>
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+        {% endif %}
     </div>
-    <div class="card-body p-0">
-        <div class="table-responsive">
-            <table class="table table-hover mb-0">
-                <thead>
-                    <tr>
-                        <th>Branch</th>
-                        <th>Total Staff</th>
-                        <th>Present</th>
-                        <th>Late</th>
-                        <th>Attendance Rate</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    {% for stat in school_stats %}
-                    <tr class="branch-row" data-branch-id="{{ stat.id }}">
-                        <td>
-                            <i class="fas fa-chevron-right expand-icon"></i>
-                            <strong>{{ stat.school.name }}</strong>
-                            {% if stat.school.short_name %}
-                            <small class="text-muted ms-1">({{ stat.school.short_name }})</small>
-                            {% endif %}
-                        </td>
-                        <td>{{ stat.total_staff }}</td>
-                        <td><span class="badge bg-success">{{ stat.present }}</span></td>
-                        <td><span class="badge bg-warning text-dark">{{ stat.late }}</span></td>
-                        <td style="min-width: 150px;">
-                            {% if stat.total_staff > 0 %}
-                            {% set rate = (stat.present / stat.total_staff * 100)|round(1) %}
-                            <div class="d-flex align-items-center gap-2">
-                                <div class="progress flex-grow-1">
-                                    <div class="progress-bar {% if rate >= 80 %}bg-success{% elif rate >= 50 %}bg-warning{% else %}bg-danger{% endif %}" style="width: {{ rate }}%"></div>
-                                </div>
-                                <small class="text-muted" style="width: 40px;">{{ rate }}%</small>
-                            </div>
-                            {% else %}
-                            <span class="text-muted">N/A</span>
-                            {% endif %}
-                        </td>
-                    </tr>
-                    <tr class="staff-details" data-branch-id="{{ stat.id }}">
-                        <td colspan="5">
-                            <div class="staff-list-wrapper">
-                                <div class="staff-loading">
-                                    <i class="fas fa-spinner"></i> Loading staff...
-                                </div>
-                            </div>
-                        </td>
-                    </tr>
-                    {% endfor %}
-                </tbody>
-            </table>
+
+    <!-- Leaderboard -->
+    <div class="leaderboard-wrapper" style="flex: 3;">
+        <div class="card leaderboard-card">
+            <div class="card-header">
+                <i class="fas fa-trophy me-2"></i>Leaderboard
+                <small class="text-muted ms-2">— This Week</small>
+            </div>
+            <div class="card-body">
+                <!-- First to Arrive -->
+                <div class="leaderboard-section">
+                    <div class="leaderboard-title">
+                        <i class="fas fa-sun text-warning"></i> First to Arrive
+                    </div>
+                    <ul class="leaderboard-list" id="firstToArriveList">
+                        <li class="leaderboard-empty">Loading...</li>
+                    </ul>
+                </div>
+
+                <!-- Best Attendance Streak -->
+                <div class="leaderboard-section">
+                    <div class="leaderboard-title">
+                        <i class="fas fa-fire text-danger"></i> Best Streak
+                    </div>
+                    <ul class="leaderboard-list" id="bestStreakList">
+                        <li class="leaderboard-empty">Loading...</li>
+                    </ul>
+                </div>
+
+                <!-- Perfect Punctuality -->
+                <div class="leaderboard-section">
+                    <div class="leaderboard-title">
+                        <i class="fas fa-star text-success"></i> Perfect Punctuality
+                    </div>
+                    <ul class="leaderboard-list" id="perfectPunctualityList">
+                        <li class="leaderboard-empty">Loading...</li>
+                    </ul>
+                </div>
+            </div>
         </div>
     </div>
 </div>
-{% endif %}
 
 <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 <script>
@@ -1151,6 +1315,53 @@ function updateManagementCount(count) {
     }
 }
 
+// Leaderboard Functions
+function getRankClass(index) {
+    if (index === 0) return 'gold';
+    if (index === 1) return 'silver';
+    if (index === 2) return 'bronze';
+    return 'normal';
+}
+
+function renderLeaderboardList(listId, data, valueFormatter) {
+    const list = document.getElementById(listId);
+    if (!data || data.length === 0) {
+        list.innerHTML = '<li class="leaderboard-empty"><i class="fas fa-info-circle me-2"></i>No data yet</li>';
+        return;
+    }
+    
+    let html = '';
+    data.slice(0, 5).forEach((item, index) => {
+        html += `
+            <li class="leaderboard-item">
+                <span class="leaderboard-rank ${getRankClass(index)}">${index + 1}</span>
+                <div class="leaderboard-info">
+                    <div class="leaderboard-name">${item.name}</div>
+                    <div class="leaderboard-meta">${item.branch || ''}</div>
+                </div>
+                <span class="leaderboard-value">${valueFormatter(item)}</span>
+            </li>
+        `;
+    });
+    list.innerHTML = html;
+}
+
+function updateLeaderboard() {
+    fetch('/api/leaderboard')
+        .then(response => response.json())
+        .then(data => {
+            renderLeaderboardList('firstToArriveList', data.first_to_arrive, item => item.avg_time);
+            renderLeaderboardList('bestStreakList', data.best_streak, item => `${item.streak} days`);
+            renderLeaderboardList('perfectPunctualityList', data.perfect_punctuality, item => `${item.days} days`);
+        })
+        .catch(error => {
+            console.log('Leaderboard error:', error);
+            document.getElementById('firstToArriveList').innerHTML = '<li class="leaderboard-empty">Error loading</li>';
+            document.getElementById('bestStreakList').innerHTML = '<li class="leaderboard-empty">Error loading</li>';
+            document.getElementById('perfectPunctualityList').innerHTML = '<li class="leaderboard-empty">Error loading</li>';
+        });
+}
+
 // Dashboard Refresh
 function refreshDashboard() {
     fetch('/api/dashboard-stats')
@@ -1185,8 +1396,14 @@ function refreshDashboard() {
         })
         .catch(error => console.log('Dashboard refresh error:', error));
 }
+
+// Initial load
 setTimeout(refreshDashboard, 1000);
+setTimeout(updateLeaderboard, 1500);
+
+// Periodic refresh
 setInterval(refreshDashboard, 15000);
+setInterval(updateLeaderboard, 60000); // Update leaderboard every minute
 
 // Expandable Branch Rows
 let currentExpandedBranch = null;
