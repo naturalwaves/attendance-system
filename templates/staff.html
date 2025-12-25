@@ -366,13 +366,13 @@
 
 <!-- Add Staff Modal -->
 <div class="modal fade" id="addStaffModal" tabindex="-1">
-    <div class="modal-dialog modal-dialog-centered">
+    <div class="modal-dialog modal-dialog-centered modal-lg">
         <div class="modal-content border-0 shadow">
             <div class="modal-header bg-primary text-white">
                 <h5 class="modal-title"><i class="fas fa-user-plus me-2"></i>Add New Staff</h5>
                 <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
             </div>
-            <form action="{{ url_for('add_staff') }}" method="POST">
+            <form action="{{ url_for('add_staff') }}" method="POST" id="addStaffForm">
                 <div class="modal-body">
                     <div class="row g-3">
                         <div class="col-md-6">
@@ -384,17 +384,25 @@
                             <input type="text" name="name" class="form-control" placeholder="Enter full name" required>
                         </div>
                         <div class="col-md-6">
-                            <label class="form-label small fw-semibold">Branch <span class="text-danger">*</span></label>
-                            <select name="school_id" class="form-select" required>
-                                <option value="">Select Branch</option>
-                                {% for school in schools %}
-                                <option value="{{ school.id }}">{{ school.name }}</option>
+                            <label class="form-label small fw-semibold">Organization <span class="text-danger">*</span></label>
+                            <select id="addOrganization" class="form-select" required onchange="loadModalBranches(this.value)">
+                                <option value="">Select Organization</option>
+                                {% for org in organizations %}
+                                <option value="{{ org.id }}">{{ org.name }}</option>
                                 {% endfor %}
                             </select>
                         </div>
                         <div class="col-md-6">
+                            <label class="form-label small fw-semibold">Branch <span class="text-danger">*</span></label>
+                            <select name="school_id" id="addBranch" class="form-select" required onchange="loadModalDepartments(this.value)">
+                                <option value="">Select Organization First</option>
+                            </select>
+                        </div>
+                        <div class="col-md-6">
                             <label class="form-label small fw-semibold">Department <span class="text-danger">*</span></label>
-                            <input type="text" name="department" class="form-control" placeholder="e.g., Academic" required>
+                            <select name="department" id="addDepartment" class="form-select" required>
+                                <option value="">Select Branch First</option>
+                            </select>
                         </div>
                         <div class="col-md-6">
                             <label class="form-label small fw-semibold">Email</label>
@@ -419,7 +427,7 @@
 
 <!-- Edit Staff Modal -->
 <div class="modal fade" id="editStaffModal" tabindex="-1">
-    <div class="modal-dialog modal-dialog-centered">
+    <div class="modal-dialog modal-dialog-centered modal-lg">
         <div class="modal-content border-0 shadow">
             <div class="modal-header bg-primary text-white">
                 <h5 class="modal-title"><i class="fas fa-user-edit me-2"></i>Edit Staff</h5>
@@ -438,7 +446,7 @@
                         </div>
                         <div class="col-md-6">
                             <label class="form-label small fw-semibold">Branch <span class="text-danger">*</span></label>
-                            <select name="school_id" id="editSchoolId" class="form-select" required>
+                            <select name="school_id" id="editSchoolId" class="form-select" required onchange="loadEditDepartments(this.value)">
                                 <option value="">Select Branch</option>
                                 {% for school in schools %}
                                 <option value="{{ school.id }}">{{ school.name }}</option>
@@ -447,7 +455,9 @@
                         </div>
                         <div class="col-md-6">
                             <label class="form-label small fw-semibold">Department <span class="text-danger">*</span></label>
-                            <input type="text" name="department" id="editDepartment" class="form-control" required>
+                            <select name="department" id="editDepartment" class="form-select" required>
+                                <option value="">Select Branch First</option>
+                            </select>
                         </div>
                         <div class="col-md-6">
                             <label class="form-label small fw-semibold">Email</label>
@@ -523,21 +533,141 @@ function searchStaff() {
     });
 }
 
+function updateBranches() {
+    document.getElementById('branchFilter').value = '';
+    document.getElementById('filterForm').submit();
+}
+
+// Add Staff Modal Functions
+function loadModalBranches(orgId) {
+    var branchSelect = document.getElementById('addBranch');
+    var deptSelect = document.getElementById('addDepartment');
+    
+    deptSelect.innerHTML = '<option value="">Select Branch First</option>';
+    
+    if (!orgId) {
+        branchSelect.innerHTML = '<option value="">Select Organization First</option>';
+        return;
+    }
+    
+    branchSelect.innerHTML = '<option value="">Loading...</option>';
+    
+    var xhr = new XMLHttpRequest();
+    xhr.open('GET', '/api/organization-branches/' + orgId, true);
+    xhr.onreadystatechange = function() {
+        if (xhr.readyState === 4) {
+            if (xhr.status === 200) {
+                var data = JSON.parse(xhr.responseText);
+                branchSelect.innerHTML = '<option value="">Select Branch</option>';
+                for (var i = 0; i < data.branches.length; i++) {
+                    var option = document.createElement('option');
+                    option.value = data.branches[i].id;
+                    option.text = data.branches[i].name;
+                    branchSelect.appendChild(option);
+                }
+            } else {
+                branchSelect.innerHTML = '<option value="">Error loading branches</option>';
+            }
+        }
+    };
+    xhr.send();
+}
+
+function loadModalDepartments(branchId) {
+    var deptSelect = document.getElementById('addDepartment');
+    
+    if (!branchId) {
+        deptSelect.innerHTML = '<option value="">Select Branch First</option>';
+        return;
+    }
+    
+    deptSelect.innerHTML = '<option value="">Loading...</option>';
+    
+    var xhr = new XMLHttpRequest();
+    xhr.open('GET', '/api/branch-departments/' + branchId, true);
+    xhr.onreadystatechange = function() {
+        if (xhr.readyState === 4) {
+            if (xhr.status === 200) {
+                var data = JSON.parse(xhr.responseText);
+                deptSelect.innerHTML = '<option value="">Select Department</option>';
+                for (var i = 0; i < data.length; i++) {
+                    var option = document.createElement('option');
+                    option.value = data[i].name;
+                    option.text = data[i].name;
+                    deptSelect.appendChild(option);
+                }
+            } else {
+                deptSelect.innerHTML = '<option value="">Error loading departments</option>';
+            }
+        }
+    };
+    xhr.send();
+}
+
+// Edit Staff Modal Functions
+var currentEditDepartment = '';
+
 function editStaff(id, staffId, name, schoolId, department, email, phone) {
     document.getElementById('editStaffForm').action = '/staff/edit/' + id;
     document.getElementById('editStaffId').value = staffId;
     document.getElementById('editName').value = name;
     document.getElementById('editSchoolId').value = schoolId;
-    document.getElementById('editDepartment').value = department;
     document.getElementById('editEmail').value = email;
     document.getElementById('editPhone').value = phone;
+    
+    currentEditDepartment = department;
+    
+    // Load departments for the selected branch
+    if (schoolId) {
+        loadEditDepartments(schoolId);
+    }
     
     new bootstrap.Modal(document.getElementById('editStaffModal')).show();
 }
 
-function updateBranches() {
-    document.getElementById('branchFilter').value = '';
-    document.getElementById('filterForm').submit();
+function loadEditDepartments(branchId) {
+    var deptSelect = document.getElementById('editDepartment');
+    
+    if (!branchId) {
+        deptSelect.innerHTML = '<option value="">Select Branch First</option>';
+        return;
+    }
+    
+    deptSelect.innerHTML = '<option value="">Loading...</option>';
+    
+    var xhr = new XMLHttpRequest();
+    xhr.open('GET', '/api/branch-departments/' + branchId, true);
+    xhr.onreadystatechange = function() {
+        if (xhr.readyState === 4) {
+            if (xhr.status === 200) {
+                var data = JSON.parse(xhr.responseText);
+                deptSelect.innerHTML = '<option value="">Select Department</option>';
+                for (var i = 0; i < data.length; i++) {
+                    var option = document.createElement('option');
+                    option.value = data[i].name;
+                    option.text = data[i].name;
+                    if (data[i].name === currentEditDepartment) {
+                        option.selected = true;
+                    }
+                    deptSelect.appendChild(option);
+                }
+            } else {
+                deptSelect.innerHTML = '<option value="">Error loading departments</option>';
+            }
+        }
+    };
+    xhr.send();
 }
+
+// Form validation
+document.getElementById('addStaffForm').onsubmit = function(e) {
+    var deptSelect = document.getElementById('addDepartment');
+    if (!deptSelect.value || deptSelect.value === '') {
+        alert('Please select a department from the dropdown');
+        e.preventDefault();
+        return false;
+    }
+    return true;
+};
 </script>
 {% endblock %}
