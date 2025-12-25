@@ -1129,7 +1129,7 @@ def add_shift(school_id):
         flash('All fields are required.', 'danger')
         return redirect(url_for('branch_settings', id=school_id))
     
-    existing = Shift.query.filter_by(school_id=school_id, name=name, is_active=True).first()
+    existing = Shift.query.filter_by(school_id=school_id, name=name).first()
     if existing:
         flash(f'A shift named "{name}" already exists.', 'danger')
         return redirect(url_for('branch_settings', id=school_id))
@@ -1145,6 +1145,7 @@ def add_shift(school_id):
     
     flash(f'Shift "{name}" added successfully!', 'success')
     return redirect(url_for('branch_settings', id=school_id))
+
 
 
 @app.route('/schools/<int:school_id>/shifts/<int:shift_id>/edit', methods=['POST'])
@@ -1172,10 +1173,11 @@ def edit_shift(school_id, shift_id):
     return redirect(url_for('branch_settings', id=school_id))
 
 
-@app.route('/schools/<int:school_id>/shifts/<int:shift_id>/delete')
+
+@app.route('/schools/<int:school_id>/shifts/<int:shift_id>/edit', methods=['POST'])
 @login_required
 @role_required('super_admin', 'school_admin')
-def delete_shift(school_id, shift_id):
+def edit_shift(school_id, shift_id):
     school = School.query.get_or_404(school_id)
     shift = Shift.query.get_or_404(shift_id)
     
@@ -1188,11 +1190,14 @@ def delete_shift(school_id, shift_id):
             flash('Access denied.', 'danger')
             return redirect(url_for('dashboard'))
     
-    shift.is_active = False
-    db.session.commit()
+    shift.name = request.form.get('name', '').strip()
+    shift.start_time = request.form.get('start_time', '').strip()
+    shift.end_time = request.form.get('end_time', '').strip()
     
-    flash(f'Shift "{shift.name}" deleted successfully!', 'success')
+    db.session.commit()
+    flash(f'Shift "{shift.name}" updated successfully!', 'success')
     return redirect(url_for('branch_settings', id=school_id))
+
 
 
 @app.route('/schools/<int:school_id>/roster/assign', methods=['POST'])
@@ -3177,6 +3182,7 @@ if __name__ == '__main__':
     with app.app_context():
         db.create_all()
     app.run(debug=True, host='0.0.0.0', port=int(os.environ.get('PORT', 5000)))
+
 
 
 
