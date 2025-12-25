@@ -1215,7 +1215,7 @@ document.querySelectorAll('.branch-row').forEach(row => {
         
         wrapper.innerHTML = '<div class="staff-loading"><i class="fas fa-spinner"></i> Loading staff...</div>';
         
-        fetch(`/api/branch-staff/${branchId}`)
+        fetch(`/api/branch-staff-details/${branchId}`)
             .then(response => response.json())
             .then(data => {
                 if (data.length === 0) {
