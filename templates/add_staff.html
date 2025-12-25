@@ -24,7 +24,6 @@
                 </div>
             </div>
 
-            {% if current_user.role == 'super_admin' %}
             <div class="row">
                 <div class="col-md-6 mb-3">
                     <label for="organization" class="form-label">Organization <span class="text-danger">*</span></label>
@@ -42,6 +41,7 @@
                     </select>
                 </div>
             </div>
+
             <div class="row">
                 <div class="col-md-6 mb-3">
                     <label for="department" class="form-label">Department <span class="text-danger">*</span></label>
@@ -50,25 +50,6 @@
                     </select>
                 </div>
             </div>
-            {% else %}
-            <div class="row">
-                <div class="col-md-6 mb-3">
-                    <label for="school_id" class="form-label">Branch <span class="text-danger">*</span></label>
-                    <select class="form-select" id="school_id" name="school_id" required onchange="loadDepartments(this.value)">
-                        <option value="">Select Branch</option>
-                        {% for school in schools %}
-                        <option value="{{ school.id }}">{{ school.name }}</option>
-                        {% endfor %}
-                    </select>
-                </div>
-                <div class="col-md-6 mb-3">
-                    <label for="department" class="form-label">Department <span class="text-danger">*</span></label>
-                    <select class="form-select" id="department" name="department" required>
-                        <option value="">Select Branch First</option>
-                    </select>
-                </div>
-            </div>
-            {% endif %}
 
             <hr class="my-4">
             <h5 class="mb-3">Contact Information (Optional)</h5>
@@ -103,37 +84,6 @@
 </div>
 
 <script>
-function loadDepartments(branchId) {
-    var deptSelect = document.getElementById('department');
-    
-    if (!branchId) {
-        deptSelect.innerHTML = '<option value="">Select Branch First</option>';
-        return;
-    }
-    
-    deptSelect.innerHTML = '<option value="">Loading...</option>';
-    
-    var xhr = new XMLHttpRequest();
-    xhr.open('GET', '/api/branch-departments/' + branchId, true);
-    xhr.onreadystatechange = function() {
-        if (xhr.readyState === 4) {
-            if (xhr.status === 200) {
-                var data = JSON.parse(xhr.responseText);
-                deptSelect.innerHTML = '<option value="">Select Department</option>';
-                for (var i = 0; i < data.length; i++) {
-                    var option = document.createElement('option');
-                    option.value = data[i].name;
-                    option.text = data[i].name;
-                    deptSelect.appendChild(option);
-                }
-            } else {
-                deptSelect.innerHTML = '<option value="">Error loading departments</option>';
-            }
-        }
-    };
-    xhr.send();
-}
-
 function loadBranches(orgId) {
     var branchSelect = document.getElementById('school_id');
     var deptSelect = document.getElementById('department');
@@ -162,6 +112,37 @@ function loadBranches(orgId) {
                 }
             } else {
                 branchSelect.innerHTML = '<option value="">Error loading branches</option>';
+            }
+        }
+    };
+    xhr.send();
+}
+
+function loadDepartments(branchId) {
+    var deptSelect = document.getElementById('department');
+    
+    if (!branchId) {
+        deptSelect.innerHTML = '<option value="">Select Branch First</option>';
+        return;
+    }
+    
+    deptSelect.innerHTML = '<option value="">Loading...</option>';
+    
+    var xhr = new XMLHttpRequest();
+    xhr.open('GET', '/api/branch-departments/' + branchId, true);
+    xhr.onreadystatechange = function() {
+        if (xhr.readyState === 4) {
+            if (xhr.status === 200) {
+                var data = JSON.parse(xhr.responseText);
+                deptSelect.innerHTML = '<option value="">Select Department</option>';
+                for (var i = 0; i < data.length; i++) {
+                    var option = document.createElement('option');
+                    option.value = data[i].name;
+                    option.text = data[i].name;
+                    deptSelect.appendChild(option);
+                }
+            } else {
+                deptSelect.innerHTML = '<option value="">Error loading departments</option>';
             }
         }
     };
