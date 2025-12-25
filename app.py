@@ -991,6 +991,26 @@ def add_school():
     organizations = Organization.query.all()
     return render_template('add_school.html', organizations=organizations)
 
+@app.route('/schools/edit/<int:id>', methods=['GET', 'POST'])
+@login_required
+@role_required('super_admin')
+def edit_school(id):
+    school = School.query.get_or_404(id)
+    if request.method == 'POST':
+        school.name = request.form.get('name')
+        school.short_name = request.form.get('short_name')
+        school.logo_url = request.form.get('logo_url', '').strip() or None
+        school.organization_id = request.form.get('organization_id') or None
+        for day in ['mon', 'tue', 'wed', 'thu', 'fri']:
+            start = request.form.get(f'schedule_{day}_start', '08:00')
+            end = request.form.get(f'schedule_{day}_end', '17:00')
+            setattr(school, f'schedule_{day}_start', start)
+            setattr(school, f'schedule_{day}_end', end)
+        db.session.commit()
+        flash('Branch updated successfully!', 'success')
+        return redirect(url_for('schools'))
+    organizations = Organization.query.all()
+    return render_template('edit_school.html', school=school, organizations=organizations)
 
 
 
@@ -3067,6 +3087,7 @@ if __name__ == '__main__':
     with app.app_context():
         db.create_all()
     app.run(debug=True)
+
 
 
 
