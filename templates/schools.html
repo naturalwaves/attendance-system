@@ -21,9 +21,11 @@
                         </h3>
                         <p class="mb-0 text-white-50"><i class="fas fa-info-circle me-1"></i> Manage all branch locations across your organizations</p>
                     </div>
+                    {% if show_admin_features %}
                     <a href="{{ url_for('add_school') }}" class="btn btn-warning btn-sm fw-semibold">
                         <i class="fas fa-plus me-1"></i> Add Branch
                     </a>
+                    {% endif %}
                 </div>
             </div>
         </div>
@@ -156,7 +158,10 @@
                     <th class="py-3 text-muted small fw-semibold">SHORT NAME</th>
                     <th class="py-3 text-muted small fw-semibold">ORGANIZATION</th>
                     <th class="py-3 text-muted small fw-semibold text-center">STAFF COUNT</th>
+                    <th class="py-3 text-muted small fw-semibold text-center">SHIFT MODE</th>
+                    {% if show_admin_features %}
                     <th class="py-3 text-muted small fw-semibold text-center">API KEY</th>
+                    {% endif %}
                     <th class="py-3 text-muted small fw-semibold text-center pe-4">ACTIONS</th>
                 </tr>
             </thead>
@@ -204,16 +209,37 @@
                         </span>
                     </td>
                     <td class="text-center">
+                        {% if school.shift_mode_enabled %}
+                        <span class="badge bg-success px-3 py-2">
+                            <i class="fas fa-clock me-1"></i> Enabled
+                        </span>
+                        {% else %}
+                        <span class="badge bg-secondary px-3 py-2">
+                            <i class="fas fa-clock me-1"></i> Disabled
+                        </span>
+                        {% endif %}
+                    </td>
+                    {% if show_admin_features %}
+                    <td class="text-center">
                         <button class="btn btn-sm btn-outline-secondary" onclick="copyApiKey('{{ school.api_key }}')" title="Copy API Key">
                             <i class="fas fa-key me-1"></i> Copy
                         </button>
                     </td>
+                    {% endif %}
                     <td class="text-center pe-4">
+                        {% if show_admin_features %}
+                        <!-- Super Admin: Full dropdown menu -->
                         <div class="dropdown">
                             <button class="btn btn-sm btn-light border dropdown-toggle" type="button" data-bs-toggle="dropdown">
                                 <i class="fas fa-ellipsis-v"></i>
                             </button>
                             <ul class="dropdown-menu dropdown-menu-end shadow-sm">
+                                <li>
+                                    <a class="dropdown-item" href="{{ url_for('branch_settings', id=school.id) }}">
+                                        <i class="fas fa-cog me-2 text-secondary"></i> Settings
+                                    </a>
+                                </li>
+                                <li><hr class="dropdown-divider"></li>
                                 <li>
                                     <a class="dropdown-item" href="{{ url_for('edit_school', id=school.id) }}">
                                         <i class="fas fa-edit me-2 text-primary"></i> Edit Branch
@@ -232,6 +258,12 @@
                                 </li>
                             </ul>
                         </div>
+                        {% else %}
+                        <!-- School Admin: Only Settings button -->
+                        <a href="{{ url_for('branch_settings', id=school.id) }}" class="btn btn-sm btn-outline-primary" title="Branch Settings">
+                            <i class="fas fa-cog me-1"></i> Settings
+                        </a>
+                        {% endif %}
                     </td>
                 </tr>
                 {% endfor %}
@@ -253,9 +285,11 @@
             Get started by adding your first branch.
             {% endif %}
         </p>
+        {% if show_admin_features %}
         <a href="{{ url_for('add_school') }}" class="btn btn-primary">
             <i class="fas fa-plus me-1"></i> Add Branch
         </a>
+        {% endif %}
     </div>
     {% endif %}
 </div>
