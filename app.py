@@ -760,9 +760,17 @@ def get_branch_departments(branch_id):
     school = School.query.get_or_404(branch_id)
     if school.organization_id:
         departments = Department.query.filter_by(organization_id=school.organization_id).order_by(Department.name).all()
-        return jsonify([{'id': d.id, 'name': d.name} for d in departments])
-    else:
-        return jsonify([{'id': 0, 'name': 'Academic'}, {'id': 0, 'name': 'Non-Academic'}, {'id': 0, 'name': 'Administrative'}, {'id': 0, 'name': 'Support Staff'}])
+        if departments:
+            return jsonify([{'id': d.id, 'name': d.name} for d in departments])
+    # Return defaults if no organization or no departments found
+    return jsonify([
+        {'id': 0, 'name': 'Academic'}, 
+        {'id': 0, 'name': 'Administrative'}, 
+        {'id': 0, 'name': 'Management'}, 
+        {'id': 0, 'name': 'Non-Academic'}, 
+        {'id': 0, 'name': 'Support Staff'}
+    ])
+
 
 
 @app.route('/api/organization-branches/<int:org_id>')
@@ -3438,6 +3446,7 @@ if __name__ == '__main__':
     with app.app_context():
         db.create_all()
     app.run(debug=True, host='0.0.0.0', port=int(os.environ.get('PORT', 5000)))
+
 
 
 
