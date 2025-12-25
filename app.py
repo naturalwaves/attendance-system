@@ -1031,15 +1031,15 @@ def api_branch_staff(branch_id):
 def schools():
     organization_id = request.args.get('organization_id', type=int)
     
-    organizations = Organization.query.all()
-    
     if current_user.role == 'super_admin':
+        organizations = Organization.query.all()
         if organization_id:
             all_schools = School.query.filter_by(organization_id=organization_id).all()
         else:
             all_schools = School.query.all()
         show_admin_features = True
     else:
+        organizations = current_user.get_accessible_organizations()
         accessible_ids = current_user.get_accessible_school_ids()
         if organization_id:
             all_schools = School.query.filter(School.organization_id == organization_id, School.id.in_(accessible_ids)).all()
@@ -1058,6 +1058,7 @@ def schools():
         total_active_staff=total_active_staff,
         show_admin_features=show_admin_features
     )
+
 
 
 @app.route('/branches')
@@ -3437,6 +3438,7 @@ if __name__ == '__main__':
     with app.app_context():
         db.create_all()
     app.run(debug=True, host='0.0.0.0', port=int(os.environ.get('PORT', 5000)))
+
 
 
 
