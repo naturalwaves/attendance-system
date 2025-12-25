@@ -139,7 +139,7 @@
                 {% if organizations %}
                 <div class="col-xl-2 col-lg-3 col-md-4">
                     <label class="form-label">Organization</label>
-                    <select name="organization_id" class="form-select">
+                    <select name="organization_id" id="organizationSelect" class="form-select" onchange="filterByOrganization(this.value)">
                         <option value="">All Organizations</option>
                         {% for org in organizations %}
                         <option value="{{ org.id }}" {% if selected_organization_id == org.id|string %}selected{% endif %}>{{ org.name }}</option>
@@ -149,16 +149,16 @@
                 {% endif %}
                 <div class="col-xl-2 col-lg-3 col-md-4">
                     <label class="form-label">Branch</label>
-                    <select name="school_id" class="form-select">
+                    <select name="school_id" id="branchSelect" class="form-select">
                         <option value="">All Branches</option>
                         {% for school in schools %}
-                        <option value="{{ school.id }}" {% if selected_school_id == school.id|string %}selected{% endif %}>{{ school.short_name or school.name }}</option>
+                        <option value="{{ school.id }}" data-org="{{ school.organization_id }}" {% if selected_school_id == school.id|string %}selected{% endif %}>{{ school.short_name or school.name }}</option>
                         {% endfor %}
                     </select>
                 </div>
                 <div class="col-xl-2 col-lg-3 col-md-4">
                     <label class="form-label">Department</label>
-                    <select name="department" class="form-select">
+                    <select name="department" id="departmentSelect" class="form-select">
                         <option value="">All Departments</option>
                         {% for dept in departments %}
                         <option value="{{ dept }}" {% if selected_department == dept %}selected{% endif %}>{{ dept }}</option>
@@ -601,11 +601,73 @@
 
 <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 <script>
+// Period select - show/hide custom date fields
 document.getElementById('periodSelect').addEventListener('change', function() {
     document.querySelectorAll('.custom-date').forEach(el => {
         el.style.display = this.value === 'custom' ? 'block' : 'none';
     });
 });
+
+// Filter branches and departments by organization
+function filterByOrganization(orgId) {
+    var branchSelect = document.getElementById('branchSelect');
+    var departmentSelect = document.getElementById('departmentSelect');
+    var options = branchSelect.querySelectorAll('option');
+    
+    // Reset branch selection
+    branchSelect.value = '';
+    
+    // Show/hide branch options based on organization
+    options.forEach(function(option) {
+        if (option.value === '') {
+            // Always show "All Branches" option
+            option.style.display = '';
+        } else if (!orgId) {
+            // Show all if no org selected
+            option.style.display = '';
+        } else if (option.getAttribute('data-org') === orgId) {
+            // Show if matches org
+            option.style.display = '';
+        } else {
+            // Hide if doesn't match
+            option.style.display = 'none';
+        }
+    });
+    
+    // Load departments for selected organization
+    if (orgId) {
+        departmentSelect.innerHTML = '<option value="">Loading...</option>';
+        
+        var xhr = new XMLHttpRequest();
+        xhr.open('GET', '/api/organization-departments/' + orgId, true);
+        xhr.onreadystatechange = function() {
+            if (xhr.readyState === 4) {
+                if (xhr.status === 200) {
+                    var data = JSON.parse(xhr.responseText);
+                    departmentSelect.innerHTML = '<option value="">All Departments</option>';
+                    data.forEach(function(dept) {
+                        var option = document.createElement('option');
+                        option.value = dept.name;
+                        option.text = dept.name;
+                        departmentSelect.appendChild(option);
+                    });
+                } else {
+                    departmentSelect.innerHTML = '<option value="">All Departments</option>';
+                }
+            }
+        };
+        xhr.send();
+    } else {
+        // Reset to all departments - reload page or show all
+        departmentSelect.innerHTML = '<option value="">All Departments</option>';
+        {% for dept in departments %}
+        var opt = document.createElement('option');
+        opt.value = '{{ dept }}';
+        opt.text = '{{ dept }}';
+        departmentSelect.appendChild(opt);
+        {% endfor %}
+    }
+}
 
 // Attendance Trend Chart
 const trendCtx = document.getElementById('attendanceTrendChart').getContext('2d');
