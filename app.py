@@ -44,6 +44,7 @@ class SystemSettings(db.Model):
             db.session.commit()
         return settings
 
+
 class Organization(db.Model):
     __tablename__ = 'organizations'
     id = db.Column(db.Integer, primary_key=True)
@@ -53,6 +54,7 @@ class Organization(db.Model):
     hr_email_name = db.Column(db.String(100), nullable=True)
     branches = db.relationship('School', backref='organization', lazy=True)
     departments = db.relationship('Department', backref='organization', lazy=True, cascade='all, delete-orphan')
+
 
 class Department(db.Model):
     __tablename__ = 'departments'
@@ -69,10 +71,12 @@ class Department(db.Model):
             db.session.add(dept)
         db.session.commit()
 
+
 user_schools = db.Table('user_schools',
     db.Column('user_id', db.Integer, db.ForeignKey('users.id'), primary_key=True),
     db.Column('school_id', db.Integer, db.ForeignKey('schools.id'), primary_key=True)
 )
+
 
 class School(db.Model):
     __tablename__ = 'schools'
@@ -82,6 +86,8 @@ class School(db.Model):
     logo_url = db.Column(db.String(500), nullable=True)
     api_key = db.Column(db.String(64), unique=True, nullable=False)
     organization_id = db.Column(db.Integer, db.ForeignKey('organizations.id'), nullable=True)
+    
+    # Monday to Friday schedules
     schedule_mon_start = db.Column(db.String(5), default='08:00')
     schedule_mon_end = db.Column(db.String(5), default='17:00')
     schedule_tue_start = db.Column(db.String(5), default='08:00')
@@ -92,8 +98,22 @@ class School(db.Model):
     schedule_thu_end = db.Column(db.String(5), default='17:00')
     schedule_fri_start = db.Column(db.String(5), default='08:00')
     schedule_fri_end = db.Column(db.String(5), default='17:00')
+    
+    # Saturday and Sunday schedules
+    schedule_sat_start = db.Column(db.String(5), default='08:00')
+    schedule_sat_end = db.Column(db.String(5), default='17:00')
+    schedule_sun_start = db.Column(db.String(5), default='08:00')
+    schedule_sun_end = db.Column(db.String(5), default='17:00')
+    
+    # Shift system fields
+    shift_mode_enabled = db.Column(db.Boolean, default=False)
+    time_format_24h = db.Column(db.Boolean, default=True)
+    work_days = db.Column(db.String(50), default='mon,tue,wed,thu,fri')
+    grace_period_minutes = db.Column(db.Integer, default=0)
+    
     staff = db.relationship('Staff', backref='school', lazy=True, cascade='all, delete-orphan')
     users = db.relationship('User', backref='school', lazy=True)
+
 
 class User(db.Model, UserMixin):
     __tablename__ = 'users'
@@ -149,6 +169,7 @@ class User(db.Model, UserMixin):
             return first_school.organization
         return None
 
+
 class Staff(db.Model):
     __tablename__ = 'staff'
     id = db.Column(db.Integer, primary_key=True)
@@ -164,6 +185,35 @@ class Staff(db.Model):
     attendance = db.relationship('Attendance', backref='staff', lazy=True, cascade='all, delete-orphan')
     queries_received = db.relationship('StaffQuery', backref='staff', lazy=True, cascade='all, delete-orphan')
 
+
+class Shift(db.Model):
+    __tablename__ = 'shifts'
+    id = db.Column(db.Integer, primary_key=True)
+    school_id = db.Column(db.Integer, db.ForeignKey('schools.id'), nullable=False)
+    name = db.Column(db.String(50), nullable=False)
+    start_time = db.Column(db.String(5), nullable=False)
+    end_time = db.Column(db.String(5), nullable=False)
+    grace_period_minutes = db.Column(db.Integer, default=0)
+    is_active = db.Column(db.Boolean, default=True)
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    
+    school = db.relationship('School', backref=db.backref('shifts', lazy=True, cascade='all, delete-orphan'))
+    assignments = db.relationship('StaffShiftAssignment', backref='shift', lazy=True, cascade='all, delete-orphan')
+
+
+class StaffShiftAssignment(db.Model):
+    __tablename__ = 'staff_shift_assignments'
+    id = db.Column(db.Integer, primary_key=True)
+    staff_id = db.Column(db.Integer, db.ForeignKey('staff.id'), nullable=False)
+    shift_id = db.Column(db.Integer, db.ForeignKey('shifts.id'), nullable=False)
+    effective_from = db.Column(db.Date, nullable=False, default=date.today)
+    effective_to = db.Column(db.Date, nullable=True)
+    is_active = db.Column(db.Boolean, default=True)
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    
+    staff = db.relationship('Staff', backref=db.backref('shift_assignments', lazy=True))
+
+
 class Attendance(db.Model):
     __tablename__ = 'attendance'
     id = db.Column(db.Integer, primary_key=True)
@@ -176,6 +226,7 @@ class Attendance(db.Model):
     late_minutes = db.Column(db.Integer, default=0)
     overtime_minutes = db.Column(db.Integer, default=0)
 
+
 class QueryTemplate(db.Model):
     __tablename__ = 'query_templates'
     id = db.Column(db.Integer, primary_key=True)
@@ -183,7 +234,7 @@ class QueryTemplate(db.Model):
     title = db.Column(db.String(100), nullable=False)
     subject = db.Column(db.String(200), nullable=False)
     body = db.Column(db.Text, nullable=False)
-    from_email = db.Column(db.String(255), nullable=True)  # NEW LINE
+    from_email = db.Column(db.String(255), nullable=True)
     created_by = db.Column(db.Integer, db.ForeignKey('users.id'), nullable=False)
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
     is_active = db.Column(db.Boolean, default=True)
@@ -205,12 +256,15 @@ class StaffQuery(db.Model):
     template = db.relationship('QueryTemplate', backref='queries_sent')
     sender = db.relationship('User', backref='queries_sent')
 
+
 db.init_app(app)
 login_manager.init_app(app)
+
 
 @login_manager.user_loader
 def load_user(user_id):
     return User.query.get(int(user_id))
+
 
 @app.context_processor
 def inject_settings():
@@ -219,7 +273,6 @@ def inject_settings():
         user_org = current_user.get_display_organization()
         return {'system_settings': settings, 'user_organization': user_org}
     return {'system_settings': None, 'user_organization': None}
-
 # ==================== HELPER FUNCTIONS ====================
 
 def role_required(*roles):
@@ -235,14 +288,98 @@ def role_required(*roles):
         return decorated_function
     return decorator
 
+
 def get_school_schedule(school, day_of_week):
-    days = ['mon', 'tue', 'wed', 'thu', 'fri']
-    if day_of_week < 5:
+    """Get schedule for a specific day (0=Monday, 6=Sunday)"""
+    days = ['mon', 'tue', 'wed', 'thu', 'fri', 'sat', 'sun']
+    if day_of_week < 7:
         day = days[day_of_week]
-        start = getattr(school, f'schedule_{day}_start')
-        end = getattr(school, f'schedule_{day}_end')
+        start = getattr(school, f'schedule_{day}_start', None)
+        end = getattr(school, f'schedule_{day}_end', None)
         return start, end
     return None, None
+
+
+def format_time_display(time_str, use_24h=True):
+    """Convert 24h time string to 12h or keep as 24h based on setting"""
+    if not time_str:
+        return ''
+    try:
+        time_obj = datetime.strptime(time_str, '%H:%M')
+        if use_24h:
+            return time_str
+        else:
+            return time_obj.strftime('%I:%M %p')
+    except:
+        return time_str
+
+
+def is_work_day(school, target_date):
+    """Check if target_date is a work day for the school"""
+    work_days_str = school.work_days or 'mon,tue,wed,thu,fri'
+    work_days = [d.strip().lower() for d in work_days_str.split(',')]
+    day_names = ['mon', 'tue', 'wed', 'thu', 'fri', 'sat', 'sun']
+    day_of_week = target_date.weekday()
+    return day_names[day_of_week] in work_days
+
+
+def get_staff_schedule_for_date(staff, target_date):
+    """
+    Get the schedule for a staff member on a specific date.
+    Returns (start_time, end_time, grace_minutes, is_shift)
+    """
+    school = staff.school
+    if not school:
+        return None, None, 0, False
+    
+    # Check if this is a work day
+    if not is_work_day(school, target_date):
+        return None, None, 0, False
+    
+    # Check if shift mode is enabled and staff has active shift
+    if school.shift_mode_enabled:
+        active_assignment = StaffShiftAssignment.query.filter(
+            StaffShiftAssignment.staff_id == staff.id,
+            StaffShiftAssignment.is_active == True,
+            StaffShiftAssignment.effective_from <= target_date,
+            db.or_(
+                StaffShiftAssignment.effective_to.is_(None),
+                StaffShiftAssignment.effective_to >= target_date
+            )
+        ).first()
+        
+        if active_assignment and active_assignment.shift and active_assignment.shift.is_active:
+            shift = active_assignment.shift
+            return shift.start_time, shift.end_time, shift.grace_period_minutes, True
+    
+    # Fall back to regular branch schedule
+    day_of_week = target_date.weekday()
+    start_time, end_time = get_school_schedule(school, day_of_week)
+    grace_minutes = school.grace_period_minutes or 0
+    
+    return start_time, end_time, grace_minutes, False
+
+
+def get_staff_current_shift(staff):
+    """Get the current active shift for a staff member, if any"""
+    if not staff.school or not staff.school.shift_mode_enabled:
+        return None
+    
+    today = date.today()
+    assignment = StaffShiftAssignment.query.filter(
+        StaffShiftAssignment.staff_id == staff.id,
+        StaffShiftAssignment.is_active == True,
+        StaffShiftAssignment.effective_from <= today,
+        db.or_(
+            StaffShiftAssignment.effective_to.is_(None),
+            StaffShiftAssignment.effective_to >= today
+        )
+    ).first()
+    
+    if assignment and assignment.shift and assignment.shift.is_active:
+        return assignment.shift
+    return None
+
 
 def get_staff_data_for_api(school):
     staff = Staff.query.filter_by(school_id=school.id, is_active=True).all()
@@ -251,14 +388,28 @@ def get_staff_data_for_api(school):
         name_parts = s.name.split(' ', 1)
         first_name = name_parts[0]
         last_name = name_parts[1] if len(name_parts) > 1 else ''
+        
+        # Get current shift info if applicable
+        shift_info = None
+        if school.shift_mode_enabled:
+            current_shift = get_staff_current_shift(s)
+            if current_shift:
+                shift_info = {
+                    'name': current_shift.name,
+                    'start_time': format_time_display(current_shift.start_time, school.time_format_24h),
+                    'end_time': format_time_display(current_shift.end_time, school.time_format_24h)
+                }
+        
         staff_list_data.append({
             'staff_id': s.staff_id,
             'first_name': first_name,
             'last_name': last_name,
             'name': s.name,
-            'department': s.department
+            'department': s.department,
+            'shift': shift_info
         })
     return staff_list_data
+
 
 def check_staff_id_exists_in_org(staff_id, school_id, exclude_staff_id=None):
     if not school_id:
@@ -278,6 +429,7 @@ def check_staff_id_exists_in_org(staff_id, school_id, exclude_staff_id=None):
     if exclude_staff_id:
         query = query.filter(Staff.id != exclude_staff_id)
     return query.first()
+
 
 def send_query_email(staff, template, organization, sender, late_count=None, period_str=None):
     if not staff.email:
@@ -351,6 +503,7 @@ def send_query_email(staff, template, organization, sender, late_count=None, per
     except Exception as e:
         return False, str(e)
 
+
 def format_minutes_to_hours(minutes):
     if minutes <= 0:
         return "0mins"
@@ -363,6 +516,59 @@ def format_minutes_to_hours(minutes):
     else:
         return f"{mins}mins"
 
+
+def calculate_late_status(staff, sign_in_datetime, record_date):
+    """
+    Calculate if staff is late based on their schedule (shift or regular).
+    Returns (is_late, late_minutes, scheduled_start_time)
+    """
+    start_time, end_time, grace_minutes, is_shift = get_staff_schedule_for_date(staff, record_date)
+    
+    if not start_time:
+        return False, 0, None
+    
+    # Management staff are not marked late
+    if staff.department == 'Management':
+        return False, 0, start_time
+    
+    try:
+        scheduled_start = datetime.strptime(start_time, '%H:%M').time()
+        
+        # Add grace period
+        scheduled_with_grace = datetime.combine(record_date, scheduled_start) + timedelta(minutes=grace_minutes)
+        scheduled_start_with_grace = scheduled_with_grace.time()
+        
+        if sign_in_datetime.time() > scheduled_start_with_grace:
+            # Calculate late minutes from original scheduled time (not grace time)
+            delta = datetime.combine(record_date, sign_in_datetime.time()) - datetime.combine(record_date, scheduled_start)
+            late_minutes = int(delta.total_seconds() / 60)
+            return True, late_minutes, start_time
+        
+        return False, 0, start_time
+    except:
+        return False, 0, start_time
+
+
+def calculate_overtime(staff, sign_out_datetime, record_date):
+    """
+    Calculate overtime based on staff schedule (shift or regular).
+    Returns overtime_minutes
+    """
+    start_time, end_time, grace_minutes, is_shift = get_staff_schedule_for_date(staff, record_date)
+    
+    if not end_time:
+        return 0
+    
+    try:
+        scheduled_end = datetime.strptime(end_time, '%H:%M').time()
+        
+        if sign_out_datetime.time() > scheduled_end:
+            delta = datetime.combine(record_date, sign_out_datetime.time()) - datetime.combine(record_date, scheduled_end)
+            return int(delta.total_seconds() / 60)
+        
+        return 0
+    except:
+        return 0
 # ==================== AUTH ROUTES ====================
 
 @app.route('/')
@@ -370,6 +576,7 @@ def index():
     if current_user.is_authenticated:
         return redirect(url_for('dashboard'))
     return redirect(url_for('login'))
+
 
 @app.route('/login', methods=['GET', 'POST'])
 def login():
@@ -387,12 +594,14 @@ def login():
             flash('Invalid username or password.', 'danger')
     return render_template('login.html')
 
+
 @app.route('/logout')
 @login_required
 def logout():
     logout_user()
     flash('Logged out successfully.', 'success')
     return redirect(url_for('login'))
+
 
 # ==================== SETTINGS & ORGANIZATIONS ====================
 
@@ -409,6 +618,7 @@ def settings():
         flash('Settings updated successfully!', 'success')
         return redirect(url_for('settings'))
     return render_template('settings.html', settings=settings, organizations=organizations)
+
 
 @app.route('/organizations/add', methods=['GET', 'POST'])
 @login_required
@@ -427,6 +637,7 @@ def add_organization():
         return redirect(url_for('settings'))
     return render_template('add_organization.html')
 
+
 @app.route('/organizations/edit/<int:id>', methods=['GET', 'POST'])
 @login_required
 @role_required('super_admin')
@@ -442,6 +653,7 @@ def edit_organization(id):
         return redirect(url_for('settings'))
     return render_template('edit_organization.html', organization=org)
 
+
 @app.route('/organizations/delete/<int:id>')
 @login_required
 @role_required('super_admin')
@@ -455,6 +667,7 @@ def delete_organization(id):
     flash('Organization deleted successfully!', 'success')
     return redirect(url_for('settings'))
 
+
 @app.route('/organizations/<int:org_id>/departments')
 @login_required
 @role_required('super_admin')
@@ -466,6 +679,7 @@ def manage_departments(org_id):
         count = Staff.query.join(School).filter(School.organization_id == org_id, Staff.department == dept.name).count()
         dept_staff_counts[dept.id] = count
     return render_template('manage_departments.html', organization=org, departments=departments, dept_staff_counts=dept_staff_counts)
+
 
 @app.route('/organizations/<int:org_id>/departments/add', methods=['POST'])
 @login_required
@@ -485,6 +699,7 @@ def add_department(org_id):
     db.session.commit()
     flash(f'Department "{name}" added successfully!', 'success')
     return redirect(url_for('manage_departments', org_id=org_id))
+
 
 @app.route('/organizations/<int:org_id>/departments/edit/<int:dept_id>', methods=['POST'])
 @login_required
@@ -509,6 +724,7 @@ def edit_department(org_id, dept_id):
     flash(f'Department renamed from "{old_name}" to "{new_name}".', 'success')
     return redirect(url_for('manage_departments', org_id=org_id))
 
+
 @app.route('/organizations/<int:org_id>/departments/delete/<int:dept_id>')
 @login_required
 @role_required('super_admin')
@@ -527,6 +743,7 @@ def delete_department(org_id, dept_id):
     flash(f'Department "{dept_name}" deleted successfully!', 'success')
     return redirect(url_for('manage_departments', org_id=org_id))
 
+
 @app.route('/api/branch-departments/<int:branch_id>')
 @login_required
 def get_branch_departments(branch_id):
@@ -537,6 +754,7 @@ def get_branch_departments(branch_id):
     else:
         return jsonify([{'id': 0, 'name': 'Academic'}, {'id': 0, 'name': 'Non-Academic'}, {'id': 0, 'name': 'Administrative'}, {'id': 0, 'name': 'Support Staff'}])
 
+
 @app.route('/api/organization-branches/<int:org_id>')
 @login_required
 def get_organization_branches(org_id):
@@ -546,6 +764,8 @@ def get_organization_branches(org_id):
         accessible_ids = current_user.get_accessible_school_ids()
         branches = School.query.filter(School.organization_id == org_id, School.id.in_(accessible_ids)).all()
     return jsonify({'branches': [{'id': b.id, 'name': b.name} for b in branches]})
+
+
 # ==================== DASHBOARD ====================
 
 @app.route('/dashboard')
@@ -588,6 +808,7 @@ def dashboard():
         school_stats = []
     return render_template('dashboard.html', schools=schools, school_stats=school_stats, total_schools=len(schools), total_staff=total_staff, management_count=management_count, today_attendance=today_attendance, late_today=late_today, absent_today=absent_today)
 
+
 @app.route('/api/dashboard-stats')
 @login_required
 def dashboard_stats():
@@ -628,6 +849,7 @@ def dashboard_stats():
                 recent_activity.append({'name': staff.name, 'time': checkin.sign_in_time.strftime('%H:%M') if checkin.sign_in_time else '', 'branch': staff.school.short_name or staff.school.name})
     return jsonify({'total_schools': total_schools, 'total_staff': total_staff, 'management_count': management_count, 'today_attendance': today_attendance, 'late_today': late_today, 'absent_today': absent_today, 'first_checkin': first_checkin, 'recent_activity': recent_activity})
 
+
 @app.route('/api/search-staff')
 @login_required
 def search_staff():
@@ -663,6 +885,7 @@ def search_staff():
         results.append({'id': staff.id, 'staff_id': staff.staff_id, 'name': staff.name, 'branch': staff.school.short_name or staff.school.name if staff.school else 'N/A', 'department': staff.department, 'status': status, 'time': time_str})
     return jsonify({'results': results})
 
+
 @app.route('/api/branch-staff/<int:branch_id>')
 @login_required
 def get_branch_staff(branch_id):
@@ -674,6 +897,14 @@ def get_branch_staff(branch_id):
     result = []
     for staff in staff_list:
         attendance = Attendance.query.filter_by(staff_id=staff.id, date=today).first()
+        
+        # Get shift info if applicable
+        shift_name = None
+        if school.shift_mode_enabled:
+            current_shift = get_staff_current_shift(staff)
+            if current_shift:
+                shift_name = current_shift.name
+        
         if staff.department == 'Management':
             if attendance:
                 status = 'Signed In'
@@ -695,25 +926,39 @@ def get_branch_staff(branch_id):
                 status = 'Absent'
                 time_in = '-'
                 time_out = '-'
-        result.append({'name': staff.name, 'department': staff.department, 'status': status, 'time_in': time_in, 'time_out': time_out})
+        
+        result.append({
+            'name': staff.name, 
+            'department': staff.department, 
+            'status': status, 
+            'time_in': time_in, 
+            'time_out': time_out,
+            'shift': shift_name
+        })
     return jsonify(result)
-
 # ==================== SCHOOLS/BRANCHES ====================
 
 @app.route('/schools')
 @login_required
-@role_required('super_admin')
 def schools():
     organization_id = request.args.get('organization_id', type=int)
     
     organizations = Organization.query.all()
     
-    if organization_id:
-        all_schools = School.query.filter_by(organization_id=organization_id).all()
+    if current_user.role == 'super_admin':
+        if organization_id:
+            all_schools = School.query.filter_by(organization_id=organization_id).all()
+        else:
+            all_schools = School.query.all()
+        show_admin_features = True
     else:
-        all_schools = School.query.all()
+        accessible_ids = current_user.get_accessible_school_ids()
+        if organization_id:
+            all_schools = School.query.filter(School.organization_id == organization_id, School.id.in_(accessible_ids)).all()
+        else:
+            all_schools = School.query.filter(School.id.in_(accessible_ids)).all()
+        show_admin_features = False
     
-    # Calculate totals
     total_staff = sum(len(s.staff) for s in all_schools)
     total_active_staff = sum(len([st for st in s.staff if st.is_active]) for s in all_schools)
     
@@ -722,22 +967,31 @@ def schools():
         organizations=organizations,
         selected_organization=organization_id,
         total_staff=total_staff,
-        total_active_staff=total_active_staff
+        total_active_staff=total_active_staff,
+        show_admin_features=show_admin_features
     )
 
 
 @app.route('/branches')
 @login_required
-@role_required('super_admin')
 def branches():
     organization_id = request.args.get('organization_id', type=int)
     
     organizations = Organization.query.all()
     
-    if organization_id:
-        all_schools = School.query.filter_by(organization_id=organization_id).all()
+    if current_user.role == 'super_admin':
+        if organization_id:
+            all_schools = School.query.filter_by(organization_id=organization_id).all()
+        else:
+            all_schools = School.query.all()
+        show_admin_features = True
     else:
-        all_schools = School.query.all()
+        accessible_ids = current_user.get_accessible_school_ids()
+        if organization_id:
+            all_schools = School.query.filter(School.organization_id == organization_id, School.id.in_(accessible_ids)).all()
+        else:
+            all_schools = School.query.filter(School.id.in_(accessible_ids)).all()
+        show_admin_features = False
     
     total_staff = sum(len(s.staff) for s in all_schools)
     total_active_staff = sum(len([st for st in s.staff if st.is_active]) for s in all_schools)
@@ -747,7 +1001,8 @@ def branches():
         organizations=organizations,
         selected_organization=organization_id,
         total_staff=total_staff,
-        total_active_staff=total_active_staff
+        total_active_staff=total_active_staff,
+        show_admin_features=show_admin_features
     )
 
 
@@ -762,7 +1017,7 @@ def add_school():
         organization_id = request.form.get('organization_id') or None
         api_key = secrets.token_hex(32)
         school = School(name=name, short_name=short_name, logo_url=logo_url, api_key=api_key, organization_id=organization_id)
-        for day in ['mon', 'tue', 'wed', 'thu', 'fri']:
+        for day in ['mon', 'tue', 'wed', 'thu', 'fri', 'sat', 'sun']:
             start = request.form.get(f'schedule_{day}_start', '08:00')
             end = request.form.get(f'schedule_{day}_end', '17:00')
             setattr(school, f'schedule_{day}_start', start)
@@ -774,6 +1029,7 @@ def add_school():
     organizations = Organization.query.all()
     return render_template('add_school.html', organizations=organizations)
 
+
 @app.route('/schools/edit/<int:id>', methods=['GET', 'POST'])
 @login_required
 @role_required('super_admin')
@@ -784,7 +1040,7 @@ def edit_school(id):
         school.short_name = request.form.get('short_name')
         school.logo_url = request.form.get('logo_url', '').strip() or None
         school.organization_id = request.form.get('organization_id') or None
-        for day in ['mon', 'tue', 'wed', 'thu', 'fri']:
+        for day in ['mon', 'tue', 'wed', 'thu', 'fri', 'sat', 'sun']:
             start = request.form.get(f'schedule_{day}_start', '08:00')
             end = request.form.get(f'schedule_{day}_end', '17:00')
             setattr(school, f'schedule_{day}_start', start)
@@ -794,6 +1050,7 @@ def edit_school(id):
         return redirect(url_for('schools'))
     organizations = Organization.query.all()
     return render_template('edit_school.html', school=school, organizations=organizations)
+
 
 @app.route('/schools/delete/<int:id>')
 @login_required
@@ -805,6 +1062,7 @@ def delete_school(id):
     flash('Branch deleted successfully!', 'success')
     return redirect(url_for('schools'))
 
+
 @app.route('/schools/regenerate-key/<int:id>')
 @login_required
 @role_required('super_admin')
@@ -814,6 +1072,329 @@ def regenerate_api_key(id):
     db.session.commit()
     flash('API key regenerated successfully!', 'success')
     return redirect(url_for('schools'))
+
+
+# ==================== BRANCH SETTINGS (SHIFT SYSTEM) ====================
+
+@app.route('/branch/<int:id>/settings', methods=['GET', 'POST'])
+@login_required
+def branch_settings(id):
+    school = School.query.get_or_404(id)
+    
+    # Check access
+    if current_user.role == 'school_admin':
+        if school.id not in current_user.get_accessible_school_ids():
+            flash('Access denied', 'danger')
+            return redirect(url_for('dashboard'))
+        show_api_section = False
+    elif current_user.role == 'super_admin':
+        show_api_section = True
+    else:
+        flash('Access denied', 'danger')
+        return redirect(url_for('dashboard'))
+    
+    if request.method == 'POST':
+        action = request.form.get('action', 'save_settings')
+        
+        if action == 'save_settings':
+            # Time format
+            school.time_format_24h = request.form.get('time_format') == '24h'
+            
+            # Shift mode
+            school.shift_mode_enabled = 'shift_mode_enabled' in request.form
+            
+            # Work days
+            work_days = request.form.getlist('work_days')
+            school.work_days = ','.join(work_days) if work_days else 'mon,tue,wed,thu,fri'
+            
+            # Grace period
+            try:
+                school.grace_period_minutes = int(request.form.get('grace_period_minutes', 0))
+            except:
+                school.grace_period_minutes = 0
+            
+            # Regular schedule for all 7 days
+            for day in ['mon', 'tue', 'wed', 'thu', 'fri', 'sat', 'sun']:
+                start = request.form.get(f'schedule_{day}_start')
+                end = request.form.get(f'schedule_{day}_end')
+                if start:
+                    setattr(school, f'schedule_{day}_start', start)
+                if end:
+                    setattr(school, f'schedule_{day}_end', end)
+            
+            db.session.commit()
+            flash('Branch settings updated successfully!', 'success')
+        
+        return redirect(url_for('branch_settings', id=id))
+    
+    # Get shifts for this branch
+    shifts = Shift.query.filter_by(school_id=id, is_active=True).order_by(Shift.name).all()
+    
+    # Get staff for assignment
+    staff_list = Staff.query.filter_by(school_id=id, is_active=True).order_by(Staff.name).all()
+    
+    # Get current assignments with staff info
+    assignments = db.session.query(StaffShiftAssignment, Staff, Shift).join(
+        Staff, StaffShiftAssignment.staff_id == Staff.id
+    ).join(
+        Shift, StaffShiftAssignment.shift_id == Shift.id
+    ).filter(
+        Staff.school_id == id,
+        StaffShiftAssignment.is_active == True,
+        Shift.is_active == True
+    ).order_by(Staff.name).all()
+    
+    # Parse work days for template
+    work_days_list = (school.work_days or 'mon,tue,wed,thu,fri').split(',')
+    
+    return render_template('branch_settings.html', 
+        school=school, 
+        shifts=shifts, 
+        staff_list=staff_list,
+        assignments=assignments,
+        show_api_section=show_api_section,
+        work_days_list=work_days_list
+    )
+
+
+@app.route('/branch/<int:id>/shifts/add', methods=['POST'])
+@login_required
+def add_shift(id):
+    school = School.query.get_or_404(id)
+    
+    # Check access
+    if current_user.role == 'school_admin':
+        if school.id not in current_user.get_accessible_school_ids():
+            flash('Access denied', 'danger')
+            return redirect(url_for('dashboard'))
+    elif current_user.role != 'super_admin':
+        flash('Access denied', 'danger')
+        return redirect(url_for('dashboard'))
+    
+    name = request.form.get('shift_name', '').strip()
+    start_time = request.form.get('shift_start_time')
+    end_time = request.form.get('shift_end_time')
+    grace_period = request.form.get('shift_grace_period', 0)
+    
+    if not name or not start_time or not end_time:
+        flash('Shift name, start time and end time are required', 'danger')
+        return redirect(url_for('branch_settings', id=id))
+    
+    # Check for duplicate shift name
+    existing = Shift.query.filter_by(school_id=id, name=name, is_active=True).first()
+    if existing:
+        flash(f'A shift named "{name}" already exists', 'danger')
+        return redirect(url_for('branch_settings', id=id))
+    
+    try:
+        grace_period = int(grace_period)
+    except:
+        grace_period = 0
+    
+    shift = Shift(
+        school_id=id,
+        name=name,
+        start_time=start_time,
+        end_time=end_time,
+        grace_period_minutes=grace_period
+    )
+    db.session.add(shift)
+    db.session.commit()
+    
+    flash(f'Shift "{name}" created successfully!', 'success')
+    return redirect(url_for('branch_settings', id=id))
+
+
+@app.route('/branch/<int:id>/shifts/<int:shift_id>/edit', methods=['POST'])
+@login_required
+def edit_shift(id, shift_id):
+    school = School.query.get_or_404(id)
+    shift = Shift.query.get_or_404(shift_id)
+    
+    if shift.school_id != id:
+        flash('Invalid shift', 'danger')
+        return redirect(url_for('branch_settings', id=id))
+    
+    # Check access
+    if current_user.role == 'school_admin':
+        if school.id not in current_user.get_accessible_school_ids():
+            flash('Access denied', 'danger')
+            return redirect(url_for('dashboard'))
+    elif current_user.role != 'super_admin':
+        flash('Access denied', 'danger')
+        return redirect(url_for('dashboard'))
+    
+    new_name = request.form.get('shift_name', shift.name).strip()
+    
+    # Check for duplicate name (excluding current shift)
+    existing = Shift.query.filter(
+        Shift.school_id == id, 
+        Shift.name == new_name, 
+        Shift.is_active == True,
+        Shift.id != shift_id
+    ).first()
+    if existing:
+        flash(f'A shift named "{new_name}" already exists', 'danger')
+        return redirect(url_for('branch_settings', id=id))
+    
+    shift.name = new_name
+    shift.start_time = request.form.get('shift_start_time', shift.start_time)
+    shift.end_time = request.form.get('shift_end_time', shift.end_time)
+    
+    try:
+        shift.grace_period_minutes = int(request.form.get('shift_grace_period', 0))
+    except:
+        pass
+    
+    db.session.commit()
+    flash(f'Shift "{shift.name}" updated successfully!', 'success')
+    return redirect(url_for('branch_settings', id=id))
+
+
+@app.route('/branch/<int:id>/shifts/<int:shift_id>/delete')
+@login_required
+def delete_shift(id, shift_id):
+    school = School.query.get_or_404(id)
+    shift = Shift.query.get_or_404(shift_id)
+    
+    if shift.school_id != id:
+        flash('Invalid shift', 'danger')
+        return redirect(url_for('branch_settings', id=id))
+    
+    # Check access
+    if current_user.role == 'school_admin':
+        if school.id not in current_user.get_accessible_school_ids():
+            flash('Access denied', 'danger')
+            return redirect(url_for('dashboard'))
+    elif current_user.role != 'super_admin':
+        flash('Access denied', 'danger')
+        return redirect(url_for('dashboard'))
+    
+    shift_name = shift.name
+    shift.is_active = False
+    
+    # Deactivate all assignments for this shift
+    StaffShiftAssignment.query.filter_by(shift_id=shift_id).update({'is_active': False})
+    
+    db.session.commit()
+    flash(f'Shift "{shift_name}" deleted!', 'success')
+    return redirect(url_for('branch_settings', id=id))
+
+
+@app.route('/branch/<int:id>/shifts/assign', methods=['POST'])
+@login_required
+def assign_shift(id):
+    school = School.query.get_or_404(id)
+    
+    # Check access
+    if current_user.role == 'school_admin':
+        if school.id not in current_user.get_accessible_school_ids():
+            flash('Access denied', 'danger')
+            return redirect(url_for('dashboard'))
+    elif current_user.role != 'super_admin':
+        flash('Access denied', 'danger')
+        return redirect(url_for('dashboard'))
+    
+    staff_ids = request.form.getlist('staff_ids')
+    shift_id = request.form.get('shift_id')
+    effective_from = request.form.get('effective_from')
+    effective_to = request.form.get('effective_to') or None
+    
+    if not staff_ids or not shift_id:
+        flash('Please select staff and shift', 'danger')
+        return redirect(url_for('branch_settings', id=id))
+    
+    shift = Shift.query.get(shift_id)
+    if not shift or shift.school_id != id or not shift.is_active:
+        flash('Invalid shift', 'danger')
+        return redirect(url_for('branch_settings', id=id))
+    
+    try:
+        effective_from_date = datetime.strptime(effective_from, '%Y-%m-%d').date() if effective_from else date.today()
+        effective_to_date = datetime.strptime(effective_to, '%Y-%m-%d').date() if effective_to else None
+    except:
+        effective_from_date = date.today()
+        effective_to_date = None
+    
+    assigned_count = 0
+    for staff_id in staff_ids:
+        staff = Staff.query.get(staff_id)
+        if not staff or staff.school_id != id:
+            continue
+        
+        # Deactivate existing assignments for this staff
+        StaffShiftAssignment.query.filter_by(staff_id=staff.id, is_active=True).update({'is_active': False})
+        
+        # Create new assignment
+        assignment = StaffShiftAssignment(
+            staff_id=staff.id,
+            shift_id=shift.id,
+            effective_from=effective_from_date,
+            effective_to=effective_to_date
+        )
+        db.session.add(assignment)
+        assigned_count += 1
+    
+    db.session.commit()
+    flash(f'{assigned_count} staff assigned to shift "{shift.name}"', 'success')
+    return redirect(url_for('branch_settings', id=id))
+
+
+@app.route('/branch/<int:id>/shifts/unassign/<int:assignment_id>')
+@login_required
+def unassign_shift(id, assignment_id):
+    school = School.query.get_or_404(id)
+    assignment = StaffShiftAssignment.query.get_or_404(assignment_id)
+    
+    # Verify staff belongs to this school
+    if assignment.staff.school_id != id:
+        flash('Invalid assignment', 'danger')
+        return redirect(url_for('branch_settings', id=id))
+    
+    # Check access
+    if current_user.role == 'school_admin':
+        if school.id not in current_user.get_accessible_school_ids():
+            flash('Access denied', 'danger')
+            return redirect(url_for('dashboard'))
+    elif current_user.role != 'super_admin':
+        flash('Access denied', 'danger')
+        return redirect(url_for('dashboard'))
+    
+    staff_name = assignment.staff.name
+    assignment.is_active = False
+    db.session.commit()
+    flash(f'{staff_name} removed from shift', 'success')
+    return redirect(url_for('branch_settings', id=id))
+
+
+@app.route('/api/branch/<int:id>/staff-without-shift')
+@login_required
+def get_staff_without_shift(id):
+    """API to get staff not currently assigned to any shift"""
+    school = School.query.get_or_404(id)
+    
+    # Check access
+    if current_user.role not in ['super_admin', 'school_admin']:
+        return jsonify({'error': 'Access denied'}), 403
+    if current_user.role == 'school_admin' and school.id not in current_user.get_accessible_school_ids():
+        return jsonify({'error': 'Access denied'}), 403
+    
+    # Get all active staff in this branch
+    all_staff = Staff.query.filter_by(school_id=id, is_active=True).all()
+    
+    # Get staff with active shift assignments
+    assigned_staff_ids = db.session.query(StaffShiftAssignment.staff_id).filter(
+        StaffShiftAssignment.is_active == True
+    ).distinct().all()
+    assigned_ids = [s[0] for s in assigned_staff_ids]
+    
+    # Filter to staff without shifts
+    unassigned = [s for s in all_staff if s.id not in assigned_ids]
+    
+    return jsonify({
+        'staff': [{'id': s.id, 'name': s.name, 'staff_id': s.staff_id, 'department': s.department} for s in unassigned]
+    })
+
 
 # ==================== STAFF ====================
 
@@ -886,7 +1467,6 @@ def staff_list():
     )
 
 
-
 @app.route('/staff/add', methods=['GET', 'POST'])
 @login_required
 @role_required('super_admin', 'school_admin')
@@ -933,6 +1513,7 @@ def add_staff():
     departments = ['Academic', 'Non-Academic', 'Administrative', 'Support Staff']
     return render_template('add_staff.html', schools=schools, organizations=organizations, departments=departments)
 
+
 @app.route('/staff/edit/<int:id>', methods=['POST'])
 @login_required
 @role_required('super_admin', 'school_admin')
@@ -965,11 +1546,11 @@ def edit_staff(id):
     flash(f'Staff "{staff.name}" updated successfully!', 'success')
     return redirect(url_for('staff_list'))
 
+
 @app.route('/staff/toggle/<int:id>', methods=['GET', 'POST'])
 @login_required
 @role_required('super_admin', 'school_admin')
 def toggle_staff(id):
-
     staff = Staff.query.get_or_404(id)
     if current_user.role == 'school_admin' and staff.school_id not in current_user.get_accessible_school_ids():
         flash('You do not have permission to modify this staff.', 'danger')
@@ -980,6 +1561,7 @@ def toggle_staff(id):
     flash(f'Staff {status} successfully!', 'success')
     return redirect(url_for('staff_list'))
 
+
 @app.route('/staff/delete/<int:id>')
 @login_required
 @role_required('super_admin')
@@ -989,6 +1571,7 @@ def delete_staff(id):
     db.session.commit()
     flash('Staff deleted successfully!', 'success')
     return redirect(url_for('staff_list'))
+
 
 @app.route('/staff/download-csv')
 @login_required
@@ -1003,11 +1586,14 @@ def download_staff_csv():
         staff = Staff.query.filter(Staff.school_id.in_(allowed_school_ids)).order_by(Staff.name).all()
     output = io.StringIO()
     writer = csv.writer(output)
-    writer.writerow(['Staff ID', 'Name', 'Organization', 'Branch', 'Department', 'Email', 'Phone', 'Status'])
+    writer.writerow(['Staff ID', 'Name', 'Organization', 'Branch', 'Department', 'Email', 'Phone', 'Status', 'Current Shift'])
     for s in staff:
-        writer.writerow([s.staff_id, s.name, s.school.organization.name if s.school and s.school.organization else '', s.school.name if s.school else '', s.department or '', s.email or '', s.phone or '', 'Active' if s.is_active else 'Inactive'])
+        current_shift = get_staff_current_shift(s)
+        shift_name = current_shift.name if current_shift else 'Regular Schedule'
+        writer.writerow([s.staff_id, s.name, s.school.organization.name if s.school and s.school.organization else '', s.school.name if s.school else '', s.department or '', s.email or '', s.phone or '', 'Active' if s.is_active else 'Inactive', shift_name])
     output.seek(0)
     return Response(output.getvalue(), mimetype='text/csv', headers={'Content-Disposition': 'attachment; filename=staff_list.csv'})
+
 
 @app.route('/staff/download-template')
 @login_required
@@ -1020,6 +1606,7 @@ def download_staff_template():
     writer.writerow(['002', 'Jane Smith', 'Administrative', 'jane@example.com', '08098765432', ''])
     output.seek(0)
     return Response(output.getvalue(), mimetype='text/csv', headers={'Content-Disposition': 'attachment; filename=staff_upload_template.csv'})
+
 
 @app.route('/staff/bulk-upload', methods=['GET', 'POST'])
 @login_required
@@ -1105,7 +1692,6 @@ def bulk_upload():
         schools = current_user.get_accessible_schools()
         organizations = []
     return render_template('bulk_upload.html', schools=schools, organizations=organizations)
-
 # ==================== USERS ====================
 
 @app.route('/users')
@@ -1115,6 +1701,7 @@ def users():
     all_users = User.query.all()
     schools = School.query.all()
     return render_template('users.html', users=all_users, schools=schools)
+
 
 @app.route('/users/add', methods=['GET', 'POST'])
 @login_required
@@ -1144,6 +1731,7 @@ def add_user():
     roles = ['super_admin', 'hr_viewer', 'ceo_viewer', 'school_admin', 'staff']
     return render_template('add_user.html', schools=schools, roles=roles)
 
+
 @app.route('/users/edit/<int:id>', methods=['POST'])
 @login_required
 @role_required('super_admin')
@@ -1170,6 +1758,7 @@ def edit_user(id):
     flash('User updated successfully', 'success')
     return redirect(url_for('users'))
 
+
 @app.route('/users/delete/<int:id>')
 @login_required
 @role_required('super_admin')
@@ -1182,6 +1771,7 @@ def delete_user(id):
     db.session.commit()
     flash('User deleted successfully!', 'success')
     return redirect(url_for('users'))
+
 
 # ==================== HR QUERY SYSTEM ====================
 
@@ -1197,6 +1787,7 @@ def query_templates():
         org_ids = [o.id for o in organizations]
         templates = QueryTemplate.query.filter(QueryTemplate.organization_id.in_(org_ids), QueryTemplate.is_active == True).all() if org_ids else []
     return render_template('query_templates.html', templates=templates, organizations=organizations)
+
 
 @app.route('/query-templates/add', methods=['GET', 'POST'])
 @login_required
@@ -1266,6 +1857,7 @@ def delete_query_template(id):
     db.session.commit()
     flash('Query template deleted successfully!', 'success')
     return redirect(url_for('query_templates'))
+
 
 @app.route('/queries/send', methods=['GET', 'POST'])
 @login_required
@@ -1475,7 +2067,6 @@ def send_query():
     )
 
 
-
 @app.route('/queries/tracking')
 @login_required
 @role_required('super_admin', 'hr_viewer', 'school_admin')
@@ -1495,6 +2086,7 @@ def query_tracking():
     recent_queries = StaffQuery.query.order_by(StaffQuery.sent_at.desc()).limit(50).all()
     return render_template('query_tracking.html', staff_with_queries=staff_with_queries, recent_queries=recent_queries, organizations=organizations, selected_organization=organization_id)
 
+
 @app.route('/queries/staff/<int:staff_id>')
 @login_required
 @role_required('super_admin', 'hr_viewer', 'school_admin')
@@ -1503,12 +2095,14 @@ def staff_query_history(staff_id):
     queries = StaffQuery.query.filter_by(staff_id=staff_id).order_by(StaffQuery.sent_at.desc()).all()
     return render_template('staff_query_history.html', staff=staff, queries=queries)
 
+
 # ==================== REPORTS ====================
 
 @app.route('/reports')
 @login_required
 def reports():
     return render_template('reports.html')
+
 
 @app.route('/reports/attendance')
 @login_required
@@ -1556,6 +2150,7 @@ def attendance_report():
         organizations = current_user.get_accessible_organizations()
     return render_template('attendance_report.html', attendance=attendance, schools=schools, organizations=organizations, date_from=date_from, date_to=date_to, school_id=school_id, organization_id=organization_id, today=today.isoformat())
 
+
 @app.route('/reports/attendance/download')
 @login_required
 def download_attendance():
@@ -1592,8 +2187,12 @@ def download_attendance():
     attendance = query.order_by(Attendance.date.desc()).all()
     output = io.StringIO()
     writer = csv.writer(output)
-    writer.writerow(['Date', 'Staff ID', 'Name', 'Organization', 'Branch', 'Department', 'Sign In', 'Sign Out', 'Status', 'Late Duration', 'Overtime Duration'])
+    writer.writerow(['Date', 'Staff ID', 'Name', 'Organization', 'Branch', 'Department', 'Shift', 'Sign In', 'Sign Out', 'Status', 'Late Duration', 'Overtime Duration'])
     for a in attendance:
+        # Get shift info
+        current_shift = get_staff_current_shift(a.staff)
+        shift_name = current_shift.name if current_shift else 'Regular'
+        
         if a.staff.department == 'Management':
             status = 'Signed In'
             late_formatted = '-'
@@ -1601,10 +2200,11 @@ def download_attendance():
             late_formatted = format_minutes_to_hours(a.late_minutes) if a.is_late else 'On Time'
             status = f'Late ({late_formatted})' if a.is_late else 'On Time'
         overtime_formatted = format_minutes_to_hours(a.overtime_minutes)
-        writer.writerow([a.date.strftime('%d/%m/%Y'), a.staff.staff_id, a.staff.name, a.staff.school.organization.name if a.staff.school and a.staff.school.organization else '', a.staff.school.short_name or a.staff.school.name if a.staff.school else '', a.staff.department, a.sign_in_time.strftime('%H:%M') if a.sign_in_time else '', a.sign_out_time.strftime('%H:%M') if a.sign_out_time else '', status, late_formatted, overtime_formatted])
+        writer.writerow([a.date.strftime('%d/%m/%Y'), a.staff.staff_id, a.staff.name, a.staff.school.organization.name if a.staff.school and a.staff.school.organization else '', a.staff.school.short_name or a.staff.school.name if a.staff.school else '', a.staff.department, shift_name, a.sign_in_time.strftime('%H:%M') if a.sign_in_time else '', a.sign_out_time.strftime('%H:%M') if a.sign_out_time else '', status, late_formatted, overtime_formatted])
     output.seek(0)
     filename = f'attendance_{date_from}_to_{date_to}.csv'
     return Response(output.getvalue(), mimetype='text/csv', headers={'Content-Disposition': f'attachment; filename={filename}'})
+
 
 @app.route('/reports/late')
 @login_required
@@ -1676,7 +2276,18 @@ def late_report():
                 else:
                     punctuality = 0.0
                     lateness = 0.0
-            late_staff.append({'staff': s, 'times_late': times_late, 'punctuality': punctuality, 'lateness': lateness})
+            
+            # Get shift info
+            current_shift = get_staff_current_shift(s)
+            shift_name = current_shift.name if current_shift else None
+            
+            late_staff.append({
+                'staff': s, 
+                'times_late': times_late, 
+                'punctuality': punctuality, 
+                'lateness': lateness,
+                'shift': shift_name
+            })
     late_staff.sort(key=lambda x: x['times_late'], reverse=True)
     if current_user.role == 'super_admin':
         schools = School.query.all()
@@ -1685,6 +2296,7 @@ def late_report():
         schools = current_user.get_accessible_schools()
         organizations = current_user.get_accessible_organizations()
     return render_template('late_report.html', late_staff=late_staff, schools=schools, organizations=organizations, date_from=date_from, date_to=date_to, school_id=school_id, organization_id=organization_id, calc_mode=calc_mode, show_toggle=show_toggle, today=today.isoformat())
+
 
 @app.route('/reports/late/download')
 @login_required
@@ -1717,7 +2329,7 @@ def download_late_report():
     staff_list_data = staff_query.all()
     output = io.StringIO()
     writer = csv.writer(output)
-    writer.writerow(['Staff ID', 'Name', 'Organization', 'Branch', 'Department', 'Times Late', '% Punctuality', '% Lateness'])
+    writer.writerow(['Staff ID', 'Name', 'Organization', 'Branch', 'Department', 'Shift', 'Times Late', '% Punctuality', '% Lateness'])
     for s in staff_list_data:
         if s.department == 'Management':
             continue
@@ -1752,10 +2364,16 @@ def download_late_report():
                 else:
                     punctuality = 0.0
                     lateness = 0.0
-            writer.writerow([s.staff_id, s.name, s.school.organization.name if s.school and s.school.organization else '', s.school.short_name or s.school.name if s.school else '', s.department, times_late, punctuality, lateness])
+            
+            # Get shift info
+            current_shift = get_staff_current_shift(s)
+            shift_name = current_shift.name if current_shift else 'Regular'
+            
+            writer.writerow([s.staff_id, s.name, s.school.organization.name if s.school and s.school.organization else '', s.school.short_name or s.school.name if s.school else '', s.department, shift_name, times_late, punctuality, lateness])
     output.seek(0)
     filename = f'late_report_{date_from}_to_{date_to}.csv' if date_from and date_to else f'late_report_{date.today()}.csv'
     return Response(output.getvalue(), mimetype='text/csv', headers={'Content-Disposition': f'attachment; filename={filename}'})
+
 
 @app.route('/reports/late/reset', methods=['POST'])
 @login_required
@@ -1774,6 +2392,7 @@ def reset_late_counter():
     db.session.commit()
     flash(f'Late counters reset for {school_name}!', 'success')
     return redirect(url_for('late_report'))
+
 
 @app.route('/reports/absent')
 @login_required
@@ -1813,13 +2432,22 @@ def absent_report():
     absent_records = []
     current_date = start_date
     while current_date <= end_date:
-        if current_date.weekday() < 5:
-            for s in all_staff:
-                if s.department == 'Management':
-                    continue
-                attendance = Attendance.query.filter_by(staff_id=s.id, date=current_date).first()
-                if not attendance:
-                    absent_records.append({'date': current_date, 'staff': s})
+        for s in all_staff:
+            if s.department == 'Management':
+                continue
+            # Check if this is a work day for the staff's branch
+            if not is_work_day(s.school, current_date):
+                continue
+            attendance = Attendance.query.filter_by(staff_id=s.id, date=current_date).first()
+            if not attendance:
+                # Get shift info
+                current_shift = get_staff_current_shift(s)
+                shift_name = current_shift.name if current_shift else None
+                absent_records.append({
+                    'date': current_date, 
+                    'staff': s,
+                    'shift': shift_name
+                })
         current_date += timedelta(days=1)
     if current_user.role == 'super_admin':
         schools = School.query.all()
@@ -1828,6 +2456,7 @@ def absent_report():
         schools = current_user.get_accessible_schools()
         organizations = current_user.get_accessible_organizations()
     return render_template('absent_report.html', absent_records=absent_records, schools=schools, organizations=organizations, date_from=date_from, date_to=date_to, school_id=school_id, organization_id=organization_id, today=today.isoformat())
+
 
 @app.route('/reports/absent/download')
 @login_required
@@ -1862,20 +2491,26 @@ def download_absent_report():
     all_staff = staff_query.all()
     output = io.StringIO()
     writer = csv.writer(output)
-    writer.writerow(['Date', 'Staff ID', 'Name', 'Organization', 'Branch', 'Department'])
+    writer.writerow(['Date', 'Staff ID', 'Name', 'Organization', 'Branch', 'Department', 'Shift'])
     current_date = start_date
     while current_date <= end_date:
-        if current_date.weekday() < 5:
-            for s in all_staff:
-                if s.department == 'Management':
-                    continue
-                attendance = Attendance.query.filter_by(staff_id=s.id, date=current_date).first()
-                if not attendance:
-                    writer.writerow([current_date.strftime('%d/%m/%Y'), s.staff_id, s.name, s.school.organization.name if s.school and s.school.organization else '', s.school.short_name or s.school.name if s.school else '', s.department])
+        for s in all_staff:
+            if s.department == 'Management':
+                continue
+            # Check if this is a work day for the staff's branch
+            if not is_work_day(s.school, current_date):
+                continue
+            attendance = Attendance.query.filter_by(staff_id=s.id, date=current_date).first()
+            if not attendance:
+                # Get shift info
+                current_shift = get_staff_current_shift(s)
+                shift_name = current_shift.name if current_shift else 'Regular'
+                writer.writerow([current_date.strftime('%d/%m/%Y'), s.staff_id, s.name, s.school.organization.name if s.school and s.school.organization else '', s.school.short_name or s.school.name if s.school else '', s.department, shift_name])
         current_date += timedelta(days=1)
     output.seek(0)
     filename = f'absent_{date_from}_to_{date_to}.csv'
     return Response(output.getvalue(), mimetype='text/csv', headers={'Content-Disposition': f'attachment; filename={filename}'})
+
 
 @app.route('/reports/overtime')
 @login_required
@@ -1923,6 +2558,7 @@ def overtime_report():
         organizations = current_user.get_accessible_organizations()
     return render_template('overtime_report.html', overtime=overtime, schools=schools, organizations=organizations, date_from=date_from, date_to=date_to, school_id=school_id, organization_id=organization_id, today=today.isoformat(), format_minutes=format_minutes_to_hours)
 
+
 @app.route('/reports/overtime/download')
 @login_required
 def download_overtime_report():
@@ -1959,9 +2595,12 @@ def download_overtime_report():
     overtime = query.order_by(Attendance.date.desc()).all()
     output = io.StringIO()
     writer = csv.writer(output)
-    writer.writerow(['Date', 'Staff ID', 'Name', 'Organization', 'Branch', 'Department', 'Sign Out', 'Overtime'])
+    writer.writerow(['Date', 'Staff ID', 'Name', 'Organization', 'Branch', 'Department', 'Shift', 'Sign Out', 'Overtime'])
     for o in overtime:
-        writer.writerow([o.date.strftime('%d/%m/%Y'), o.staff.staff_id, o.staff.name, o.staff.school.organization.name if o.staff.school and o.staff.school.organization else '', o.staff.school.short_name or o.staff.school.name if o.staff.school else '', o.staff.department, o.sign_out_time.strftime('%H:%M') if o.sign_out_time else '', format_minutes_to_hours(o.overtime_minutes)])
+        # Get shift info
+        current_shift = get_staff_current_shift(o.staff)
+        shift_name = current_shift.name if current_shift else 'Regular'
+        writer.writerow([o.date.strftime('%d/%m/%Y'), o.staff.staff_id, o.staff.name, o.staff.school.organization.name if o.staff.school and o.staff.school.organization else '', o.staff.school.short_name or o.staff.school.name if o.staff.school else '', o.staff.department, shift_name, o.sign_out_time.strftime('%H:%M') if o.sign_out_time else '', format_minutes_to_hours(o.overtime_minutes)])
     output.seek(0)
     filename = f'overtime_{date_from}_to_{date_to}.csv'
     return Response(output.getvalue(), mimetype='text/csv', headers={'Content-Disposition': f'attachment; filename={filename}'})
@@ -2068,7 +2707,18 @@ def analytics():
     branch_count = len(set(s.school_id for s in all_staff)) if all_staff else 0
     total_records = len(current_attendance)
     
-    working_days = sum(1 for i in range(period_days) if (start_date + timedelta(days=i)).weekday() < 5)
+    # Calculate working days based on each staff's work schedule
+    working_days = 0
+    for i in range(period_days):
+        check_date = start_date + timedelta(days=i)
+        for s in all_staff[:1]:
+            if s.school and is_work_day(s.school, check_date):
+                working_days += 1
+                break
+    
+    if working_days == 0:
+        working_days = sum(1 for i in range(period_days) if (start_date + timedelta(days=i)).weekday() < 5)
+    
     expected_attendance = total_staff * working_days if total_staff > 0 else 1
     
     attendance_rate = round((total_records / expected_attendance) * 100, 1) if expected_attendance > 0 and total_records > 0 else 0
@@ -2244,8 +2894,7 @@ def analytics():
             early_mins_list = []
             for a in staff_att:
                 if a.sign_in_time and s.school:
-                    day_of_week = a.date.weekday()
-                    start_time, _ = get_school_schedule(s.school, day_of_week)
+                    start_time, end_time, grace_mins, is_shift = get_staff_schedule_for_date(s, a.date)
                     if start_time:
                         scheduled = datetime.strptime(start_time, '%H:%M').time()
                         actual = a.sign_in_time.time()
@@ -2323,6 +2972,7 @@ def analytics():
         most_improved=most_improved, attendance_streaks=attendance_streaks
     )
 
+
 @app.route('/reports/analytics/pdf')
 @login_required
 def analytics_pdf():
@@ -2349,6 +2999,7 @@ def analytics_pdf():
     pdf_output.seek(0)
     return Response(pdf_output.getvalue(), mimetype='application/pdf',
         headers={'Content-Disposition': f'attachment; filename=analytics_{today}.pdf'})
+
 
 # ==================== API ====================
 
@@ -2380,11 +3031,24 @@ def api_sync():
         response.headers.add('Access-Control-Allow-Origin', '*')
         return response, 400
     action = data.get('action')
+    
     if action == 'get_staff' or (action is None and 'records' in data and len(data.get('records', [])) == 0):
         staff_list_data = get_staff_data_for_api(school)
-        response = jsonify({'success': True, 'staff': staff_list_data, 'school': {'name': school.name, 'short_name': school.short_name or '', 'logo_url': school.logo_url or ''}})
+        response = jsonify({
+            'success': True, 
+            'staff': staff_list_data, 
+            'school': {
+                'name': school.name, 
+                'short_name': school.short_name or '', 
+                'logo_url': school.logo_url or '',
+                'shift_mode_enabled': school.shift_mode_enabled,
+                'time_format_24h': school.time_format_24h,
+                'work_days': school.work_days or 'mon,tue,wed,thu,fri'
+            }
+        })
         response.headers.add('Access-Control-Allow-Origin', '*')
         return response
+    
     if action == 'sync_attendance' or (action is None and 'records' in data):
         records = data.get('records', [])
         synced = 0
@@ -2400,48 +3064,66 @@ def api_sync():
                 sign_in_time = record.get('sign_in_time') or record.get('timestamp')
                 sign_out_time = record.get('sign_out_time')
                 record_type = record.get('type', 'sign_in')
+                
                 if record_type == 'sign_in' or (sign_in_time and not attendance):
                     if not attendance:
                         if 'timestamp' in record:
                             sign_in_datetime = datetime.strptime(record['timestamp'], '%Y-%m-%d %H:%M:%S')
                         else:
                             sign_in_datetime = datetime.strptime(f"{record['date']} {sign_in_time}", '%Y-%m-%d %H:%M:%S')
-                        day_of_week = record_date.weekday()
-                        start_time, end_time = get_school_schedule(school, day_of_week)
-                        is_late = False
-                        late_minutes = 0
-                        if staff.department != 'Management' and start_time:
-                            scheduled_start = datetime.strptime(start_time, '%H:%M').time()
-                            if sign_in_datetime.time() > scheduled_start:
-                                is_late = True
-                                delta = datetime.combine(record_date, sign_in_datetime.time()) - datetime.combine(record_date, scheduled_start)
-                                late_minutes = int(delta.total_seconds() / 60)
-                                staff.times_late += 1
-                        attendance = Attendance(staff_id=staff.id, date=record_date, sign_in_time=sign_in_datetime, is_late=is_late, late_minutes=late_minutes)
+                        
+                        # Use new helper function for late calculation
+                        is_late, late_minutes, scheduled_start = calculate_late_status(staff, sign_in_datetime, record_date)
+                        
+                        if is_late and staff.department != 'Management':
+                            staff.times_late += 1
+                        
+                        attendance = Attendance(
+                            staff_id=staff.id, 
+                            date=record_date, 
+                            sign_in_time=sign_in_datetime, 
+                            is_late=is_late, 
+                            late_minutes=late_minutes
+                        )
                         db.session.add(attendance)
                         synced += 1
+                
                 if record_type == 'sign_out' or (sign_out_time and attendance and not attendance.sign_out_time):
                     if attendance and not attendance.sign_out_time:
                         if 'timestamp' in record:
                             sign_out_datetime = datetime.strptime(record['timestamp'], '%Y-%m-%d %H:%M:%S')
                         else:
                             sign_out_datetime = datetime.strptime(f"{record['date']} {sign_out_time}", '%Y-%m-%d %H:%M:%S')
+                        
                         attendance.sign_out_time = sign_out_datetime
-                        day_of_week = record_date.weekday()
-                        start_time, end_time = get_school_schedule(school, day_of_week)
-                        if end_time:
-                            scheduled_end = datetime.strptime(end_time, '%H:%M').time()
-                            if sign_out_datetime.time() > scheduled_end:
-                                delta = datetime.combine(record_date, sign_out_datetime.time()) - datetime.combine(record_date, scheduled_end)
-                                attendance.overtime_minutes = int(delta.total_seconds() / 60)
+                        
+                        # Use new helper function for overtime calculation
+                        overtime_minutes = calculate_overtime(staff, sign_out_datetime, record_date)
+                        attendance.overtime_minutes = overtime_minutes
+                        
                         synced += 1
             except Exception as e:
                 errors.append(str(e))
+        
         db.session.commit()
         staff_list_data = get_staff_data_for_api(school)
-        response = jsonify({'success': True, 'synced': synced, 'errors': errors, 'staff': staff_list_data, 'school': {'name': school.name, 'short_name': school.short_name or '', 'logo_url': school.logo_url or ''}})
+        response = jsonify({
+            'success': True, 
+            'synced': synced, 
+            'errors': errors, 
+            'staff': staff_list_data, 
+            'school': {
+                'name': school.name, 
+                'short_name': school.short_name or '', 
+                'logo_url': school.logo_url or '',
+                'shift_mode_enabled': school.shift_mode_enabled,
+                'time_format_24h': school.time_format_24h,
+                'work_days': school.work_days or 'mon,tue,wed,thu,fri'
+            }
+        })
         response.headers.add('Access-Control-Allow-Origin', '*')
         return response
+    
     if action == 'check_status':
         staff_id = data.get('staff_id')
         staff = Staff.query.filter_by(staff_id=staff_id, school_id=school.id).first()
@@ -2456,12 +3138,51 @@ def api_sync():
         else:
             status = 'not_signed_in'
         name_parts = staff.name.split(' ', 1)
-        response = jsonify({'staff_id': staff.staff_id, 'first_name': name_parts[0], 'last_name': name_parts[1] if len(name_parts) > 1 else '', 'name': staff.name, 'status': status})
+        
+        # Get shift info
+        current_shift = get_staff_current_shift(staff)
+        shift_info = None
+        if current_shift:
+            shift_info = {
+                'name': current_shift.name,
+                'start_time': format_time_display(current_shift.start_time, school.time_format_24h),
+                'end_time': format_time_display(current_shift.end_time, school.time_format_24h)
+            }
+        
+        response = jsonify({
+            'staff_id': staff.staff_id, 
+            'first_name': name_parts[0], 
+            'last_name': name_parts[1] if len(name_parts) > 1 else '', 
+            'name': staff.name, 
+            'status': status,
+            'shift': shift_info
+        })
         response.headers.add('Access-Control-Allow-Origin', '*')
         return response
+    
+    if action == 'get_shifts':
+        shifts = Shift.query.filter_by(school_id=school.id, is_active=True).all()
+        shifts_data = []
+        for shift in shifts:
+            shifts_data.append({
+                'id': shift.id,
+                'name': shift.name,
+                'start_time': format_time_display(shift.start_time, school.time_format_24h),
+                'end_time': format_time_display(shift.end_time, school.time_format_24h),
+                'grace_period_minutes': shift.grace_period_minutes
+            })
+        response = jsonify({
+            'success': True,
+            'shifts': shifts_data,
+            'shift_mode_enabled': school.shift_mode_enabled
+        })
+        response.headers.add('Access-Control-Allow-Origin', '*')
+        return response
+    
     response = jsonify({'error': 'Invalid action'})
     response.headers.add('Access-Control-Allow-Origin', '*')
     return response, 400
+
 
 # ==================== INIT DB ====================
 
@@ -2474,12 +3195,21 @@ def init_db():
             db.session.commit()
         except:
             db.session.rollback()
+        
         migrations = [
             'ALTER TABLE staff ADD COLUMN IF NOT EXISTS email VARCHAR(120)',
             'ALTER TABLE staff ADD COLUMN IF NOT EXISTS phone VARCHAR(20)',
             'ALTER TABLE staff ADD COLUMN IF NOT EXISTS photo_url VARCHAR(500)',
             'ALTER TABLE organizations ADD COLUMN IF NOT EXISTS hr_email VARCHAR(120)',
             'ALTER TABLE organizations ADD COLUMN IF NOT EXISTS hr_email_name VARCHAR(100)',
+            'ALTER TABLE schools ADD COLUMN IF NOT EXISTS schedule_sat_start VARCHAR(5) DEFAULT \'08:00\'',
+            'ALTER TABLE schools ADD COLUMN IF NOT EXISTS schedule_sat_end VARCHAR(5) DEFAULT \'17:00\'',
+            'ALTER TABLE schools ADD COLUMN IF NOT EXISTS schedule_sun_start VARCHAR(5) DEFAULT \'08:00\'',
+            'ALTER TABLE schools ADD COLUMN IF NOT EXISTS schedule_sun_end VARCHAR(5) DEFAULT \'17:00\'',
+            'ALTER TABLE schools ADD COLUMN IF NOT EXISTS shift_mode_enabled BOOLEAN DEFAULT FALSE',
+            'ALTER TABLE schools ADD COLUMN IF NOT EXISTS time_format_24h BOOLEAN DEFAULT TRUE',
+            'ALTER TABLE schools ADD COLUMN IF NOT EXISTS work_days VARCHAR(50) DEFAULT \'mon,tue,wed,thu,fri\'',
+            'ALTER TABLE schools ADD COLUMN IF NOT EXISTS grace_period_minutes INTEGER DEFAULT 0',
         ]
         for sql in migrations:
             try:
@@ -2487,61 +3217,129 @@ def init_db():
                 db.session.commit()
             except:
                 db.session.rollback()
+        
         try:
-            db.session.execute(db.text('''CREATE TABLE IF NOT EXISTS departments (id SERIAL PRIMARY KEY, name VARCHAR(100) NOT NULL, organization_id INTEGER NOT NULL REFERENCES organizations(id), created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP)'''))
+            db.session.execute(db.text('''CREATE TABLE IF NOT EXISTS departments (
+                id SERIAL PRIMARY KEY, 
+                name VARCHAR(100) NOT NULL, 
+                organization_id INTEGER NOT NULL REFERENCES organizations(id), 
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+            )'''))
             db.session.commit()
         except:
             db.session.rollback()
+        
         try:
             db.session.execute(db.text('ALTER TABLE schools ADD COLUMN organization_id INTEGER'))
             db.session.commit()
         except:
             db.session.rollback()
+        
         try:
             db.session.execute(db.text('ALTER TABLE schools ADD COLUMN logo_url VARCHAR(500)'))
             db.session.commit()
         except:
             db.session.rollback()
+        
         try:
-            db.session.execute(db.text('''CREATE TABLE IF NOT EXISTS user_schools (user_id INTEGER NOT NULL, school_id INTEGER NOT NULL, PRIMARY KEY (user_id, school_id), FOREIGN KEY (user_id) REFERENCES users(id), FOREIGN KEY (school_id) REFERENCES schools(id))'''))
+            db.session.execute(db.text('''CREATE TABLE IF NOT EXISTS user_schools (
+                user_id INTEGER NOT NULL, 
+                school_id INTEGER NOT NULL, 
+                PRIMARY KEY (user_id, school_id), 
+                FOREIGN KEY (user_id) REFERENCES users(id), 
+                FOREIGN KEY (school_id) REFERENCES schools(id)
+            )'''))
             db.session.commit()
         except:
             db.session.rollback()
+        
         try:
-            db.session.execute(db.text('''CREATE TABLE IF NOT EXISTS query_templates (id SERIAL PRIMARY KEY, organization_id INTEGER NOT NULL REFERENCES organizations(id), title VARCHAR(100) NOT NULL, subject VARCHAR(200) NOT NULL, body TEXT NOT NULL, created_by INTEGER NOT NULL REFERENCES users(id), created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP, is_active BOOLEAN DEFAULT TRUE)'''))
+            db.session.execute(db.text('''CREATE TABLE IF NOT EXISTS query_templates (
+                id SERIAL PRIMARY KEY, 
+                organization_id INTEGER NOT NULL REFERENCES organizations(id), 
+                title VARCHAR(100) NOT NULL, 
+                subject VARCHAR(200) NOT NULL, 
+                body TEXT NOT NULL, 
+                from_email VARCHAR(255),
+                created_by INTEGER NOT NULL REFERENCES users(id), 
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP, 
+                is_active BOOLEAN DEFAULT TRUE
+            )'''))
             db.session.commit()
         except:
             db.session.rollback()
+        
         try:
-            db.session.execute(db.text('''CREATE TABLE IF NOT EXISTS staff_queries (id SERIAL PRIMARY KEY, staff_id INTEGER NOT NULL REFERENCES staff(id), template_id INTEGER NOT NULL REFERENCES query_templates(id), sent_by INTEGER NOT NULL REFERENCES users(id), sent_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP, times_late_at_query INTEGER DEFAULT 0, email_status VARCHAR(20) DEFAULT 'pending')'''))
+            db.session.execute(db.text('ALTER TABLE query_templates ADD COLUMN IF NOT EXISTS from_email VARCHAR(255)'))
             db.session.commit()
         except:
             db.session.rollback()
+        
+        try:
+            db.session.execute(db.text('''CREATE TABLE IF NOT EXISTS staff_queries (
+                id SERIAL PRIMARY KEY, 
+                staff_id INTEGER NOT NULL REFERENCES staff(id), 
+                template_id INTEGER NOT NULL REFERENCES query_templates(id), 
+                sent_by INTEGER NOT NULL REFERENCES users(id), 
+                sent_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP, 
+                times_late_at_query INTEGER DEFAULT 0, 
+                email_status VARCHAR(20) DEFAULT 'pending'
+            )'''))
+            db.session.commit()
+        except:
+            db.session.rollback()
+        
+        # Create shifts table
+        try:
+            db.session.execute(db.text('''CREATE TABLE IF NOT EXISTS shifts (
+                id SERIAL PRIMARY KEY, 
+                school_id INTEGER NOT NULL REFERENCES schools(id) ON DELETE CASCADE, 
+                name VARCHAR(50) NOT NULL, 
+                start_time VARCHAR(5) NOT NULL, 
+                end_time VARCHAR(5) NOT NULL, 
+                grace_period_minutes INTEGER DEFAULT 0,
+                is_active BOOLEAN DEFAULT TRUE,
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+            )'''))
+            db.session.commit()
+        except:
+            db.session.rollback()
+        
+        # Create staff shift assignments table
+        try:
+            db.session.execute(db.text('''CREATE TABLE IF NOT EXISTS staff_shift_assignments (
+                id SERIAL PRIMARY KEY, 
+                staff_id INTEGER NOT NULL REFERENCES staff(id) ON DELETE CASCADE, 
+                shift_id INTEGER NOT NULL REFERENCES shifts(id) ON DELETE CASCADE, 
+                effective_from DATE NOT NULL DEFAULT CURRENT_DATE,
+                effective_to DATE,
+                is_active BOOLEAN DEFAULT TRUE,
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+            )'''))
+            db.session.commit()
+        except:
+            db.session.rollback()
+        
         if not SystemSettings.query.first():
             settings = SystemSettings(company_name='Wakato Technologies')
             db.session.add(settings)
+        
         if not User.query.filter_by(username='admin').first():
             admin = User(username='admin', role='super_admin')
             admin.set_password('admin123')
             db.session.add(admin)
+        
         for org in Organization.query.all():
             if not Department.query.filter_by(organization_id=org.id).first():
                 Department.create_defaults(org.id)
+        
         db.session.commit()
-        return 'Database initialized successfully! HR Query tables created.'
+        return 'Database initialized successfully! Shift system tables created.'
     except Exception as e:
         return f'Error: {str(e)}'
+
 
 if __name__ == '__main__':
     with app.app_context():
         db.create_all()
     app.run(debug=True, host='0.0.0.0', port=int(os.environ.get('PORT', 5000)))
-
-
-
-
-
-
-
-
-
