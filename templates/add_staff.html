@@ -42,17 +42,7 @@
                     </select>
                 </div>
             </div>
-            {% else %}
             <div class="row">
-                <div class="col-md-6 mb-3">
-                    <label for="school_id" class="form-label">Branch <span class="text-danger">*</span></label>
-                    <select class="form-select" id="school_id" name="school_id" required>
-                        <option value="">Select Branch</option>
-                        {% for school in schools %}
-                        <option value="{{ school.id }}">{{ school.name }}</option>
-                        {% endfor %}
-                    </select>
-                </div>
                 <div class="col-md-6 mb-3">
                     <label for="department" class="form-label">Department <span class="text-danger">*</span></label>
                     <select class="form-select" id="department" name="department" required disabled>
@@ -60,10 +50,17 @@
                     </select>
                 </div>
             </div>
-            {% endif %}
-
-            {% if current_user.role == 'super_admin' %}
+            {% else %}
             <div class="row">
+                <div class="col-md-6 mb-3">
+                    <label for="school_id" class="form-label">Branch <span class="text-danger">*</span></label>
+                    <select class="form-select" id="school_id" name="school_id" required onchange="loadDepartments(this.value)">
+                        <option value="">Select Branch</option>
+                        {% for school in schools %}
+                        <option value="{{ school.id }}">{{ school.name }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
                 <div class="col-md-6 mb-3">
                     <label for="department" class="form-label">Department <span class="text-danger">*</span></label>
                     <select class="form-select" id="department" name="department" required disabled>
@@ -106,69 +103,81 @@
 </div>
 
 <script>
-document.addEventListener('DOMContentLoaded', function() {
-    var orgSelect = document.getElementById('organization');
+function loadDepartments(branchId) {
+    var deptSelect = document.getElementById('department');
+    
+    if (branchId) {
+        var xhr = new XMLHttpRequest();
+        xhr.open('GET', '/api/branch-departments/' + branchId, true);
+        xhr.onreadystatechange = function() {
+            if (xhr.readyState === 4 && xhr.status === 200) {
+                var data = JSON.parse(xhr.responseText);
+                deptSelect.innerHTML = '<option value="">Select Department</option>';
+                for (var i = 0; i < data.length; i++) {
+                    var option = document.createElement('option');
+                    option.value = data[i].name;
+                    option.text = data[i].name;
+                    deptSelect.appendChild(option);
+                }
+                deptSelect.disabled = false;
+            }
+        };
+        xhr.send();
+    } else {
+        deptSelect.innerHTML = '<option value="">Select Branch First</option>';
+        deptSelect.disabled = true;
+    }
+}
+
+function loadBranches(orgId) {
     var branchSelect = document.getElementById('school_id');
     var deptSelect = document.getElementById('department');
     
-    function loadDepartments(branchId) {
-        if (branchId) {
-            fetch('/api/branch-departments/' + branchId)
-                .then(function(response) { return response.json(); })
-                .then(function(data) {
-                    deptSelect.innerHTML = '<option value="">Select Department</option>';
-                    data.forEach(function(dept) {
-                        var option = document.createElement('option');
-                        option.value = dept.name;
-                        option.textContent = dept.name;
-                        deptSelect.appendChild(option);
-                    });
-                    deptSelect.disabled = false;
-                });
-        } else {
-            deptSelect.innerHTML = '<option value="">Select Branch First</option>';
-            deptSelect.disabled = true;
-        }
+    deptSelect.innerHTML = '<option value="">Select Branch First</option>';
+    deptSelect.disabled = true;
+    
+    if (orgId) {
+        var xhr = new XMLHttpRequest();
+        xhr.open('GET', '/api/organization-branches/' + orgId, true);
+        xhr.onreadystatechange = function() {
+            if (xhr.readyState === 4 && xhr.status === 200) {
+                var data = JSON.parse(xhr.responseText);
+                branchSelect.innerHTML = '<option value="">Select Branch</option>';
+                for (var i = 0; i < data.branches.length; i++) {
+                    var option = document.createElement('option');
+                    option.value = data.branches[i].id;
+                    option.text = data.branches[i].name;
+                    branchSelect.appendChild(option);
+                }
+                branchSelect.disabled = false;
+            }
+        };
+        xhr.send();
+    } else {
+        branchSelect.innerHTML = '<option value="">Select Organization First</option>';
+        branchSelect.disabled = true;
     }
-    
-    {% if current_user.role == 'super_admin' %}
-    orgSelect.addEventListener('change', function() {
-        var orgId = this.value;
-        
-        deptSelect.innerHTML = '<option value="">Select Branch First</option>';
-        deptSelect.disabled = true;
-        
-        if (orgId) {
-            fetch('/api/organization-branches/' + orgId)
-                .then(function(response) { return response.json(); })
-                .then(function(data) {
-                    branchSelect.innerHTML = '<option value="">Select Branch</option>';
-                    data.branches.forEach(function(branch) {
-                        var option = document.createElement('option');
-                        option.value = branch.id;
-                        option.textContent = branch.name;
-                        branchSelect.appendChild(option);
-                    });
-                    branchSelect.disabled = false;
-                });
-        } else {
-            branchSelect.innerHTML = '<option value="">Select Organization First</option>';
-            branchSelect.disabled = true;
-        }
-    });
-    {% endif %}
-    
-    branchSelect.addEventListener('change', function() {
-        loadDepartments(this.value);
-    });
-    
+}
+
+{% if current_user.role == 'super_admin' %}
+document.getElementById('organization').onchange = function() {
+    loadBranches(this.value);
+};
+
+document.getElementById('school_id').onchange = function() {
+    loadDepartments(this.value);
+};
+{% endif %}
+
+// Auto-load if branch admin has only one branch
+window.onload = function() {
+    var branchSelect = document.getElementById('school_id');
     {% if current_user.role != 'super_admin' %}
-    // Auto-load departments if branch admin has only one branch
-    if (branchSelect.options.length === 2) {
+    if (branchSelect && branchSelect.options.length === 2) {
         branchSelect.selectedIndex = 1;
         loadDepartments(branchSelect.value);
     }
     {% endif %}
-});
+};
 </script>
 {% endblock %}
