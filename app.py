@@ -1576,39 +1576,41 @@ def add_staff():
         email = request.form.get('email', '').strip() or None
         phone = request.form.get('phone', '').strip() or None
         photo_url = request.form.get('photo_url', '').strip() or None
-        if current_user.role == 'school_admin':
-            if current_user.allowed_schools:
-                school_id = current_user.allowed_schools[0].id
-            elif current_user.school_id:
-                school_id = current_user.school_id
-            else:
-                flash('No branch assigned to your account!', 'danger')
-                return redirect(url_for('staff_list'))
+        
+        if current_user.role != 'super_admin':
+            accessible_ids = current_user.get_accessible_school_ids()
+            if not school_id or int(school_id) not in accessible_ids:
+                flash('Invalid branch selected!', 'danger')
+                return redirect(url_for('add_staff'))
+        
         if not school_id:
             flash('Please select a branch!', 'danger')
             return redirect(url_for('add_staff'))
+        
         try:
             school_id = int(school_id)
         except (ValueError, TypeError):
             flash('Invalid branch selected!', 'danger')
             return redirect(url_for('add_staff'))
+        
         existing = check_staff_id_exists_in_org(staff_id, school_id)
         if existing:
             flash('Staff ID already exists in this organization!', 'danger')
             return redirect(url_for('add_staff'))
+        
         staff = Staff(staff_id=staff_id, name=name, department=department, school_id=school_id, email=email, phone=phone, photo_url=photo_url)
         db.session.add(staff)
         db.session.commit()
         flash('Staff added successfully!', 'success')
         return redirect(url_for('staff_list'))
+    
+    # GET request - always pass organizations based on role
     if current_user.role == 'super_admin':
-        schools = School.query.all()
         organizations = Organization.query.all()
     else:
-        schools = current_user.get_accessible_schools()
-        organizations = []
-    departments = ['Academic', 'Non-Academic', 'Administrative', 'Support Staff']
-    return render_template('add_staff.html', schools=schools, organizations=organizations, departments=departments)
+        organizations = current_user.get_accessible_organizations()
+    
+    return render_template('add_staff.html', organizations=organizations)
 
 
 @app.route('/staff/edit/<int:id>', methods=['POST'])
@@ -3446,6 +3448,7 @@ if __name__ == '__main__':
     with app.app_context():
         db.create_all()
     app.run(debug=True, host='0.0.0.0', port=int(os.environ.get('PORT', 5000)))
+
 
 
 
