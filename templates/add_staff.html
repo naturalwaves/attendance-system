@@ -53,9 +53,16 @@
                         {% endfor %}
                     </select>
                 </div>
+                <div class="col-md-6 mb-3">
+                    <label for="department" class="form-label">Department <span class="text-danger">*</span></label>
+                    <select class="form-select" id="department" name="department" required disabled>
+                        <option value="">Select Branch First</option>
+                    </select>
+                </div>
             </div>
             {% endif %}
 
+            {% if current_user.role == 'super_admin' %}
             <div class="row">
                 <div class="col-md-6 mb-3">
                     <label for="department" class="form-label">Department <span class="text-danger">*</span></label>
@@ -64,6 +71,7 @@
                     </select>
                 </div>
             </div>
+            {% endif %}
 
             <hr class="my-4">
             <h5 class="mb-3">Contact Information (Optional)</h5>
@@ -98,51 +106,69 @@
 </div>
 
 <script>
-{% if current_user.role == 'super_admin' %}
-document.getElementById('organization').addEventListener('change', function() {
-    const orgId = this.value;
-    const branchSelect = document.getElementById('school_id');
-    const deptSelect = document.getElementById('department');
+document.addEventListener('DOMContentLoaded', function() {
+    var orgSelect = document.getElementById('organization');
+    var branchSelect = document.getElementById('school_id');
+    var deptSelect = document.getElementById('department');
     
-    // Reset department
-    deptSelect.innerHTML = '<option value="">Select Branch First</option>';
-    deptSelect.disabled = true;
-    
-    if (orgId) {
-        fetch(`/api/organization-branches/${orgId}`)
-            .then(response => response.json())
-            .then(data => {
-                branchSelect.innerHTML = '<option value="">Select Branch</option>';
-                data.branches.forEach(branch => {
-                    branchSelect.innerHTML += `<option value="${branch.id}">${branch.name}</option>`;
+    function loadDepartments(branchId) {
+        if (branchId) {
+            fetch('/api/branch-departments/' + branchId)
+                .then(function(response) { return response.json(); })
+                .then(function(data) {
+                    deptSelect.innerHTML = '<option value="">Select Department</option>';
+                    data.forEach(function(dept) {
+                        var option = document.createElement('option');
+                        option.value = dept.name;
+                        option.textContent = dept.name;
+                        deptSelect.appendChild(option);
+                    });
+                    deptSelect.disabled = false;
                 });
-                branchSelect.disabled = false;
-            });
-    } else {
-        branchSelect.innerHTML = '<option value="">Select Organization First</option>';
-        branchSelect.disabled = true;
+        } else {
+            deptSelect.innerHTML = '<option value="">Select Branch First</option>';
+            deptSelect.disabled = true;
+        }
     }
-});
-{% endif %}
-
-document.getElementById('school_id').addEventListener('change', function() {
-    const branchId = this.value;
-    const deptSelect = document.getElementById('department');
     
-    if (branchId) {
-        fetch(`/api/branch-departments/${branchId}`)
-            .then(response => response.json())
-            .then(data => {
-                deptSelect.innerHTML = '<option value="">Select Department</option>';
-                data.forEach(dept => {
-                    deptSelect.innerHTML += `<option value="${dept.name}">${dept.name}</option>`;
-                });
-                deptSelect.disabled = false;
-            });
-    } else {
+    {% if current_user.role == 'super_admin' %}
+    orgSelect.addEventListener('change', function() {
+        var orgId = this.value;
+        
         deptSelect.innerHTML = '<option value="">Select Branch First</option>';
         deptSelect.disabled = true;
+        
+        if (orgId) {
+            fetch('/api/organization-branches/' + orgId)
+                .then(function(response) { return response.json(); })
+                .then(function(data) {
+                    branchSelect.innerHTML = '<option value="">Select Branch</option>';
+                    data.branches.forEach(function(branch) {
+                        var option = document.createElement('option');
+                        option.value = branch.id;
+                        option.textContent = branch.name;
+                        branchSelect.appendChild(option);
+                    });
+                    branchSelect.disabled = false;
+                });
+        } else {
+            branchSelect.innerHTML = '<option value="">Select Organization First</option>';
+            branchSelect.disabled = true;
+        }
+    });
+    {% endif %}
+    
+    branchSelect.addEventListener('change', function() {
+        loadDepartments(this.value);
+    });
+    
+    {% if current_user.role != 'super_admin' %}
+    // Auto-load departments if branch admin has only one branch
+    if (branchSelect.options.length === 2) {
+        branchSelect.selectedIndex = 1;
+        loadDepartments(branchSelect.value);
     }
+    {% endif %}
 });
 </script>
 {% endblock %}
