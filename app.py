@@ -27,6 +27,7 @@ db = SQLAlchemy()
 login_manager = LoginManager()
 login_manager.login_view = 'login'
 
+
 # ==================== MODELS ====================
 
 class SystemSettings(db.Model):
@@ -74,6 +75,8 @@ user_schools = db.Table('user_schools',
     db.Column('user_id', db.Integer, db.ForeignKey('users.id'), primary_key=True),
     db.Column('school_id', db.Integer, db.ForeignKey('schools.id'), primary_key=True)
 )
+
+
 class School(db.Model):
     __tablename__ = 'schools'
     id = db.Column(db.Integer, primary_key=True)
@@ -176,6 +179,8 @@ class StaffShiftAssignment(db.Model):
     
     def get_date_range_display(self):
         return f"{self.start_date.strftime('%d %b %Y')} - {self.end_date.strftime('%d %b %Y')}"
+
+
 class User(db.Model, UserMixin):
     __tablename__ = 'users'
     id = db.Column(db.Integer, primary_key=True)
@@ -314,6 +319,8 @@ def inject_settings():
         user_org = current_user.get_display_organization()
         return {'system_settings': settings, 'user_organization': user_org}
     return {'system_settings': None, 'user_organization': None}
+
+
 # ==================== HELPER FUNCTIONS ====================
 
 def role_required(*roles):
@@ -371,11 +378,7 @@ def get_school_schedule(school, day_of_week):
 
 
 def get_staff_schedule_for_date(staff, check_date):
-    """
-    Get the schedule (start_time, end_time) for a staff member on a specific date.
-    Handles both shift-based and regular schedules.
-    Returns (start_time, end_time, grace_period_minutes) or (None, None, 0)
-    """
+    """Get the schedule for a staff member on a specific date."""
     school = staff.school
     if not school:
         return None, None, 0
@@ -399,10 +402,7 @@ def get_staff_schedule_for_date(staff, check_date):
 
 
 def calculate_late_status(staff, sign_in_datetime, check_date):
-    """
-    Calculate if staff is late and by how many minutes.
-    Returns (is_late, late_minutes)
-    """
+    """Calculate if staff is late and by how many minutes."""
     if staff.department == 'Management':
         return False, 0
     
@@ -542,6 +542,8 @@ def format_minutes_to_hours(minutes):
         return f"{hours}hr{'s' if hours > 1 else ''}"
     else:
         return f"{mins}mins"
+
+
 # ==================== AUTH ROUTES ====================
 
 @app.route('/')
@@ -599,9 +601,6 @@ def settings():
 def add_organization():
     if request.method == 'POST':
         name = request.form.get('name')
-        logo_url = request.form.get('logo_url', '').strip() or None
-        hr_email = request.form.get('hr_email', '').strip() or None
-        hr_email_name = request.form.get('hr_email_name', '').strip() or None
         org = Organization(name=name)
         db.session.add(org)
         db.session.commit()
@@ -716,26 +715,6 @@ def delete_department(org_id, dept_id):
     return redirect(url_for('manage_departments', org_id=org_id))
 
 
-@app.route('/api/branch-departments/<int:branch_id>')
-@login_required
-def get_branch_departments(branch_id):
-    school = School.query.get_or_404(branch_id)
-    if school.organization_id:
-        departments = Department.query.filter_by(organization_id=school.organization_id).order_by(Department.name).all()
-        return jsonify([{'id': d.id, 'name': d.name} for d in departments])
-    else:
-        return jsonify([{'id': 0, 'name': 'Academic'}, {'id': 0, 'name': 'Non-Academic'}, {'id': 0, 'name': 'Administrative'}, {'id': 0, 'name': 'Support Staff'}])
-
-
-@app.route('/api/organization-branches/<int:org_id>')
-@login_required
-def get_organization_branches(org_id):
-    if current_user.role == 'super_admin':
-        branches = School.query.filter_by(organization_id=org_id).all()
-    else:
-        accessible_ids = current_user.get_accessible_school_ids()
-        branches = School.query.filter(School.organization_id == org_id, School.id.in_(accessible_ids)).all()
-    return jsonify({'branches': [{'id': b.id, 'name': b.name} for b in branches]})
 # ==================== DASHBOARD ====================
 
 @app.route('/dashboard')
@@ -888,9 +867,9 @@ def search_staff():
     return jsonify({'results': results})
 
 
-@app.route('/api/branch-staff/<int:branch_id>')
+@app.route('/api/branch-staff-details/<int:branch_id>')
 @login_required
-def get_branch_staff(branch_id):
+def get_branch_staff_details(branch_id):
     today = date.today()
     school = School.query.get(branch_id)
     if not school:
@@ -929,8 +908,6 @@ def get_branch_staff(branch_id):
             'time_out': time_out
         })
     return jsonify(result)
-
-
 # ==================== SCHOOLS/BRANCHES ====================
 
 @app.route('/schools')
@@ -1287,6 +1264,8 @@ def get_staff_shift(staff_id):
             'has_shift': False,
             'message': 'No shift assigned for today'
         })
+
+
 # ==================== STAFF ====================
 
 @app.route('/staff')
@@ -1671,6 +1650,8 @@ def delete_user(id):
     db.session.commit()
     flash('User deleted successfully!', 'success')
     return redirect(url_for('users'))
+
+
 # ==================== HR QUERY SYSTEM ====================
 
 @app.route('/query-templates')
@@ -2296,6 +2277,8 @@ def reset_late_counter():
     db.session.commit()
     flash(f'Late counters reset for {school_name}!', 'success')
     return redirect(url_for('late_report'))
+
+
 @app.route('/reports/absent')
 @login_required
 def absent_report():
@@ -2909,11 +2892,12 @@ def analytics_pdf():
     pdf_output.seek(0)
     return Response(pdf_output.getvalue(), mimetype='application/pdf',
         headers={'Content-Disposition': f'attachment; filename=analytics_{today}.pdf'})
+
+
 # ==================== SYNC API ====================
 
 @app.route('/api/sync', methods=['POST'])
 def sync_attendance():
-    """Receive attendance data from school devices"""
     auth_header = request.headers.get('Authorization')
     if not auth_header or not auth_header.startswith('Bearer '):
         return jsonify({'error': 'Missing or invalid authorization'}), 401
@@ -2948,46 +2932,55 @@ def sync_attendance():
                 date=attendance_date
             ).first()
             
-            sign_in = record.get('sign_in_time')
-            sign_out = record.get('sign_out_time')
+            sign_in_str = record.get('sign_in_time')
+            sign_out_str = record.get('sign_out_time')
+            
+            sign_in_dt = None
+            sign_out_dt = None
+            
+            if sign_in_str:
+                try:
+                    sign_in_dt = datetime.strptime(f"{date_str} {sign_in_str}", '%Y-%m-%d %H:%M')
+                except:
+                    sign_in_dt = None
+            
+            if sign_out_str:
+                try:
+                    sign_out_dt = datetime.strptime(f"{date_str} {sign_out_str}", '%Y-%m-%d %H:%M')
+                except:
+                    sign_out_dt = None
             
             if not attendance:
                 attendance = Attendance(
                     staff_id=staff.id,
                     date=attendance_date,
-                    sign_in_time=sign_in,
-                    sign_out_time=sign_out
+                    sign_in_time=sign_in_dt,
+                    sign_out_time=sign_out_dt
                 )
                 db.session.add(attendance)
             else:
-                if sign_in and not attendance.sign_in_time:
-                    attendance.sign_in_time = sign_in
-                if sign_out:
-                    attendance.sign_out_time = sign_out
+                if sign_in_dt and not attendance.sign_in_time:
+                    attendance.sign_in_time = sign_in_dt
+                if sign_out_dt:
+                    attendance.sign_out_time = sign_out_dt
             
-            # Calculate late status
             if attendance.sign_in_time:
-                schedule = get_staff_schedule_for_date(staff, attendance_date)
-                if schedule and schedule.get('start_time'):
-                    late_info = calculate_late_status(
-                        attendance.sign_in_time,
-                        schedule['start_time'],
-                        schedule.get('grace_period', 0)
-                    )
-                    attendance.status = 'late' if late_info['is_late'] else 'present'
-                    attendance.minutes_late = late_info['minutes_late']
-                else:
-                    attendance.status = 'present'
+                is_late, late_mins = calculate_late_status(staff, attendance.sign_in_time, attendance_date)
+                attendance.is_late = is_late
+                attendance.late_minutes = late_mins
+                attendance.status = 'late' if is_late else 'present'
+                
+                if is_late:
+                    staff.times_late = (staff.times_late or 0) + 1
             
-            # Calculate overtime
             if attendance.sign_in_time and attendance.sign_out_time:
-                schedule = get_staff_schedule_for_date(staff, attendance_date)
-                if schedule and schedule.get('end_time'):
+                start_time, end_time, _ = get_staff_schedule_for_date(staff, attendance_date)
+                if end_time:
                     try:
-                        sign_out_dt = datetime.strptime(attendance.sign_out_time, '%H:%M')
-                        end_dt = datetime.strptime(schedule['end_time'], '%H:%M')
-                        if sign_out_dt > end_dt:
-                            diff = (sign_out_dt - end_dt).total_seconds() / 60
+                        scheduled_end = datetime.strptime(end_time, '%H:%M').time()
+                        scheduled_end_dt = datetime.combine(attendance_date, scheduled_end)
+                        if attendance.sign_out_time > scheduled_end_dt:
+                            diff = (attendance.sign_out_time - scheduled_end_dt).total_seconds() / 60
                             attendance.overtime_minutes = int(diff)
                     except:
                         pass
@@ -3002,8 +2995,7 @@ def sync_attendance():
 
 
 @app.route('/api/staff/<school_id>', methods=['GET'])
-def get_staff_list(school_id):
-    """Get staff list for a school (for device sync)"""
+def get_staff_list_api(school_id):
     auth_header = request.headers.get('Authorization')
     if not auth_header or not auth_header.startswith('Bearer '):
         return jsonify({'error': 'Missing or invalid authorization'}), 401
@@ -3025,140 +3017,13 @@ def get_staff_list(school_id):
     })
 
 
-@app.route('/api/dashboard-data')
-@login_required
-def dashboard_data():
-    """API endpoint for real-time dashboard data"""
-    today = datetime.now().date()
-    
-    if current_user.role == 'super_admin':
-        schools = School.query.all()
-    else:
-        accessible_ids = current_user.get_accessible_school_ids()
-        schools = School.query.filter(School.id.in_(accessible_ids)).all()
-    
-    school_ids = [s.id for s in schools]
-    
-    total_staff = Staff.query.filter(
-        Staff.school_id.in_(school_ids),
-        Staff.is_active == True
-    ).count()
-    
-    today_attendance = Attendance.query.join(Staff).filter(
-        Staff.school_id.in_(school_ids),
-        Attendance.date == today
-    ).count()
-    
-    today_late = Attendance.query.join(Staff).filter(
-        Staff.school_id.in_(school_ids),
-        Attendance.date == today,
-        Attendance.status == 'late'
-    ).count()
-    
-    # Get first check-in
-    first_checkin = Attendance.query.join(Staff).filter(
-        Staff.school_id.in_(school_ids),
-        Attendance.date == today,
-        Attendance.sign_in_time.isnot(None)
-    ).order_by(Attendance.sign_in_time).first()
-    
-    first_checkin_time = None
-    first_checkin_staff = None
-    if first_checkin:
-        staff = Staff.query.get(first_checkin.staff_id)
-        school = School.query.get(staff.school_id) if staff else None
-        org = Organization.query.get(school.organization_id) if school else None
-        time_format = org.time_format if org and hasattr(org, 'time_format') else '12h'
-        first_checkin_time = format_time_for_org(first_checkin.sign_in_time, time_format)
-        first_checkin_staff = staff.name if staff else 'Unknown'
-    
-    return jsonify({
-        'total_staff': total_staff,
-        'today_attendance': today_attendance,
-        'today_late': today_late,
-        'attendance_rate': round((today_attendance / total_staff * 100) if total_staff > 0 else 0, 1),
-        'first_checkin_time': first_checkin_time,
-        'first_checkin_staff': first_checkin_staff
-    })
-
-
-@app.route('/api/organization-branches/<int:org_id>')
-@login_required
-def get_organization_branches(org_id):
-    """Get branches for an organization"""
-    branches = School.query.filter_by(organization_id=org_id).all()
-    return jsonify({
-        'branches': [{'id': b.id, 'name': b.name} for b in branches]
-    })
-
-
-@app.route('/api/branch-departments/<int:branch_id>')
-@login_required
-def get_branch_departments(branch_id):
-    """Get departments available for a branch"""
-    school = School.query.get_or_404(branch_id)
-    departments = Department.query.filter_by(organization_id=school.organization_id).all()
-    return jsonify({
-        'departments': [{'id': d.id, 'name': d.name} for d in departments]
-    })
-
-
-@app.route('/api/branch-staff/<int:branch_id>')
-@login_required
-def get_branch_staff(branch_id):
-    """Get staff for a specific branch with today's attendance"""
-    school = School.query.get_or_404(branch_id)
-    
-    if current_user.role == 'school_admin':
-        if school.id not in current_user.get_accessible_school_ids():
-            return jsonify({'error': 'Access denied'}), 403
-    
-    today = datetime.now().date()
-    staff_list = Staff.query.filter_by(school_id=school.id, is_active=True).all()
-    
-    org = Organization.query.get(school.organization_id) if school.organization_id else None
-    time_format = org.time_format if org and hasattr(org, 'time_format') else '12h'
-    
-    result = []
-    for staff in staff_list:
-        attendance = Attendance.query.filter_by(
-            staff_id=staff.id,
-            date=today
-        ).first()
-        
-        status = 'not_checked_in'
-        sign_in = None
-        sign_out = None
-        
-        if attendance:
-            if attendance.sign_in_time:
-                sign_in = format_time_for_org(attendance.sign_in_time, time_format)
-                status = attendance.status or 'present'
-            if attendance.sign_out_time:
-                sign_out = format_time_for_org(attendance.sign_out_time, time_format)
-        
-        result.append({
-            'id': staff.id,
-            'staff_id': staff.staff_id,
-            'name': staff.name,
-            'department': staff.department,
-            'status': status,
-            'sign_in': sign_in,
-            'sign_out': sign_out
-        })
-    
-    return jsonify({'staff': result})
-
-
 # ==================== INITIALIZE DATABASE ====================
 
 @app.route('/init-db')
 def init_db():
-    """Initialize the database with default data"""
     try:
         db.create_all()
         
-        # Create default system settings
         settings = SystemSettings.query.first()
         if not settings:
             settings = SystemSettings(
@@ -3167,7 +3032,6 @@ def init_db():
             )
             db.session.add(settings)
         
-        # Create default super admin
         admin = User.query.filter_by(username='admin').first()
         if not admin:
             admin = User(
