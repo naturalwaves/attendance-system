@@ -821,43 +821,112 @@ def dashboard():
 
 @app.route('/api/dashboard-stats')
 @login_required
-def dashboard_stats():
+def api_dashboard_stats():
     today = date.today()
-    accessible_school_ids = current_user.get_accessible_school_ids()
+    
     if current_user.role == 'super_admin':
         schools = School.query.all()
-        all_staff = Staff.query.filter_by(is_active=True).all()
-    elif accessible_school_ids:
-        schools = current_user.get_accessible_schools()
-        all_staff = Staff.query.filter(Staff.school_id.in_(accessible_school_ids), Staff.is_active==True).all()
+        school_ids = [s.id for s in schools]
     else:
-        schools = []
-        all_staff = []
-    total_schools = len(schools)
-    management_staff = [s for s in all_staff if s.department == 'Management']
-    non_mgmt_staff = [s for s in all_staff if s.department != 'Management']
-    total_staff = len(non_mgmt_staff)
-    management_count = len(management_staff)
-    non_mgmt_ids = [s.id for s in non_mgmt_staff]
-    today_attendance = Attendance.query.filter(Attendance.staff_id.in_(non_mgmt_ids), Attendance.date == today).count() if non_mgmt_ids else 0
-    late_today = Attendance.query.filter(Attendance.staff_id.in_(non_mgmt_ids), Attendance.date == today, Attendance.is_late == True).count() if non_mgmt_ids else 0
-    present_ids = [a.staff_id for a in Attendance.query.filter(Attendance.staff_id.in_(non_mgmt_ids), Attendance.date == today).all()] if non_mgmt_ids else []
-    absent_today = len([s for s in non_mgmt_staff if s.id not in present_ids])
-    first_checkin = None
-    if non_mgmt_ids:
-        first_attendance = Attendance.query.filter(Attendance.staff_id.in_(non_mgmt_ids), Attendance.date == today, Attendance.sign_in_time.isnot(None)).order_by(Attendance.sign_in_time.asc()).first()
-        if first_attendance:
-            staff = Staff.query.get(first_attendance.staff_id)
-            if staff and staff.school:
-                first_checkin = {'name': staff.name, 'branch': staff.school.short_name or staff.school.name, 'department': staff.department, 'time': first_attendance.sign_in_time.strftime('%H:%M')}
+        school_ids = current_user.get_accessible_school_ids()
+        schools = School.query.filter(School.id.in_(school_ids)).all()
+    
+    total_staff = Staff.query.filter(
+        Staff.school_id.in_(school_ids),
+        Staff.is_active == True
+    ).count()
+    
+    management_count = Staff.query.filter(
+        Staff.school_id.in_(school_ids),
+        Staff.is_active == True,
+        Staff.department == 'Management'
+    ).count()
+    
+    today_attendance = Attendance.query.join(Staff).filter(
+        Staff.school_id.in_(school_ids),
+        Attendance.date == today,
+        Attendance.sign_in_time.isnot(None)
+    ).count()
+    
+    late_today = Attendance.query.join(Staff).filter(
+        Staff.school_id.in_(school_ids),
+        Attendance.date == today,
+        Attendance.is_late == True
+    ).count()
+    
+    absent_today = total_staff - today_attendance - management_count
+    if absent_today < 0:
+        absent_today = 0
+    
+    # First check-in today
+    first_checkin = Attendance.query.join(Staff).join(School).filter(
+        Staff.school_id.in_(school_ids),
+        Attendance.date == today,
+        Attendance.sign_in_time.isnot(None)
+    ).order_by(Attendance.sign_in_time.asc()).first()
+    
+    first_checkin_data = None
+    if first_checkin:
+        staff = first_checkin.staff
+        school = staff.school
+        use_24h = school.time_format_24h if school.time_format_24h is not None else True
+        
+        if use_24h:
+            time_str = first_checkin.sign_in_time.strftime('%H:%M')
+        else:
+            time_str = first_checkin.sign_in_time.strftime('%I:%M %p')
+        
+        first_checkin_data = {
+            'name': staff.name,
+            'branch': school.name if school else '-',
+            'department': staff.department or '-',
+            'time': time_str
+        }
+    
+    # Recent activity (last 10 check-ins/outs)
+    recent = Attendance.query.join(Staff).join(School).filter(
+        Staff.school_id.in_(school_ids),
+        Attendance.date == today
+    ).order_by(Attendance.updated_at.desc()).limit(10).all()
+    
     recent_activity = []
-    if non_mgmt_ids:
-        recent_checkins = Attendance.query.filter(Attendance.staff_id.in_(non_mgmt_ids), Attendance.date == today).order_by(Attendance.sign_in_time.desc()).limit(20).all()
-        for checkin in recent_checkins:
-            staff = Staff.query.get(checkin.staff_id)
-            if staff and staff.school:
-                recent_activity.append({'name': staff.name, 'time': checkin.sign_in_time.strftime('%H:%M') if checkin.sign_in_time else '', 'branch': staff.school.short_name or staff.school.name})
-    return jsonify({'total_schools': total_schools, 'total_staff': total_staff, 'management_count': management_count, 'today_attendance': today_attendance, 'late_today': late_today, 'absent_today': absent_today, 'first_checkin': first_checkin, 'recent_activity': recent_activity})
+    for r in recent:
+        staff = r.staff
+        school = staff.school
+        use_24h = school.time_format_24h if school.time_format_24h is not None else True
+        
+        if r.sign_out_time:
+            action = 'signed out'
+            if use_24h:
+                time_str = r.sign_out_time.strftime('%H:%M')
+            else:
+                time_str = r.sign_out_time.strftime('%I:%M %p')
+        elif r.sign_in_time:
+            action = 'signed in'
+            if use_24h:
+                time_str = r.sign_in_time.strftime('%H:%M')
+            else:
+                time_str = r.sign_in_time.strftime('%I:%M %p')
+        else:
+            continue
+        
+        recent_activity.append({
+            'name': staff.name,
+            'action': action,
+            'time': time_str,
+            'branch': school.name if school else '-'
+        })
+    
+    return jsonify({
+        'total_schools': len(schools),
+        'total_staff': total_staff,
+        'management_count': management_count,
+        'today_attendance': today_attendance,
+        'late_today': late_today,
+        'absent_today': absent_today,
+        'first_checkin': first_checkin_data,
+        'recent_activity': recent_activity
+    })
 
 
 @app.route('/api/search-staff')
@@ -3366,6 +3435,7 @@ if __name__ == '__main__':
     with app.app_context():
         db.create_all()
     app.run(debug=True, host='0.0.0.0', port=int(os.environ.get('PORT', 5000)))
+
 
 
 
