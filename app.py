@@ -878,7 +878,7 @@ def api_dashboard_stats():
         
         first_checkin_data = {
             'name': staff.name,
-            'branch': school.name if school else '-',
+            'branch': school.short_name or school.name if school else '-',
             'department': staff.department or '-',
             'time': time_str
         }
@@ -914,7 +914,7 @@ def api_dashboard_stats():
             'name': staff.name,
             'action': action,
             'time': time_str,
-            'branch': school.name if school else '-'
+            'branch': school.short_name or school.name if school else '-'
         })
     
     return jsonify({
@@ -3437,6 +3437,7 @@ if __name__ == '__main__':
     with app.app_context():
         db.create_all()
     app.run(debug=True, host='0.0.0.0', port=int(os.environ.get('PORT', 5000)))
+
 
 
 
