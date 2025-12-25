@@ -104,14 +104,17 @@
 
 <script>
 function loadDepartments(branchId) {
+    console.log('loadDepartments called with branchId:', branchId);
     var deptSelect = document.getElementById('department');
     
     if (branchId) {
         var xhr = new XMLHttpRequest();
         xhr.open('GET', '/api/branch-departments/' + branchId, true);
         xhr.onreadystatechange = function() {
+            console.log('XHR state:', xhr.readyState, 'status:', xhr.status);
             if (xhr.readyState === 4 && xhr.status === 200) {
                 var data = JSON.parse(xhr.responseText);
+                console.log('Departments received:', data);
                 deptSelect.innerHTML = '<option value="">Select Department</option>';
                 for (var i = 0; i < data.length; i++) {
                     var option = document.createElement('option');
@@ -155,11 +158,17 @@ function loadBranches(orgId) {
 }
 
 window.onload = function() {
+    console.log('Window loaded');
     var branchSelect = document.getElementById('school_id');
     var orgSelect = document.getElementById('organization');
     
+    console.log('branchSelect:', branchSelect);
+    console.log('orgSelect:', orgSelect);
+    
     if (branchSelect) {
+        console.log('Attaching onchange to branchSelect');
         branchSelect.onchange = function() {
+            console.log('Branch changed to:', this.value);
             loadDepartments(this.value);
         };
     }
@@ -170,7 +179,9 @@ window.onload = function() {
         };
     }
     
-    if (branchSelect && branchSelect.options.length === 2) {
+    // Auto-load for single branch (when not super_admin and only one branch option)
+    if (branchSelect && !orgSelect && branchSelect.options.length === 2) {
+        console.log('Auto-selecting single branch');
         branchSelect.selectedIndex = 1;
         loadDepartments(branchSelect.value);
     }
