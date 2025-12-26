@@ -1164,10 +1164,38 @@
     <!-- Leaderboard -->
     <div class="leaderboard-wrapper" style="flex: 3;">
         <div class="card leaderboard-card">
-            <div class="card-header">
-                <i class="fas fa-trophy me-2"></i>Leaderboard
-                <small class="text-muted ms-2">— This Week</small>
+            <div class="card-header d-flex justify-content-between align-items-center flex-wrap gap-2">
+                <div>
+                    <i class="fas fa-trophy me-2"></i>Leaderboard
+                </div>
+                <select class="form-select form-select-sm" id="leaderboardPeriod" style="width: auto; font-size: 0.75rem;">
+                    <option value="today">Today</option>
+                    <option value="7" selected>Last 7 Days</option>
+                    <option value="14">Last 14 Days</option>
+                    <option value="30">Last 30 Days</option>
+                    <option value="this_week">This Week</option>
+                    <option value="last_week">Last Week</option>
+                    <option value="this_month">This Month</option>
+                    <option value="last_month">Last Month</option>
+                    <option value="custom">Custom Range</option>
+                </select>
             </div>
+            
+            <!-- Custom Date Range (hidden by default) -->
+            <div class="custom-date-range px-3 py-2 bg-light" id="customDateRange" style="display: none;">
+                <div class="d-flex gap-2 align-items-center">
+                    <input type="date" class="form-control form-control-sm" id="leaderboardStartDate" style="font-size: 0.75rem;">
+                    <span class="text-muted">to</span>
+                    <input type="date" class="form-control form-control-sm" id="leaderboardEndDate" style="font-size: 0.75rem;">
+                    <button class="btn btn-sm btn-primary" onclick="updateLeaderboard()" style="font-size: 0.7rem;">Go</button>
+                </div>
+            </div>
+            
+            <!-- Period Label -->
+            <div class="px-3 pt-2">
+                <small class="text-muted" id="leaderboardPeriodLabel">Loading...</small>
+            </div>
+            
             <div class="card-body">
                 <!-- First to Arrive -->
                 <div class="leaderboard-section">
@@ -1347,20 +1375,59 @@ function renderLeaderboardList(listId, data, valueFormatter) {
 }
 
 function updateLeaderboard() {
-    fetch('/api/leaderboard')
+    const periodSelect = document.getElementById('leaderboardPeriod');
+    const period = periodSelect.value;
+    
+    let url = `/api/leaderboard?period=${period}`;
+    
+    if (period === 'custom') {
+        const startDate = document.getElementById('leaderboardStartDate').value;
+        const endDate = document.getElementById('leaderboardEndDate').value;
+        if (startDate && endDate) {
+            url += `&start_date=${startDate}&end_date=${endDate}`;
+        }
+    }
+    
+    // Show loading state
+    document.getElementById('firstToArriveList').innerHTML = '<li class="leaderboard-empty"><i class="fas fa-spinner fa-spin me-2"></i>Loading...</li>';
+    document.getElementById('bestStreakList').innerHTML = '<li class="leaderboard-empty"><i class="fas fa-spinner fa-spin me-2"></i>Loading...</li>';
+    document.getElementById('perfectPunctualityList').innerHTML = '<li class="leaderboard-empty"><i class="fas fa-spinner fa-spin me-2"></i>Loading...</li>';
+    
+    fetch(url)
         .then(response => response.json())
         .then(data => {
             renderLeaderboardList('firstToArriveList', data.first_to_arrive, item => item.avg_time);
             renderLeaderboardList('bestStreakList', data.best_streak, item => `${item.streak} days`);
             renderLeaderboardList('perfectPunctualityList', data.perfect_punctuality, item => `${item.days} days`);
+            
+            if (data.period_label) {
+                document.getElementById('leaderboardPeriodLabel').textContent = data.period_label;
+            }
         })
         .catch(error => {
             console.log('Leaderboard error:', error);
-            document.getElementById('firstToArriveList').innerHTML = '<li class="leaderboard-empty">Error loading</li>';
-            document.getElementById('bestStreakList').innerHTML = '<li class="leaderboard-empty">Error loading</li>';
-            document.getElementById('perfectPunctualityList').innerHTML = '<li class="leaderboard-empty">Error loading</li>';
+            document.getElementById('firstToArriveList').innerHTML = '<li class="leaderboard-empty"><i class="fas fa-exclamation-circle me-2"></i>Error loading</li>';
+            document.getElementById('bestStreakList').innerHTML = '<li class="leaderboard-empty"><i class="fas fa-exclamation-circle me-2"></i>Error loading</li>';
+            document.getElementById('perfectPunctualityList').innerHTML = '<li class="leaderboard-empty"><i class="fas fa-exclamation-circle me-2"></i>Error loading</li>';
         });
 }
+
+// Period selector change handler
+document.getElementById('leaderboardPeriod').addEventListener('change', function() {
+    const customRange = document.getElementById('customDateRange');
+    if (this.value === 'custom') {
+        customRange.style.display = 'block';
+        // Set default dates
+        const today = new Date();
+        const weekAgo = new Date(today);
+        weekAgo.setDate(weekAgo.getDate() - 7);
+        document.getElementById('leaderboardEndDate').value = today.toISOString().split('T')[0];
+        document.getElementById('leaderboardStartDate').value = weekAgo.toISOString().split('T')[0];
+    } else {
+        customRange.style.display = 'none';
+        updateLeaderboard();
+    }
+});
 
 // Dashboard Refresh
 function refreshDashboard() {
@@ -1403,7 +1470,7 @@ setTimeout(updateLeaderboard, 1500);
 
 // Periodic refresh
 setInterval(refreshDashboard, 15000);
-setInterval(updateLeaderboard, 60000); // Update leaderboard every minute
+setInterval(updateLeaderboard, 60000);
 
 // Expandable Branch Rows
 let currentExpandedBranch = null;
