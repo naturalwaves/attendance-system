@@ -941,7 +941,203 @@ def api_dashboard_stats():
         'recent_activity': recent_activity
     })
 
-
+@app.route('/api/leaderboard')
+@login_required
+def api_leaderboard():
+    from datetime import datetime, timedelta
+    
+    period = request.args.get('period', '7')
+    today = datetime.now().date()
+    
+    if period == 'today':
+        start_date = today
+    elif period == '7':
+        start_date = today - timedelta(days=7)
+    elif period == '14':
+        start_date = today - timedelta(days=14)
+    elif period == '30':
+        start_date = today - timedelta(days=30)
+    elif period == 'this_month':
+        start_date = today.replace(day=1)
+    elif period == 'custom':
+        start_str = request.args.get('start_date', '')
+        end_str = request.args.get('end_date', '')
+        try:
+            start_date = datetime.strptime(start_str, '%Y-%m-%d').date()
+            today = datetime.strptime(end_str, '%Y-%m-%d').date()
+        except:
+            start_date = today - timedelta(days=7)
+    else:
+        start_date = today - timedelta(days=7)
+    
+    if current_user.role == 'super_admin':
+        accessible_school_ids = [s.id for s in School.query.all()]
+    else:
+        accessible_school_ids = current_user.get_accessible_school_ids()
+    
+    if not accessible_school_ids:
+        return jsonify({
+            'first_to_arrive': [],
+            'best_streak': [],
+            'perfect_punctuality': [],
+            'period_label': f"{start_date.strftime('%d %b')} - {today.strftime('%d %b %Y')}"
+        })
+    
+    first_to_arrive = []
+    try:
+        attendance_records = db.session.query(
+            Staff.id,
+            Staff.name,
+            School.short_name,
+            School.name.label('school_name'),
+            Attendance.sign_in_time
+        ).join(
+            Attendance, Staff.id == Attendance.staff_id
+        ).join(
+            School, Staff.school_id == School.id
+        ).filter(
+            Attendance.date >= start_date,
+            Attendance.date <= today,
+            Attendance.sign_in_time.isnot(None),
+            Staff.school_id.in_(accessible_school_ids),
+            Staff.is_active == True
+        ).all()
+        
+        staff_times = {}
+        for record in attendance_records:
+            if record.id not in staff_times:
+                staff_times[record.id] = {
+                    'name': record.name,
+                    'branch': record.short_name or (record.school_name[:10] if record.school_name else 'N/A'),
+                    'times': []
+                }
+            if record.sign_in_time:
+                minutes = record.sign_in_time.hour * 60 + record.sign_in_time.minute
+                staff_times[record.id]['times'].append(minutes)
+        
+        for staff_id, data in staff_times.items():
+            if data['times']:
+                avg_minutes = sum(data['times']) / len(data['times'])
+                hours = int(avg_minutes // 60)
+                mins = int(avg_minutes % 60)
+                if hours < 12:
+                    time_str = f"{hours}:{mins:02d} AM"
+                elif hours == 12:
+                    time_str = f"12:{mins:02d} PM"
+                else:
+                    time_str = f"{hours - 12}:{mins:02d} PM"
+                first_to_arrive.append({
+                    'name': data['name'],
+                    'branch': data['branch'],
+                    'avg_time': time_str,
+                    'avg_minutes': avg_minutes
+                })
+        
+        first_to_arrive = sorted(first_to_arrive, key=lambda x: x['avg_minutes'])[:5]
+        for item in first_to_arrive:
+            del item['avg_minutes']
+            
+    except Exception as e:
+        print(f"First to arrive error: {e}")
+    
+    best_streak = []
+    try:
+        staff_list = Staff.query.filter(
+            Staff.school_id.in_(accessible_school_ids),
+            Staff.is_active == True
+        ).all()
+        
+        for staff in staff_list:
+            attendance_dates = db.session.query(Attendance.date).filter(
+                Attendance.staff_id == staff.id,
+                Attendance.sign_in_time.isnot(None)
+            ).order_by(Attendance.date.desc()).all()
+            
+            if not attendance_dates:
+                continue
+            
+            dates = [a.date for a in attendance_dates]
+            streak = 0
+            check_date = today
+            max_checks = 365
+            checks = 0
+            
+            while checks < max_checks:
+                if check_date in dates:
+                    streak += 1
+                    check_date -= timedelta(days=1)
+                elif check_date.weekday() >= 5:
+                    check_date -= timedelta(days=1)
+                else:
+                    break
+                checks += 1
+            
+            if streak > 0:
+                school = School.query.get(staff.school_id)
+                best_streak.append({
+                    'name': staff.name,
+                    'branch': school.short_name if school and school.short_name else (school.name[:10] if school else 'N/A'),
+                    'streak': streak
+                })
+        
+        best_streak = sorted(best_streak, key=lambda x: x['streak'], reverse=True)[:5]
+        
+    except Exception as e:
+        print(f"Best streak error: {e}")
+    
+    perfect_punctuality = []
+    try:
+        staff_with_attendance = db.session.query(
+            Staff.id,
+            Staff.name,
+            School.short_name,
+            School.name.label('school_name')
+        ).join(
+            Attendance, Staff.id == Attendance.staff_id
+        ).join(
+            School, Staff.school_id == School.id
+        ).filter(
+            Attendance.date >= start_date,
+            Attendance.date <= today,
+            Attendance.sign_in_time.isnot(None),
+            Staff.school_id.in_(accessible_school_ids),
+            Staff.is_active == True
+        ).distinct().all()
+        
+        for staff in staff_with_attendance:
+            total_days = Attendance.query.filter(
+                Attendance.staff_id == staff.id,
+                Attendance.date >= start_date,
+                Attendance.date <= today,
+                Attendance.sign_in_time.isnot(None)
+            ).count()
+            
+            late_days = Attendance.query.filter(
+                Attendance.staff_id == staff.id,
+                Attendance.date >= start_date,
+                Attendance.date <= today,
+                Attendance.sign_in_time.isnot(None),
+                Attendance.is_late == True
+            ).count()
+            
+            if late_days == 0 and total_days > 0:
+                perfect_punctuality.append({
+                    'name': staff.name,
+                    'branch': staff.short_name or (staff.school_name[:10] if staff.school_name else 'N/A'),
+                    'days': total_days
+                })
+        
+        perfect_punctuality = sorted(perfect_punctuality, key=lambda x: x['days'], reverse=True)[:5]
+        
+    except Exception as e:
+        print(f"Perfect punctuality error: {e}")
+    
+    return jsonify({
+        'first_to_arrive': first_to_arrive,
+        'best_streak': best_streak,
+        'perfect_punctuality': perfect_punctuality,
+        'period_label': f"{start_date.strftime('%d %b')} - {today.strftime('%d %b %Y')}"
+    })
 
 
 @app.route('/api/search-staff')
@@ -3460,6 +3656,7 @@ if __name__ == '__main__':
     with app.app_context():
         db.create_all()
     app.run(debug=True, host='0.0.0.0', port=int(os.environ.get('PORT', 5000)))
+
 
 
 
