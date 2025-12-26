@@ -949,27 +949,47 @@ def api_leaderboard():
     period = request.args.get('period', '7')
     today = datetime.now().date()
     
+    # Calculate date range based on period
     if period == 'today':
         start_date = today
+        end_date = today
     elif period == '7':
         start_date = today - timedelta(days=7)
+        end_date = today
     elif period == '14':
         start_date = today - timedelta(days=14)
+        end_date = today
     elif period == '30':
         start_date = today - timedelta(days=30)
+        end_date = today
+    elif period == 'this_week':
+        start_date = today - timedelta(days=today.weekday())
+        end_date = today
+    elif period == 'last_week':
+        start_date = today - timedelta(days=today.weekday() + 7)
+        end_date = today - timedelta(days=today.weekday() + 1)
     elif period == 'this_month':
         start_date = today.replace(day=1)
+        end_date = today
+    elif period == 'last_month':
+        first_of_this_month = today.replace(day=1)
+        last_month_end = first_of_this_month - timedelta(days=1)
+        start_date = last_month_end.replace(day=1)
+        end_date = last_month_end
     elif period == 'custom':
         start_str = request.args.get('start_date', '')
         end_str = request.args.get('end_date', '')
         try:
             start_date = datetime.strptime(start_str, '%Y-%m-%d').date()
-            today = datetime.strptime(end_str, '%Y-%m-%d').date()
+            end_date = datetime.strptime(end_str, '%Y-%m-%d').date()
         except:
             start_date = today - timedelta(days=7)
+            end_date = today
     else:
         start_date = today - timedelta(days=7)
+        end_date = today
     
+    # Get accessible schools for this user
     if current_user.role == 'super_admin':
         accessible_school_ids = [s.id for s in School.query.all()]
     else:
@@ -980,9 +1000,10 @@ def api_leaderboard():
             'first_to_arrive': [],
             'best_streak': [],
             'perfect_punctuality': [],
-            'period_label': f"{start_date.strftime('%d %b')} - {today.strftime('%d %b %Y')}"
+            'period_label': f"{start_date.strftime('%d %b')} - {end_date.strftime('%d %b %Y')}"
         })
     
+    # First to Arrive - earliest average sign-in time
     first_to_arrive = []
     try:
         attendance_records = db.session.query(
@@ -997,7 +1018,7 @@ def api_leaderboard():
             School, Staff.school_id == School.id
         ).filter(
             Attendance.date >= start_date,
-            Attendance.date <= today,
+            Attendance.date <= end_date,
             Attendance.sign_in_time.isnot(None),
             Staff.school_id.in_(accessible_school_ids),
             Staff.is_active == True
@@ -1040,6 +1061,7 @@ def api_leaderboard():
     except Exception as e:
         print(f"First to arrive error: {e}")
     
+    # Best Attendance Streak
     best_streak = []
     try:
         staff_list = Staff.query.filter(
@@ -1058,7 +1080,7 @@ def api_leaderboard():
             
             dates = [a.date for a in attendance_dates]
             streak = 0
-            check_date = today
+            check_date = end_date
             max_checks = 365
             checks = 0
             
@@ -1085,6 +1107,7 @@ def api_leaderboard():
     except Exception as e:
         print(f"Best streak error: {e}")
     
+    # Perfect Punctuality - zero late arrivals in period
     perfect_punctuality = []
     try:
         staff_with_attendance = db.session.query(
@@ -1098,7 +1121,7 @@ def api_leaderboard():
             School, Staff.school_id == School.id
         ).filter(
             Attendance.date >= start_date,
-            Attendance.date <= today,
+            Attendance.date <= end_date,
             Attendance.sign_in_time.isnot(None),
             Staff.school_id.in_(accessible_school_ids),
             Staff.is_active == True
@@ -1108,14 +1131,14 @@ def api_leaderboard():
             total_days = Attendance.query.filter(
                 Attendance.staff_id == staff.id,
                 Attendance.date >= start_date,
-                Attendance.date <= today,
+                Attendance.date <= end_date,
                 Attendance.sign_in_time.isnot(None)
             ).count()
             
             late_days = Attendance.query.filter(
                 Attendance.staff_id == staff.id,
                 Attendance.date >= start_date,
-                Attendance.date <= today,
+                Attendance.date <= end_date,
                 Attendance.sign_in_time.isnot(None),
                 Attendance.is_late == True
             ).count()
@@ -1136,7 +1159,7 @@ def api_leaderboard():
         'first_to_arrive': first_to_arrive,
         'best_streak': best_streak,
         'perfect_punctuality': perfect_punctuality,
-        'period_label': f"{start_date.strftime('%d %b')} - {today.strftime('%d %b %Y')}"
+        'period_label': f"{start_date.strftime('%d %b')} - {end_date.strftime('%d %b %Y')}"
     })
 
 
@@ -3656,6 +3679,7 @@ if __name__ == '__main__':
     with app.app_context():
         db.create_all()
     app.run(debug=True, host='0.0.0.0', port=int(os.environ.get('PORT', 5000)))
+
 
 
 
