@@ -4056,6 +4056,536 @@ def analytics_download_streaks():
     except Exception as e:
         flash(f'Error generating report: {str(e)}', 'error')
         return redirect(url_for('analytics'))
+# ============== ANALYTICS VIEW ALL ROUTES ==============
+
+@app.route('/analytics/top-performers')
+@login_required
+def analytics_top_performers():
+    period = request.args.get('period', '30')
+    school_id = request.args.get('school_id', '')
+    organization_id = request.args.get('organization_id', '')
+    department_filter = request.args.get('department', '')
+    
+    today = date.today()
+    if period == 'today':
+        start_date = today
+        end_date = today
+    elif period == '7':
+        start_date = today - timedelta(days=7)
+        end_date = today
+    elif period == '14':
+        start_date = today - timedelta(days=14)
+        end_date = today
+    elif period == '30':
+        start_date = today - timedelta(days=30)
+        end_date = today
+    elif period == 'this_week':
+        start_date = today - timedelta(days=today.weekday())
+        end_date = today
+    elif period == 'last_week':
+        start_date = today - timedelta(days=today.weekday() + 7)
+        end_date = start_date + timedelta(days=6)
+    elif period == 'this_month':
+        start_date = today.replace(day=1)
+        end_date = today
+    elif period == 'last_month':
+        first_of_this_month = today.replace(day=1)
+        end_date = first_of_this_month - timedelta(days=1)
+        start_date = end_date.replace(day=1)
+    else:
+        start_date = today - timedelta(days=30)
+        end_date = today
+    
+    accessible_school_ids = current_user.get_accessible_school_ids()
+    staff_query = Staff.query.filter_by(is_active=True)
+    
+    if organization_id:
+        org_school_ids = [s.id for s in School.query.filter_by(organization_id=int(organization_id)).all()]
+        staff_query = staff_query.filter(Staff.school_id.in_(org_school_ids))
+    elif school_id:
+        staff_query = staff_query.filter_by(school_id=int(school_id))
+    elif current_user.role != 'super_admin' and accessible_school_ids:
+        staff_query = staff_query.filter(Staff.school_id.in_(accessible_school_ids))
+    
+    if department_filter:
+        staff_query = staff_query.filter_by(department=department_filter)
+    
+    all_staff = staff_query.all()
+    staff_ids = [s.id for s in all_staff]
+    
+    current_attendance = Attendance.query.filter(
+        Attendance.staff_id.in_(staff_ids),
+        Attendance.date >= start_date,
+        Attendance.date <= end_date
+    ).all() if staff_ids else []
+    
+    performers = []
+    for s in all_staff:
+        if s.department == 'Management':
+            continue
+        staff_attendance = [a for a in current_attendance if a.staff_id == s.id]
+        if len(staff_attendance) >= 1:
+            on_time = sum(1 for a in staff_attendance if not a.is_late)
+            punctuality = round((on_time / len(staff_attendance)) * 100, 1)
+            performers.append({
+                'staff': s,
+                'punctuality': punctuality,
+                'on_time': on_time,
+                'total': len(staff_attendance)
+            })
+    
+    performers.sort(key=lambda x: x['punctuality'], reverse=True)
+    
+    return render_template('analytics_top_performers.html',
+        performers=performers,
+        period=period,
+        start_date=start_date.strftime('%Y-%m-%d'),
+        end_date=end_date.strftime('%Y-%m-%d'),
+        school_id=school_id,
+        organization_id=organization_id,
+        department=department_filter
+    )
+
+
+@app.route('/analytics/needs-attention')
+@login_required
+def analytics_needs_attention():
+    period = request.args.get('period', '30')
+    school_id = request.args.get('school_id', '')
+    organization_id = request.args.get('organization_id', '')
+    department_filter = request.args.get('department', '')
+    
+    today = date.today()
+    if period == 'today':
+        start_date = today
+        end_date = today
+    elif period == '7':
+        start_date = today - timedelta(days=7)
+        end_date = today
+    elif period == '14':
+        start_date = today - timedelta(days=14)
+        end_date = today
+    elif period == '30':
+        start_date = today - timedelta(days=30)
+        end_date = today
+    elif period == 'this_week':
+        start_date = today - timedelta(days=today.weekday())
+        end_date = today
+    elif period == 'last_week':
+        start_date = today - timedelta(days=today.weekday() + 7)
+        end_date = start_date + timedelta(days=6)
+    elif period == 'this_month':
+        start_date = today.replace(day=1)
+        end_date = today
+    elif period == 'last_month':
+        first_of_this_month = today.replace(day=1)
+        end_date = first_of_this_month - timedelta(days=1)
+        start_date = end_date.replace(day=1)
+    else:
+        start_date = today - timedelta(days=30)
+        end_date = today
+    
+    accessible_school_ids = current_user.get_accessible_school_ids()
+    staff_query = Staff.query.filter_by(is_active=True)
+    
+    if organization_id:
+        org_school_ids = [s.id for s in School.query.filter_by(organization_id=int(organization_id)).all()]
+        staff_query = staff_query.filter(Staff.school_id.in_(org_school_ids))
+    elif school_id:
+        staff_query = staff_query.filter_by(school_id=int(school_id))
+    elif current_user.role != 'super_admin' and accessible_school_ids:
+        staff_query = staff_query.filter(Staff.school_id.in_(accessible_school_ids))
+    
+    if department_filter:
+        staff_query = staff_query.filter_by(department=department_filter)
+    
+    all_staff = staff_query.all()
+    staff_ids = [s.id for s in all_staff]
+    
+    current_attendance = Attendance.query.filter(
+        Attendance.staff_id.in_(staff_ids),
+        Attendance.date >= start_date,
+        Attendance.date <= end_date
+    ).all() if staff_ids else []
+    
+    attention_list = []
+    for s in all_staff:
+        if s.department == 'Management':
+            continue
+        staff_attendance = [a for a in current_attendance if a.staff_id == s.id]
+        late_count = sum(1 for a in staff_attendance if a.is_late)
+        if late_count > 0:
+            attention_list.append({
+                'staff': s,
+                'late_count': late_count,
+                'total': len(staff_attendance)
+            })
+    
+    attention_list.sort(key=lambda x: x['late_count'], reverse=True)
+    
+    return render_template('analytics_needs_attention.html',
+        attention_list=attention_list,
+        period=period,
+        start_date=start_date.strftime('%Y-%m-%d'),
+        end_date=end_date.strftime('%Y-%m-%d'),
+        school_id=school_id,
+        organization_id=organization_id,
+        department=department_filter
+    )
+
+
+@app.route('/analytics/early-arrivals')
+@login_required
+def analytics_early_arrivals():
+    period = request.args.get('period', '30')
+    school_id = request.args.get('school_id', '')
+    organization_id = request.args.get('organization_id', '')
+    department_filter = request.args.get('department', '')
+    
+    today = date.today()
+    if period == 'today':
+        start_date = today
+        end_date = today
+    elif period == '7':
+        start_date = today - timedelta(days=7)
+        end_date = today
+    elif period == '14':
+        start_date = today - timedelta(days=14)
+        end_date = today
+    elif period == '30':
+        start_date = today - timedelta(days=30)
+        end_date = today
+    elif period == 'this_week':
+        start_date = today - timedelta(days=today.weekday())
+        end_date = today
+    elif period == 'last_week':
+        start_date = today - timedelta(days=today.weekday() + 7)
+        end_date = start_date + timedelta(days=6)
+    elif period == 'this_month':
+        start_date = today.replace(day=1)
+        end_date = today
+    elif period == 'last_month':
+        first_of_this_month = today.replace(day=1)
+        end_date = first_of_this_month - timedelta(days=1)
+        start_date = end_date.replace(day=1)
+    else:
+        start_date = today - timedelta(days=30)
+        end_date = today
+    
+    accessible_school_ids = current_user.get_accessible_school_ids()
+    staff_query = Staff.query.filter_by(is_active=True)
+    
+    if organization_id:
+        org_school_ids = [s.id for s in School.query.filter_by(organization_id=int(organization_id)).all()]
+        staff_query = staff_query.filter(Staff.school_id.in_(org_school_ids))
+    elif school_id:
+        staff_query = staff_query.filter_by(school_id=int(school_id))
+    elif current_user.role != 'super_admin' and accessible_school_ids:
+        staff_query = staff_query.filter(Staff.school_id.in_(accessible_school_ids))
+    
+    if department_filter:
+        staff_query = staff_query.filter_by(department=department_filter)
+    
+    all_staff = staff_query.all()
+    staff_ids = [s.id for s in all_staff]
+    
+    current_attendance = Attendance.query.filter(
+        Attendance.staff_id.in_(staff_ids),
+        Attendance.date >= start_date,
+        Attendance.date <= end_date
+    ).all() if staff_ids else []
+    
+    early_list = []
+    for s in all_staff:
+        if s.department == 'Management':
+            continue
+        staff_att = [a for a in current_attendance if a.staff_id == s.id and a.sign_in_time and not a.is_late]
+        if len(staff_att) >= 1:
+            early_mins_list = []
+            for a in staff_att:
+                if a.sign_in_time and s.school:
+                    start_time, end_time, grace_mins, is_shift = get_staff_schedule_for_date(s, a.date)
+                    if start_time:
+                        try:
+                            scheduled = datetime.strptime(start_time, '%H:%M').time()
+                            actual = a.sign_in_time.time()
+                            if actual < scheduled:
+                                delta = datetime.combine(a.date, scheduled) - datetime.combine(a.date, actual)
+                                early_mins_list.append(int(delta.total_seconds() / 60))
+                        except:
+                            pass
+            if early_mins_list:
+                avg_early = round(sum(early_mins_list) / len(early_mins_list), 0)
+                early_list.append({
+                    'staff': s,
+                    'avg_early_mins': int(avg_early),
+                    'early_count': len(early_mins_list)
+                })
+    
+    early_list.sort(key=lambda x: x['avg_early_mins'], reverse=True)
+    
+    return render_template('analytics_early_arrivals.html',
+        early_list=early_list,
+        period=period,
+        start_date=start_date.strftime('%Y-%m-%d'),
+        end_date=end_date.strftime('%Y-%m-%d'),
+        school_id=school_id,
+        organization_id=organization_id,
+        department=department_filter
+    )
+
+
+@app.route('/analytics/perfect-attendance')
+@login_required
+def analytics_perfect_attendance():
+    period = request.args.get('period', '30')
+    school_id = request.args.get('school_id', '')
+    organization_id = request.args.get('organization_id', '')
+    department_filter = request.args.get('department', '')
+    
+    today = date.today()
+    if period == 'today':
+        start_date = today
+        end_date = today
+    elif period == '7':
+        start_date = today - timedelta(days=7)
+        end_date = today
+    elif period == '14':
+        start_date = today - timedelta(days=14)
+        end_date = today
+    elif period == '30':
+        start_date = today - timedelta(days=30)
+        end_date = today
+    elif period == 'this_week':
+        start_date = today - timedelta(days=today.weekday())
+        end_date = today
+    elif period == 'last_week':
+        start_date = today - timedelta(days=today.weekday() + 7)
+        end_date = start_date + timedelta(days=6)
+    elif period == 'this_month':
+        start_date = today.replace(day=1)
+        end_date = today
+    elif period == 'last_month':
+        first_of_this_month = today.replace(day=1)
+        end_date = first_of_this_month - timedelta(days=1)
+        start_date = end_date.replace(day=1)
+    else:
+        start_date = today - timedelta(days=30)
+        end_date = today
+    
+    period_days = (end_date - start_date).days + 1
+    working_days = sum(1 for i in range(period_days) if (start_date + timedelta(days=i)).weekday() < 5)
+    
+    accessible_school_ids = current_user.get_accessible_school_ids()
+    staff_query = Staff.query.filter_by(is_active=True)
+    
+    if organization_id:
+        org_school_ids = [s.id for s in School.query.filter_by(organization_id=int(organization_id)).all()]
+        staff_query = staff_query.filter(Staff.school_id.in_(org_school_ids))
+    elif school_id:
+        staff_query = staff_query.filter_by(school_id=int(school_id))
+    elif current_user.role != 'super_admin' and accessible_school_ids:
+        staff_query = staff_query.filter(Staff.school_id.in_(accessible_school_ids))
+    
+    if department_filter:
+        staff_query = staff_query.filter_by(department=department_filter)
+    
+    all_staff = staff_query.all()
+    staff_ids = [s.id for s in all_staff]
+    
+    current_attendance = Attendance.query.filter(
+        Attendance.staff_id.in_(staff_ids),
+        Attendance.date >= start_date,
+        Attendance.date <= end_date
+    ).all() if staff_ids else []
+    
+    perfect_list = []
+    for s in all_staff:
+        if s.department == 'Management':
+            continue
+        staff_att = [a for a in current_attendance if a.staff_id == s.id]
+        staff_on_time = [a for a in staff_att if not a.is_late]
+        if len(staff_att) >= working_days and len(staff_on_time) == len(staff_att) and len(staff_att) > 0:
+            perfect_list.append({
+                'staff': s,
+                'days': len(staff_att)
+            })
+    
+    perfect_list.sort(key=lambda x: x['days'], reverse=True)
+    
+    return render_template('analytics_perfect_attendance.html',
+        perfect_list=perfect_list,
+        period=period,
+        start_date=start_date.strftime('%Y-%m-%d'),
+        end_date=end_date.strftime('%Y-%m-%d'),
+        school_id=school_id,
+        organization_id=organization_id,
+        department=department_filter
+    )
+
+
+@app.route('/analytics/most-improved')
+@login_required
+def analytics_most_improved():
+    period = request.args.get('period', '30')
+    school_id = request.args.get('school_id', '')
+    organization_id = request.args.get('organization_id', '')
+    department_filter = request.args.get('department', '')
+    
+    today = date.today()
+    if period == 'today':
+        start_date = today
+        end_date = today
+        period_days = 1
+    elif period == '7':
+        start_date = today - timedelta(days=7)
+        end_date = today
+        period_days = 7
+    elif period == '14':
+        start_date = today - timedelta(days=14)
+        end_date = today
+        period_days = 14
+    elif period == '30':
+        start_date = today - timedelta(days=30)
+        end_date = today
+        period_days = 30
+    elif period == 'this_week':
+        start_date = today - timedelta(days=today.weekday())
+        end_date = today
+        period_days = (end_date - start_date).days + 1
+    elif period == 'last_week':
+        start_date = today - timedelta(days=today.weekday() + 7)
+        end_date = start_date + timedelta(days=6)
+        period_days = 7
+    elif period == 'this_month':
+        start_date = today.replace(day=1)
+        end_date = today
+        period_days = (end_date - start_date).days + 1
+    elif period == 'last_month':
+        first_of_this_month = today.replace(day=1)
+        end_date = first_of_this_month - timedelta(days=1)
+        start_date = end_date.replace(day=1)
+        period_days = (end_date - start_date).days + 1
+    else:
+        start_date = today - timedelta(days=30)
+        end_date = today
+        period_days = 30
+    
+    previous_start = start_date - timedelta(days=period_days)
+    
+    accessible_school_ids = current_user.get_accessible_school_ids()
+    staff_query = Staff.query.filter_by(is_active=True)
+    
+    if organization_id:
+        org_school_ids = [s.id for s in School.query.filter_by(organization_id=int(organization_id)).all()]
+        staff_query = staff_query.filter(Staff.school_id.in_(org_school_ids))
+    elif school_id:
+        staff_query = staff_query.filter_by(school_id=int(school_id))
+    elif current_user.role != 'super_admin' and accessible_school_ids:
+        staff_query = staff_query.filter(Staff.school_id.in_(accessible_school_ids))
+    
+    if department_filter:
+        staff_query = staff_query.filter_by(department=department_filter)
+    
+    all_staff = staff_query.all()
+    staff_ids = [s.id for s in all_staff]
+    
+    current_attendance = Attendance.query.filter(
+        Attendance.staff_id.in_(staff_ids),
+        Attendance.date >= start_date,
+        Attendance.date <= end_date
+    ).all() if staff_ids else []
+    
+    previous_attendance = Attendance.query.filter(
+        Attendance.staff_id.in_(staff_ids),
+        Attendance.date >= previous_start,
+        Attendance.date < start_date
+    ).all() if staff_ids else []
+    
+    improved_list = []
+    for s in all_staff:
+        if s.department == 'Management':
+            continue
+        current_late = sum(1 for a in current_attendance if a.staff_id == s.id and a.is_late)
+        prev_late = sum(1 for a in previous_attendance if a.staff_id == s.id and a.is_late)
+        if prev_late > current_late and prev_late > 0:
+            reduction = prev_late - current_late
+            improved_list.append({
+                'staff': s,
+                'reduction': reduction,
+                'current_late': current_late,
+                'prev_late': prev_late
+            })
+    
+    improved_list.sort(key=lambda x: x['reduction'], reverse=True)
+    
+    return render_template('analytics_most_improved.html',
+        improved_list=improved_list,
+        period=period,
+        start_date=start_date.strftime('%Y-%m-%d'),
+        end_date=end_date.strftime('%Y-%m-%d'),
+        school_id=school_id,
+        organization_id=organization_id,
+        department=department_filter
+    )
+
+
+@app.route('/analytics/streaks')
+@login_required
+def analytics_streaks():
+    period = request.args.get('period', '30')
+    school_id = request.args.get('school_id', '')
+    organization_id = request.args.get('organization_id', '')
+    department_filter = request.args.get('department', '')
+    
+    today = date.today()
+    
+    accessible_school_ids = current_user.get_accessible_school_ids()
+    staff_query = Staff.query.filter_by(is_active=True)
+    
+    if organization_id:
+        org_school_ids = [s.id for s in School.query.filter_by(organization_id=int(organization_id)).all()]
+        staff_query = staff_query.filter(Staff.school_id.in_(org_school_ids))
+    elif school_id:
+        staff_query = staff_query.filter_by(school_id=int(school_id))
+    elif current_user.role != 'super_admin' and accessible_school_ids:
+        staff_query = staff_query.filter(Staff.school_id.in_(accessible_school_ids))
+    
+    if department_filter:
+        staff_query = staff_query.filter_by(department=department_filter)
+    
+    all_staff = staff_query.all()
+    
+    streaks_list = []
+    for s in all_staff:
+        if s.department == 'Management':
+            continue
+        staff_att = Attendance.query.filter_by(staff_id=s.id).order_by(Attendance.date.desc()).limit(60).all()
+        
+        streak = 0
+        for a in staff_att:
+            if not a.is_late:
+                streak += 1
+            else:
+                break
+        
+        if streak >= 1:
+            streaks_list.append({
+                'staff': s,
+                'streak': streak
+            })
+    
+    streaks_list.sort(key=lambda x: x['streak'], reverse=True)
+    
+    return render_template('analytics_streaks.html',
+        streaks_list=streaks_list,
+        period=period,
+        start_date=today.strftime('%Y-%m-%d'),
+        end_date=today.strftime('%Y-%m-%d'),
+        school_id=school_id,
+        organization_id=organization_id,
+        department=department_filter
+    )
 
 
 
@@ -4408,6 +4938,7 @@ if __name__ == '__main__':
     with app.app_context():
         db.create_all()
     app.run(debug=True, host='0.0.0.0', port=int(os.environ.get('PORT', 5000)))
+
 
 
 
