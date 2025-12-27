@@ -3334,101 +3334,6 @@ def analytics_pdf():
 # ANALYTICS - VIEW ALL & DOWNLOAD ROUTES
 # ============================================
 
-@app.route('/analytics/top-performers')
-@login_required
-def analytics_top_performers():
-    """View all top performers"""
-    period = request.args.get('period', 'today')
-    school_id = request.args.get('school_id', '')
-    organization_id = request.args.get('organization_id', '')
-    department = request.args.get('department', '')
-    
-    # Get date range based on period
-    today = datetime.now().date()
-    if period == 'today':
-        start_date = today
-        end_date = today
-    elif period == '7':
-        start_date = today - timedelta(days=7)
-        end_date = today
-    elif period == '14':
-        start_date = today - timedelta(days=14)
-        end_date = today
-    elif period == '30':
-        start_date = today - timedelta(days=30)
-        end_date = today
-    elif period == 'this_week':
-        start_date = today - timedelta(days=today.weekday())
-        end_date = today
-    elif period == 'last_week':
-        start_date = today - timedelta(days=today.weekday() + 7)
-        end_date = start_date + timedelta(days=6)
-    elif period == 'this_month':
-        start_date = today.replace(day=1)
-        end_date = today
-    elif period == 'last_month':
-        first_of_this_month = today.replace(day=1)
-        end_date = first_of_this_month - timedelta(days=1)
-        start_date = end_date.replace(day=1)
-    else:
-        start_date = today - timedelta(days=30)
-        end_date = today
-    
-    # Build staff query based on access
-    if current_user.role == 'super_admin':
-        staff_query = Staff.query
-    elif current_user.role in ['hr_viewer', 'ceo_viewer']:
-        if current_user.organization_id:
-            staff_query = Staff.query.join(School).filter(School.organization_id == current_user.organization_id)
-        else:
-            staff_query = Staff.query
-    else:
-        accessible_schools = [s.id for s in current_user.schools]
-        staff_query = Staff.query.filter(Staff.school_id.in_(accessible_schools))
-    
-    # Apply filters
-    if school_id:
-        staff_query = staff_query.filter(Staff.school_id == int(school_id))
-    if organization_id:
-        staff_query = staff_query.join(School).filter(School.organization_id == int(organization_id))
-    if department:
-        staff_query = staff_query.filter(Staff.department == department)
-    
-    staff_list = staff_query.filter(Staff.is_active == True).all()
-    
-    # Calculate punctuality for each staff
-    top_performers = []
-    for staff in staff_list:
-        attendance_records = Attendance.query.filter(
-            Attendance.staff_id == staff.id,
-            Attendance.date >= start_date,
-            Attendance.date <= end_date
-        ).all()
-        
-        if len(attendance_records) > 0:
-            on_time_count = sum(1 for a in attendance_records if not a.is_late)
-            punctuality = round((on_time_count / len(attendance_records)) * 100, 1)
-            
-            top_performers.append({
-                'staff': staff,
-                'punctuality': punctuality,
-                'total_records': len(attendance_records),
-                'on_time': on_time_count
-            })
-    
-    # Sort by punctuality descending
-    top_performers.sort(key=lambda x: x['punctuality'], reverse=True)
-    
-    return render_template('analytics_top_performers.html',
-                           top_performers=top_performers,
-                           period=period,
-                           start_date=start_date,
-                           end_date=end_date,
-                           school_id=school_id,
-                           organization_id=organization_id,
-                           department=department)
-
-
 @app.route('/analytics/top-performers/download')
 @login_required
 def analytics_download_top_performers():
@@ -3438,7 +3343,6 @@ def analytics_download_top_performers():
     organization_id = request.args.get('organization_id', '')
     department = request.args.get('department', '')
     
-    # Get date range based on period
     today = datetime.now().date()
     if period == 'today':
         start_date = today
@@ -3469,31 +3373,26 @@ def analytics_download_top_performers():
         start_date = today - timedelta(days=30)
         end_date = today
     
-    # Build staff query based on access
     if current_user.role == 'super_admin':
         staff_query = Staff.query
-    elif current_user.role in ['hr_viewer', 'ceo_viewer']:
-        if current_user.organization_id:
-            staff_query = Staff.query.join(School).filter(School.organization_id == current_user.organization_id)
-        else:
-            staff_query = Staff.query
     else:
-        accessible_schools = [s.id for s in current_user.schools]
-        staff_query = Staff.query.filter(Staff.school_id.in_(accessible_schools))
+        accessible_school_ids = current_user.get_accessible_school_ids()
+        staff_query = Staff.query.filter(Staff.school_id.in_(accessible_school_ids))
     
-    # Apply filters
     if school_id:
         staff_query = staff_query.filter(Staff.school_id == int(school_id))
     if organization_id:
-        staff_query = staff_query.join(School).filter(School.organization_id == int(organization_id))
+        org_school_ids = [s.id for s in School.query.filter_by(organization_id=int(organization_id)).all()]
+        staff_query = staff_query.filter(Staff.school_id.in_(org_school_ids))
     if department:
         staff_query = staff_query.filter(Staff.department == department)
     
     staff_list = staff_query.filter(Staff.is_active == True).all()
     
-    # Calculate punctuality for each staff
     top_performers = []
     for staff in staff_list:
+        if staff.department == 'Management':
+            continue
         attendance_records = Attendance.query.filter(
             Attendance.staff_id == staff.id,
             Attendance.date >= start_date,
@@ -3514,22 +3413,18 @@ def analytics_download_top_performers():
                 'on_time': on_time_count
             })
     
-    # Sort by punctuality descending
     top_performers.sort(key=lambda x: x['punctuality'], reverse=True)
     
-    # Create Excel file
     output = io.BytesIO()
     workbook = xlsxwriter.Workbook(output)
     worksheet = workbook.add_worksheet('Top Performers')
     
-    # Headers
     headers = ['Rank', 'Staff ID', 'Name', 'Branch', 'Department', 'Punctuality %', 'On Time', 'Total Records']
     header_format = workbook.add_format({'bold': True, 'bg_color': '#4CAF50', 'font_color': 'white'})
     
     for col, header in enumerate(headers):
         worksheet.write(0, col, header, header_format)
     
-    # Data
     for row, performer in enumerate(top_performers, start=1):
         worksheet.write(row, 0, row)
         worksheet.write(row, 1, performer['staff_id'])
@@ -3547,99 +3442,6 @@ def analytics_download_top_performers():
     return send_file(output, download_name=filename, as_attachment=True)
 
 
-@app.route('/analytics/needs-attention')
-@login_required
-def analytics_needs_attention():
-    """View all staff needing attention (frequently late)"""
-    period = request.args.get('period', 'today')
-    school_id = request.args.get('school_id', '')
-    organization_id = request.args.get('organization_id', '')
-    department = request.args.get('department', '')
-    
-    # Get date range based on period
-    today = datetime.now().date()
-    if period == 'today':
-        start_date = today
-        end_date = today
-    elif period == '7':
-        start_date = today - timedelta(days=7)
-        end_date = today
-    elif period == '14':
-        start_date = today - timedelta(days=14)
-        end_date = today
-    elif period == '30':
-        start_date = today - timedelta(days=30)
-        end_date = today
-    elif period == 'this_week':
-        start_date = today - timedelta(days=today.weekday())
-        end_date = today
-    elif period == 'last_week':
-        start_date = today - timedelta(days=today.weekday() + 7)
-        end_date = start_date + timedelta(days=6)
-    elif period == 'this_month':
-        start_date = today.replace(day=1)
-        end_date = today
-    elif period == 'last_month':
-        first_of_this_month = today.replace(day=1)
-        end_date = first_of_this_month - timedelta(days=1)
-        start_date = end_date.replace(day=1)
-    else:
-        start_date = today - timedelta(days=30)
-        end_date = today
-    
-    # Build staff query based on access
-    if current_user.role == 'super_admin':
-        staff_query = Staff.query
-    elif current_user.role in ['hr_viewer', 'ceo_viewer']:
-        if current_user.organization_id:
-            staff_query = Staff.query.join(School).filter(School.organization_id == current_user.organization_id)
-        else:
-            staff_query = Staff.query
-    else:
-        accessible_schools = [s.id for s in current_user.schools]
-        staff_query = Staff.query.filter(Staff.school_id.in_(accessible_schools))
-    
-    # Apply filters
-    if school_id:
-        staff_query = staff_query.filter(Staff.school_id == int(school_id))
-    if organization_id:
-        staff_query = staff_query.join(School).filter(School.organization_id == int(organization_id))
-    if department:
-        staff_query = staff_query.filter(Staff.department == department)
-    
-    staff_list = staff_query.filter(Staff.is_active == True).all()
-    
-    # Calculate late count for each staff
-    needs_attention = []
-    for staff in staff_list:
-        attendance_records = Attendance.query.filter(
-            Attendance.staff_id == staff.id,
-            Attendance.date >= start_date,
-            Attendance.date <= end_date
-        ).all()
-        
-        late_count = sum(1 for a in attendance_records if a.is_late)
-        
-        if late_count > 0:
-            needs_attention.append({
-                'staff': staff,
-                'late_count': late_count,
-                'total_records': len(attendance_records)
-            })
-    
-    # Sort by late count descending
-    needs_attention.sort(key=lambda x: x['late_count'], reverse=True)
-    
-    return render_template('analytics_needs_attention.html',
-                           needs_attention=needs_attention,
-                           period=period,
-                           start_date=start_date,
-                           end_date=end_date,
-                           school_id=school_id,
-                           organization_id=organization_id,
-                           department=department)
-
-
 @app.route('/analytics/needs-attention/download')
 @login_required
 def analytics_download_needs_attention():
@@ -3649,7 +3451,6 @@ def analytics_download_needs_attention():
     organization_id = request.args.get('organization_id', '')
     department = request.args.get('department', '')
     
-    # Get date range based on period
     today = datetime.now().date()
     if period == 'today':
         start_date = today
@@ -3680,31 +3481,26 @@ def analytics_download_needs_attention():
         start_date = today - timedelta(days=30)
         end_date = today
     
-    # Build staff query based on access
     if current_user.role == 'super_admin':
         staff_query = Staff.query
-    elif current_user.role in ['hr_viewer', 'ceo_viewer']:
-        if current_user.organization_id:
-            staff_query = Staff.query.join(School).filter(School.organization_id == current_user.organization_id)
-        else:
-            staff_query = Staff.query
     else:
-        accessible_schools = [s.id for s in current_user.schools]
-        staff_query = Staff.query.filter(Staff.school_id.in_(accessible_schools))
+        accessible_school_ids = current_user.get_accessible_school_ids()
+        staff_query = Staff.query.filter(Staff.school_id.in_(accessible_school_ids))
     
-    # Apply filters
     if school_id:
         staff_query = staff_query.filter(Staff.school_id == int(school_id))
     if organization_id:
-        staff_query = staff_query.join(School).filter(School.organization_id == int(organization_id))
+        org_school_ids = [s.id for s in School.query.filter_by(organization_id=int(organization_id)).all()]
+        staff_query = staff_query.filter(Staff.school_id.in_(org_school_ids))
     if department:
         staff_query = staff_query.filter(Staff.department == department)
     
     staff_list = staff_query.filter(Staff.is_active == True).all()
     
-    # Calculate late count for each staff
     needs_attention = []
     for staff in staff_list:
+        if staff.department == 'Management':
+            continue
         attendance_records = Attendance.query.filter(
             Attendance.staff_id == staff.id,
             Attendance.date >= start_date,
@@ -3723,22 +3519,18 @@ def analytics_download_needs_attention():
                 'total_records': len(attendance_records)
             })
     
-    # Sort by late count descending
     needs_attention.sort(key=lambda x: x['late_count'], reverse=True)
     
-    # Create Excel file
     output = io.BytesIO()
     workbook = xlsxwriter.Workbook(output)
     worksheet = workbook.add_worksheet('Needs Attention')
     
-    # Headers
     headers = ['Rank', 'Staff ID', 'Name', 'Branch', 'Department', 'Times Late', 'Total Records']
     header_format = workbook.add_format({'bold': True, 'bg_color': '#f44336', 'font_color': 'white'})
     
     for col, header in enumerate(headers):
         worksheet.write(0, col, header, header_format)
     
-    # Data
     for row, staff in enumerate(needs_attention, start=1):
         worksheet.write(row, 0, row)
         worksheet.write(row, 1, staff['staff_id'])
@@ -3755,118 +3547,6 @@ def analytics_download_needs_attention():
     return send_file(output, download_name=filename, as_attachment=True)
 
 
-@app.route('/analytics/early-arrivals')
-@login_required
-def analytics_early_arrivals():
-    """View all early arrivals champions"""
-    period = request.args.get('period', 'today')
-    school_id = request.args.get('school_id', '')
-    organization_id = request.args.get('organization_id', '')
-    department = request.args.get('department', '')
-    
-    # Get date range based on period
-    today = datetime.now().date()
-    if period == 'today':
-        start_date = today
-        end_date = today
-    elif period == '7':
-        start_date = today - timedelta(days=7)
-        end_date = today
-    elif period == '14':
-        start_date = today - timedelta(days=14)
-        end_date = today
-    elif period == '30':
-        start_date = today - timedelta(days=30)
-        end_date = today
-    elif period == 'this_week':
-        start_date = today - timedelta(days=today.weekday())
-        end_date = today
-    elif period == 'last_week':
-        start_date = today - timedelta(days=today.weekday() + 7)
-        end_date = start_date + timedelta(days=6)
-    elif period == 'this_month':
-        start_date = today.replace(day=1)
-        end_date = today
-    elif period == 'last_month':
-        first_of_this_month = today.replace(day=1)
-        end_date = first_of_this_month - timedelta(days=1)
-        start_date = end_date.replace(day=1)
-    else:
-        start_date = today - timedelta(days=30)
-        end_date = today
-    
-    # Build staff query based on access
-    if current_user.role == 'super_admin':
-        staff_query = Staff.query
-    elif current_user.role in ['hr_viewer', 'ceo_viewer']:
-        if current_user.organization_id:
-            staff_query = Staff.query.join(School).filter(School.organization_id == current_user.organization_id)
-        else:
-            staff_query = Staff.query
-    else:
-        accessible_schools = [s.id for s in current_user.schools]
-        staff_query = Staff.query.filter(Staff.school_id.in_(accessible_schools))
-    
-    # Apply filters
-    if school_id:
-        staff_query = staff_query.filter(Staff.school_id == int(school_id))
-    if organization_id:
-        staff_query = staff_query.join(School).filter(School.organization_id == int(organization_id))
-    if department:
-        staff_query = staff_query.filter(Staff.department == department)
-    
-    staff_list = staff_query.filter(Staff.is_active == True).all()
-    
-    # Calculate early arrival stats for each staff
-    early_arrivals = []
-    for staff in staff_list:
-        attendance_records = Attendance.query.filter(
-            Attendance.staff_id == staff.id,
-            Attendance.date >= start_date,
-            Attendance.date <= end_date,
-            Attendance.is_late == False
-        ).all()
-        
-        if len(attendance_records) > 0:
-            # Calculate average early minutes (this is simplified - adjust based on your actual logic)
-            total_early_mins = 0
-            early_count = 0
-            
-            for record in attendance_records:
-                if record.time_in and staff.school:
-                    # Get expected start time
-                    expected_start = staff.school.start_time
-                    if expected_start:
-                        expected_datetime = datetime.combine(record.date, expected_start)
-                        actual_datetime = datetime.combine(record.date, record.time_in)
-                        
-                        if actual_datetime < expected_datetime:
-                            diff = (expected_datetime - actual_datetime).total_seconds() / 60
-                            total_early_mins += diff
-                            early_count += 1
-            
-            avg_early = round(total_early_mins / early_count, 1) if early_count > 0 else 0
-            
-            if avg_early > 0:
-                early_arrivals.append({
-                    'staff': staff,
-                    'avg_early_mins': avg_early,
-                    'early_count': early_count
-                })
-    
-    # Sort by average early minutes descending
-    early_arrivals.sort(key=lambda x: x['avg_early_mins'], reverse=True)
-    
-    return render_template('analytics_early_arrivals.html',
-                           early_arrivals=early_arrivals,
-                           period=period,
-                           start_date=start_date,
-                           end_date=end_date,
-                           school_id=school_id,
-                           organization_id=organization_id,
-                           department=department)
-
-
 @app.route('/analytics/early-arrivals/download')
 @login_required
 def analytics_download_early_arrivals():
@@ -3876,7 +3556,6 @@ def analytics_download_early_arrivals():
     organization_id = request.args.get('organization_id', '')
     department = request.args.get('department', '')
     
-    # Get date range based on period
     today = datetime.now().date()
     if period == 'today':
         start_date = today
@@ -3907,36 +3586,32 @@ def analytics_download_early_arrivals():
         start_date = today - timedelta(days=30)
         end_date = today
     
-    # Build staff query based on access
     if current_user.role == 'super_admin':
         staff_query = Staff.query
-    elif current_user.role in ['hr_viewer', 'ceo_viewer']:
-        if current_user.organization_id:
-            staff_query = Staff.query.join(School).filter(School.organization_id == current_user.organization_id)
-        else:
-            staff_query = Staff.query
     else:
-        accessible_schools = [s.id for s in current_user.schools]
-        staff_query = Staff.query.filter(Staff.school_id.in_(accessible_schools))
+        accessible_school_ids = current_user.get_accessible_school_ids()
+        staff_query = Staff.query.filter(Staff.school_id.in_(accessible_school_ids))
     
-    # Apply filters
     if school_id:
         staff_query = staff_query.filter(Staff.school_id == int(school_id))
     if organization_id:
-        staff_query = staff_query.join(School).filter(School.organization_id == int(organization_id))
+        org_school_ids = [s.id for s in School.query.filter_by(organization_id=int(organization_id)).all()]
+        staff_query = staff_query.filter(Staff.school_id.in_(org_school_ids))
     if department:
         staff_query = staff_query.filter(Staff.department == department)
     
     staff_list = staff_query.filter(Staff.is_active == True).all()
     
-    # Calculate early arrival stats for each staff
     early_arrivals = []
     for staff in staff_list:
+        if staff.department == 'Management':
+            continue
         attendance_records = Attendance.query.filter(
             Attendance.staff_id == staff.id,
             Attendance.date >= start_date,
             Attendance.date <= end_date,
-            Attendance.is_late == False
+            Attendance.is_late == False,
+            Attendance.sign_in_time.isnot(None)
         ).all()
         
         if len(attendance_records) > 0:
@@ -3944,16 +3619,21 @@ def analytics_download_early_arrivals():
             early_count = 0
             
             for record in attendance_records:
-                if record.time_in and staff.school:
-                    expected_start = staff.school.start_time
-                    if expected_start:
-                        expected_datetime = datetime.combine(record.date, expected_start)
-                        actual_datetime = datetime.combine(record.date, record.time_in)
-                        
-                        if actual_datetime < expected_datetime:
-                            diff = (expected_datetime - actual_datetime).total_seconds() / 60
-                            total_early_mins += diff
-                            early_count += 1
+                if record.sign_in_time and staff.school:
+                    start_time_str, end_time_str, grace_mins, is_shift = get_staff_schedule_for_date(staff, record.date)
+                    if start_time_str:
+                        try:
+                            scheduled_start = datetime.strptime(start_time_str, '%H:%M').time()
+                            actual_time = record.sign_in_time.time()
+                            
+                            if actual_time < scheduled_start:
+                                scheduled_dt = datetime.combine(record.date, scheduled_start)
+                                actual_dt = datetime.combine(record.date, actual_time)
+                                diff = (scheduled_dt - actual_dt).total_seconds() / 60
+                                total_early_mins += diff
+                                early_count += 1
+                        except:
+                            pass
             
             avg_early = round(total_early_mins / early_count, 1) if early_count > 0 else 0
             
@@ -3967,22 +3647,18 @@ def analytics_download_early_arrivals():
                     'early_count': early_count
                 })
     
-    # Sort by average early minutes descending
     early_arrivals.sort(key=lambda x: x['avg_early_mins'], reverse=True)
     
-    # Create Excel file
     output = io.BytesIO()
     workbook = xlsxwriter.Workbook(output)
     worksheet = workbook.add_worksheet('Early Arrivals')
     
-    # Headers
     headers = ['Rank', 'Staff ID', 'Name', 'Branch', 'Department', 'Avg Early (mins)', 'Times Early']
     header_format = workbook.add_format({'bold': True, 'bg_color': '#2196F3', 'font_color': 'white'})
     
     for col, header in enumerate(headers):
         worksheet.write(0, col, header, header_format)
     
-    # Data
     for row, staff in enumerate(early_arrivals, start=1):
         worksheet.write(row, 0, row)
         worksheet.write(row, 1, staff['staff_id'])
@@ -3999,108 +3675,6 @@ def analytics_download_early_arrivals():
     return send_file(output, download_name=filename, as_attachment=True)
 
 
-@app.route('/analytics/perfect-attendance')
-@login_required
-def analytics_perfect_attendance():
-    """View all staff with perfect attendance"""
-    period = request.args.get('period', 'today')
-    school_id = request.args.get('school_id', '')
-    organization_id = request.args.get('organization_id', '')
-    department = request.args.get('department', '')
-    
-    # Get date range based on period
-    today = datetime.now().date()
-    if period == 'today':
-        start_date = today
-        end_date = today
-    elif period == '7':
-        start_date = today - timedelta(days=7)
-        end_date = today
-    elif period == '14':
-        start_date = today - timedelta(days=14)
-        end_date = today
-    elif period == '30':
-        start_date = today - timedelta(days=30)
-        end_date = today
-    elif period == 'this_week':
-        start_date = today - timedelta(days=today.weekday())
-        end_date = today
-    elif period == 'last_week':
-        start_date = today - timedelta(days=today.weekday() + 7)
-        end_date = start_date + timedelta(days=6)
-    elif period == 'this_month':
-        start_date = today.replace(day=1)
-        end_date = today
-    elif period == 'last_month':
-        first_of_this_month = today.replace(day=1)
-        end_date = first_of_this_month - timedelta(days=1)
-        start_date = end_date.replace(day=1)
-    else:
-        start_date = today - timedelta(days=30)
-        end_date = today
-    
-    # Build staff query based on access
-    if current_user.role == 'super_admin':
-        staff_query = Staff.query
-    elif current_user.role in ['hr_viewer', 'ceo_viewer']:
-        if current_user.organization_id:
-            staff_query = Staff.query.join(School).filter(School.organization_id == current_user.organization_id)
-        else:
-            staff_query = Staff.query
-    else:
-        accessible_schools = [s.id for s in current_user.schools]
-        staff_query = Staff.query.filter(Staff.school_id.in_(accessible_schools))
-    
-    # Apply filters
-    if school_id:
-        staff_query = staff_query.filter(Staff.school_id == int(school_id))
-    if organization_id:
-        staff_query = staff_query.join(School).filter(School.organization_id == int(organization_id))
-    if department:
-        staff_query = staff_query.filter(Staff.department == department)
-    
-    staff_list = staff_query.filter(Staff.is_active == True).all()
-    
-    # Calculate work days in period
-    work_days = 0
-    current_date = start_date
-    while current_date <= end_date:
-        if current_date.weekday() < 5:  # Monday to Friday
-            work_days += 1
-        current_date += timedelta(days=1)
-    
-    # Find staff with perfect attendance
-    perfect_attendance = []
-    for staff in staff_list:
-        attendance_records = Attendance.query.filter(
-            Attendance.staff_id == staff.id,
-            Attendance.date >= start_date,
-            Attendance.date <= end_date
-        ).all()
-        
-        # Check if staff has attendance for all work days and no late
-        late_count = sum(1 for a in attendance_records if a.is_late)
-        
-        if len(attendance_records) >= work_days and late_count == 0:
-            perfect_attendance.append({
-                'staff': staff,
-                'days': len(attendance_records)
-            })
-    
-    # Sort by days descending
-    perfect_attendance.sort(key=lambda x: x['days'], reverse=True)
-    
-    return render_template('analytics_perfect_attendance.html',
-                           perfect_attendance=perfect_attendance,
-                           period=period,
-                           start_date=start_date,
-                           end_date=end_date,
-                           work_days=work_days,
-                           school_id=school_id,
-                           organization_id=organization_id,
-                           department=department)
-
-
 @app.route('/analytics/perfect-attendance/download')
 @login_required
 def analytics_download_perfect_attendance():
@@ -4110,7 +3684,6 @@ def analytics_download_perfect_attendance():
     organization_id = request.args.get('organization_id', '')
     department = request.args.get('department', '')
     
-    # Get date range based on period
     today = datetime.now().date()
     if period == 'today':
         start_date = today
@@ -4141,29 +3714,22 @@ def analytics_download_perfect_attendance():
         start_date = today - timedelta(days=30)
         end_date = today
     
-    # Build staff query based on access
     if current_user.role == 'super_admin':
         staff_query = Staff.query
-    elif current_user.role in ['hr_viewer', 'ceo_viewer']:
-        if current_user.organization_id:
-            staff_query = Staff.query.join(School).filter(School.organization_id == current_user.organization_id)
-        else:
-            staff_query = Staff.query
     else:
-        accessible_schools = [s.id for s in current_user.schools]
-        staff_query = Staff.query.filter(Staff.school_id.in_(accessible_schools))
+        accessible_school_ids = current_user.get_accessible_school_ids()
+        staff_query = Staff.query.filter(Staff.school_id.in_(accessible_school_ids))
     
-    # Apply filters
     if school_id:
         staff_query = staff_query.filter(Staff.school_id == int(school_id))
     if organization_id:
-        staff_query = staff_query.join(School).filter(School.organization_id == int(organization_id))
+        org_school_ids = [s.id for s in School.query.filter_by(organization_id=int(organization_id)).all()]
+        staff_query = staff_query.filter(Staff.school_id.in_(org_school_ids))
     if department:
         staff_query = staff_query.filter(Staff.department == department)
     
     staff_list = staff_query.filter(Staff.is_active == True).all()
     
-    # Calculate work days in period
     work_days = 0
     current_date = start_date
     while current_date <= end_date:
@@ -4171,9 +3737,10 @@ def analytics_download_perfect_attendance():
             work_days += 1
         current_date += timedelta(days=1)
     
-    # Find staff with perfect attendance
     perfect_attendance = []
     for staff in staff_list:
+        if staff.department == 'Management':
+            continue
         attendance_records = Attendance.query.filter(
             Attendance.staff_id == staff.id,
             Attendance.date >= start_date,
@@ -4191,22 +3758,18 @@ def analytics_download_perfect_attendance():
                 'days': len(attendance_records)
             })
     
-    # Sort by days descending
     perfect_attendance.sort(key=lambda x: x['days'], reverse=True)
     
-    # Create Excel file
     output = io.BytesIO()
     workbook = xlsxwriter.Workbook(output)
     worksheet = workbook.add_worksheet('Perfect Attendance')
     
-    # Headers
     headers = ['Rank', 'Staff ID', 'Name', 'Branch', 'Department', 'Days Present']
     header_format = workbook.add_format({'bold': True, 'bg_color': '#9C27B0', 'font_color': 'white'})
     
     for col, header in enumerate(headers):
         worksheet.write(0, col, header, header_format)
     
-    # Data
     for row, staff in enumerate(perfect_attendance, start=1):
         worksheet.write(row, 0, row)
         worksheet.write(row, 1, staff['staff_id'])
@@ -4222,132 +3785,6 @@ def analytics_download_perfect_attendance():
     return send_file(output, download_name=filename, as_attachment=True)
 
 
-@app.route('/analytics/most-improved')
-@login_required
-def analytics_most_improved():
-    """View most improved staff (comparing current vs previous period)"""
-    period = request.args.get('period', 'today')
-    school_id = request.args.get('school_id', '')
-    organization_id = request.args.get('organization_id', '')
-    department = request.args.get('department', '')
-    
-    # Get date range based on period
-    today = datetime.now().date()
-    if period == 'today':
-        start_date = today
-        end_date = today
-        prev_start = today - timedelta(days=1)
-        prev_end = today - timedelta(days=1)
-    elif period == '7':
-        start_date = today - timedelta(days=7)
-        end_date = today
-        prev_start = today - timedelta(days=14)
-        prev_end = today - timedelta(days=8)
-    elif period == '14':
-        start_date = today - timedelta(days=14)
-        end_date = today
-        prev_start = today - timedelta(days=28)
-        prev_end = today - timedelta(days=15)
-    elif period == '30':
-        start_date = today - timedelta(days=30)
-        end_date = today
-        prev_start = today - timedelta(days=60)
-        prev_end = today - timedelta(days=31)
-    elif period == 'this_week':
-        start_date = today - timedelta(days=today.weekday())
-        end_date = today
-        prev_start = start_date - timedelta(days=7)
-        prev_end = start_date - timedelta(days=1)
-    elif period == 'last_week':
-        start_date = today - timedelta(days=today.weekday() + 7)
-        end_date = start_date + timedelta(days=6)
-        prev_start = start_date - timedelta(days=7)
-        prev_end = start_date - timedelta(days=1)
-    elif period == 'this_month':
-        start_date = today.replace(day=1)
-        end_date = today
-        prev_end = start_date - timedelta(days=1)
-        prev_start = prev_end.replace(day=1)
-    elif period == 'last_month':
-        first_of_this_month = today.replace(day=1)
-        end_date = first_of_this_month - timedelta(days=1)
-        start_date = end_date.replace(day=1)
-        prev_end = start_date - timedelta(days=1)
-        prev_start = prev_end.replace(day=1)
-    else:
-        start_date = today - timedelta(days=30)
-        end_date = today
-        prev_start = today - timedelta(days=60)
-        prev_end = today - timedelta(days=31)
-    
-    # Build staff query based on access
-    if current_user.role == 'super_admin':
-        staff_query = Staff.query
-    elif current_user.role in ['hr_viewer', 'ceo_viewer']:
-        if current_user.organization_id:
-            staff_query = Staff.query.join(School).filter(School.organization_id == current_user.organization_id)
-        else:
-            staff_query = Staff.query
-    else:
-        accessible_schools = [s.id for s in current_user.schools]
-        staff_query = Staff.query.filter(Staff.school_id.in_(accessible_schools))
-    
-    # Apply filters
-    if school_id:
-        staff_query = staff_query.filter(Staff.school_id == int(school_id))
-    if organization_id:
-        staff_query = staff_query.join(School).filter(School.organization_id == int(organization_id))
-    if department:
-        staff_query = staff_query.filter(Staff.department == department)
-    
-    staff_list = staff_query.filter(Staff.is_active == True).all()
-    
-    # Calculate improvement for each staff
-    most_improved = []
-    for staff in staff_list:
-        # Current period
-        current_records = Attendance.query.filter(
-            Attendance.staff_id == staff.id,
-            Attendance.date >= start_date,
-            Attendance.date <= end_date
-        ).all()
-        
-        # Previous period
-        prev_records = Attendance.query.filter(
-            Attendance.staff_id == staff.id,
-            Attendance.date >= prev_start,
-            Attendance.date <= prev_end
-        ).all()
-        
-        if len(current_records) > 0 and len(prev_records) > 0:
-            current_punctuality = (sum(1 for a in current_records if not a.is_late) / len(current_records)) * 100
-            prev_punctuality = (sum(1 for a in prev_records if not a.is_late) / len(prev_records)) * 100
-            
-            improvement = current_punctuality - prev_punctuality
-            
-            if improvement > 0:
-                most_improved.append({
-                    'staff': staff,
-                    'improvement': round(improvement, 1),
-                    'current_punctuality': round(current_punctuality, 1),
-                    'prev_punctuality': round(prev_punctuality, 1)
-                })
-    
-    # Sort by improvement descending
-    most_improved.sort(key=lambda x: x['improvement'], reverse=True)
-    
-    return render_template('analytics_most_improved.html',
-                           most_improved=most_improved,
-                           period=period,
-                           start_date=start_date,
-                           end_date=end_date,
-                           prev_start=prev_start,
-                           prev_end=prev_end,
-                           school_id=school_id,
-                           organization_id=organization_id,
-                           department=department)
-
-
 @app.route('/analytics/most-improved/download')
 @login_required
 def analytics_download_most_improved():
@@ -4357,7 +3794,6 @@ def analytics_download_most_improved():
     organization_id = request.args.get('organization_id', '')
     department = request.args.get('department', '')
     
-    # Get date range based on period
     today = datetime.now().date()
     if period == 'today':
         start_date = today
@@ -4406,31 +3842,26 @@ def analytics_download_most_improved():
         prev_start = today - timedelta(days=60)
         prev_end = today - timedelta(days=31)
     
-    # Build staff query based on access
     if current_user.role == 'super_admin':
         staff_query = Staff.query
-    elif current_user.role in ['hr_viewer', 'ceo_viewer']:
-        if current_user.organization_id:
-            staff_query = Staff.query.join(School).filter(School.organization_id == current_user.organization_id)
-        else:
-            staff_query = Staff.query
     else:
-        accessible_schools = [s.id for s in current_user.schools]
-        staff_query = Staff.query.filter(Staff.school_id.in_(accessible_schools))
+        accessible_school_ids = current_user.get_accessible_school_ids()
+        staff_query = Staff.query.filter(Staff.school_id.in_(accessible_school_ids))
     
-    # Apply filters
     if school_id:
         staff_query = staff_query.filter(Staff.school_id == int(school_id))
     if organization_id:
-        staff_query = staff_query.join(School).filter(School.organization_id == int(organization_id))
+        org_school_ids = [s.id for s in School.query.filter_by(organization_id=int(organization_id)).all()]
+        staff_query = staff_query.filter(Staff.school_id.in_(org_school_ids))
     if department:
         staff_query = staff_query.filter(Staff.department == department)
     
     staff_list = staff_query.filter(Staff.is_active == True).all()
     
-    # Calculate improvement for each staff
     most_improved = []
     for staff in staff_list:
+        if staff.department == 'Management':
+            continue
         current_records = Attendance.query.filter(
             Attendance.staff_id == staff.id,
             Attendance.date >= start_date,
@@ -4460,22 +3891,18 @@ def analytics_download_most_improved():
                     'prev_punctuality': round(prev_punctuality, 1)
                 })
     
-    # Sort by improvement descending
     most_improved.sort(key=lambda x: x['improvement'], reverse=True)
     
-    # Create Excel file
     output = io.BytesIO()
     workbook = xlsxwriter.Workbook(output)
     worksheet = workbook.add_worksheet('Most Improved')
     
-    # Headers
     headers = ['Rank', 'Staff ID', 'Name', 'Branch', 'Department', 'Improvement %', 'Current %', 'Previous %']
     header_format = workbook.add_format({'bold': True, 'bg_color': '#FF9800', 'font_color': 'white'})
     
     for col, header in enumerate(headers):
         worksheet.write(0, col, header, header_format)
     
-    # Data
     for row, staff in enumerate(most_improved, start=1):
         worksheet.write(row, 0, row)
         worksheet.write(row, 1, staff['staff_id'])
@@ -4493,107 +3920,34 @@ def analytics_download_most_improved():
     return send_file(output, download_name=filename, as_attachment=True)
 
 
-@app.route('/analytics/streaks')
-@login_required
-def analytics_streaks():
-    """View on-time streaks"""
-    period = request.args.get('period', 'today')
-    school_id = request.args.get('school_id', '')
-    organization_id = request.args.get('organization_id', '')
-    department = request.args.get('department', '')
-    
-    # Build staff query based on access
-    if current_user.role == 'super_admin':
-        staff_query = Staff.query
-    elif current_user.role in ['hr_viewer', 'ceo_viewer']:
-        if current_user.organization_id:
-            staff_query = Staff.query.join(School).filter(School.organization_id == current_user.organization_id)
-        else:
-            staff_query = Staff.query
-    else:
-        accessible_schools = [s.id for s in current_user.schools]
-        staff_query = Staff.query.filter(Staff.school_id.in_(accessible_schools))
-    
-    # Apply filters
-    if school_id:
-        staff_query = staff_query.filter(Staff.school_id == int(school_id))
-    if organization_id:
-        staff_query = staff_query.join(School).filter(School.organization_id == int(organization_id))
-    if department:
-        staff_query = staff_query.filter(Staff.department == department)
-    
-    staff_list = staff_query.filter(Staff.is_active == True).all()
-    
-    # Calculate current streak for each staff
-    today = datetime.now().date()
-    streaks = []
-    
-    for staff in staff_list:
-        # Get all attendance records ordered by date descending
-        attendance_records = Attendance.query.filter(
-            Attendance.staff_id == staff.id
-        ).order_by(Attendance.date.desc()).all()
-        
-        # Calculate current streak (consecutive on-time days from today backwards)
-        streak = 0
-        for record in attendance_records:
-            if not record.is_late:
-                streak += 1
-            else:
-                break  # Streak broken
-        
-        if streak > 0:
-            streaks.append({
-                'staff': staff,
-                'streak': streak
-            })
-    
-    # Sort by streak descending
-    streaks.sort(key=lambda x: x['streak'], reverse=True)
-    
-    return render_template('analytics_streaks.html',
-                           streaks=streaks,
-                           period=period,
-                           school_id=school_id,
-                           organization_id=organization_id,
-                           department=department)
-
-
 @app.route('/analytics/streaks/download')
 @login_required
 def analytics_download_streaks():
     """Download streaks as Excel"""
-    period = request.args.get('period', 'today')
     school_id = request.args.get('school_id', '')
     organization_id = request.args.get('organization_id', '')
     department = request.args.get('department', '')
     
-    # Build staff query based on access
     if current_user.role == 'super_admin':
         staff_query = Staff.query
-    elif current_user.role in ['hr_viewer', 'ceo_viewer']:
-        if current_user.organization_id:
-            staff_query = Staff.query.join(School).filter(School.organization_id == current_user.organization_id)
-        else:
-            staff_query = Staff.query
     else:
-        accessible_schools = [s.id for s in current_user.schools]
-        staff_query = Staff.query.filter(Staff.school_id.in_(accessible_schools))
+        accessible_school_ids = current_user.get_accessible_school_ids()
+        staff_query = Staff.query.filter(Staff.school_id.in_(accessible_school_ids))
     
-    # Apply filters
     if school_id:
         staff_query = staff_query.filter(Staff.school_id == int(school_id))
     if organization_id:
-        staff_query = staff_query.join(School).filter(School.organization_id == int(organization_id))
+        org_school_ids = [s.id for s in School.query.filter_by(organization_id=int(organization_id)).all()]
+        staff_query = staff_query.filter(Staff.school_id.in_(org_school_ids))
     if department:
         staff_query = staff_query.filter(Staff.department == department)
     
     staff_list = staff_query.filter(Staff.is_active == True).all()
     
-    # Calculate current streak for each staff
     streaks = []
-    
     for staff in staff_list:
+        if staff.department == 'Management':
+            continue
         attendance_records = Attendance.query.filter(
             Attendance.staff_id == staff.id
         ).order_by(Attendance.date.desc()).all()
@@ -4614,22 +3968,18 @@ def analytics_download_streaks():
                 'streak': streak
             })
     
-    # Sort by streak descending
     streaks.sort(key=lambda x: x['streak'], reverse=True)
     
-    # Create Excel file
     output = io.BytesIO()
     workbook = xlsxwriter.Workbook(output)
     worksheet = workbook.add_worksheet('On-Time Streaks')
     
-    # Headers
     headers = ['Rank', 'Staff ID', 'Name', 'Branch', 'Department', 'Current Streak (days)']
     header_format = workbook.add_format({'bold': True, 'bg_color': '#00BCD4', 'font_color': 'white'})
     
     for col, header in enumerate(headers):
         worksheet.write(0, col, header, header_format)
     
-    # Data
     for row, staff in enumerate(streaks, start=1):
         worksheet.write(row, 0, row)
         worksheet.write(row, 1, staff['staff_id'])
@@ -4643,6 +3993,7 @@ def analytics_download_streaks():
     
     filename = f"on_time_streaks.xlsx"
     return send_file(output, download_name=filename, as_attachment=True)
+
 
 
 # ==================== API ====================
@@ -4993,6 +4344,7 @@ if __name__ == '__main__':
     with app.app_context():
         db.create_all()
     app.run(debug=True, host='0.0.0.0', port=int(os.environ.get('PORT', 5000)))
+
 
 
 
