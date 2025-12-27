@@ -3,11 +3,384 @@
 {% block title %}Branch Settings - {{ school.name }}{% endblock %}
 
 {% block content %}
+<style>
+    /* Card Styling */
+    .settings-card {
+        border: none;
+        border-left: 4px solid #dc3545;
+        border-radius: 12px;
+        box-shadow: 0 2px 12px rgba(0,0,0,0.08);
+        transition: all 0.3s ease;
+        overflow: hidden;
+    }
+    
+    .settings-card:hover {
+        box-shadow: 0 4px 20px rgba(0,0,0,0.12);
+        transform: translateY(-2px);
+    }
+    
+    .settings-card .card-header {
+        background: linear-gradient(135deg, #fff 0%, #f8f9fa 100%);
+        border-bottom: 1px solid #eee;
+        padding: 1rem 1.25rem;
+    }
+    
+    .settings-card .card-header h5 {
+        font-weight: 600;
+        color: #333;
+    }
+    
+    .settings-card .card-body {
+        padding: 1.5rem;
+    }
+    
+    /* Work Days Toggle Pills */
+    .work-days-container {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 8px;
+    }
+    
+    .day-toggle {
+        display: none;
+    }
+    
+    .day-toggle + label {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        width: 50px;
+        height: 40px;
+        border: 2px solid #dee2e6;
+        border-radius: 20px;
+        cursor: pointer;
+        font-weight: 500;
+        font-size: 0.85rem;
+        color: #6c757d;
+        background: #fff;
+        transition: all 0.2s ease;
+    }
+    
+    .day-toggle + label:hover {
+        border-color: #dc3545;
+        color: #dc3545;
+    }
+    
+    .day-toggle:checked + label {
+        background: linear-gradient(135deg, #dc3545 0%, #c82333 100%);
+        border-color: #dc3545;
+        color: #fff;
+        box-shadow: 0 2px 8px rgba(220, 53, 69, 0.3);
+    }
+    
+    /* Schedule Table */
+    .schedule-table {
+        border-radius: 8px;
+        overflow: hidden;
+        border: 1px solid #eee;
+    }
+    
+    .schedule-table thead {
+        background: linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%);
+    }
+    
+    .schedule-table thead th {
+        font-weight: 600;
+        color: #495057;
+        padding: 12px;
+        border: none;
+    }
+    
+    .schedule-table tbody tr {
+        transition: background 0.2s ease;
+    }
+    
+    .schedule-table tbody tr:nth-child(even) {
+        background: #f8f9fa;
+    }
+    
+    .schedule-table tbody tr:hover {
+        background: #fff3f4;
+    }
+    
+    .schedule-table td {
+        padding: 10px 12px;
+        vertical-align: middle;
+        border: none;
+        border-top: 1px solid #eee;
+    }
+    
+    .schedule-table .form-control {
+        border-radius: 6px;
+    }
+    
+    /* Shift Cards */
+    .shift-card {
+        background: #fff;
+        border: 1px solid #eee;
+        border-radius: 10px;
+        padding: 1rem;
+        margin-bottom: 0.75rem;
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        transition: all 0.2s ease;
+    }
+    
+    .shift-card:hover {
+        border-color: #dc3545;
+        box-shadow: 0 2px 8px rgba(220, 53, 69, 0.1);
+    }
+    
+    .shift-info {
+        display: flex;
+        align-items: center;
+        gap: 1rem;
+    }
+    
+    .shift-icon {
+        width: 45px;
+        height: 45px;
+        background: linear-gradient(135deg, #dc3545 0%, #c82333 100%);
+        border-radius: 10px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        color: #fff;
+        font-size: 1.1rem;
+    }
+    
+    .shift-details h6 {
+        margin: 0;
+        font-weight: 600;
+        color: #333;
+    }
+    
+    .shift-details small {
+        color: #6c757d;
+    }
+    
+    .shift-badge {
+        background: #e9ecef;
+        padding: 4px 10px;
+        border-radius: 20px;
+        font-size: 0.75rem;
+        color: #495057;
+    }
+    
+    .shift-actions {
+        display: flex;
+        gap: 8px;
+    }
+    
+    .shift-actions .btn {
+        width: 36px;
+        height: 36px;
+        padding: 0;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        border-radius: 8px;
+    }
+    
+    /* Assignment Cards */
+    .assignment-card {
+        background: #fff;
+        border: 1px solid #eee;
+        border-radius: 10px;
+        padding: 1rem;
+        margin-bottom: 0.75rem;
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        transition: all 0.2s ease;
+    }
+    
+    .assignment-card:hover {
+        border-color: #007bff;
+        box-shadow: 0 2px 8px rgba(0, 123, 255, 0.1);
+    }
+    
+    .assignment-info {
+        display: flex;
+        align-items: center;
+        gap: 1rem;
+    }
+    
+    .staff-avatar {
+        width: 45px;
+        height: 45px;
+        background: linear-gradient(135deg, #6c757d 0%, #495057 100%);
+        border-radius: 50%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        color: #fff;
+        font-weight: 600;
+        font-size: 1rem;
+    }
+    
+    .staff-details h6 {
+        margin: 0;
+        font-weight: 600;
+        color: #333;
+    }
+    
+    .staff-details small {
+        color: #6c757d;
+    }
+    
+    .assignment-meta {
+        text-align: right;
+    }
+    
+    .assignment-meta .badge {
+        font-weight: 500;
+    }
+    
+    /* Empty State */
+    .empty-state {
+        text-align: center;
+        padding: 2.5rem 1rem;
+    }
+    
+    .empty-state-icon {
+        width: 80px;
+        height: 80px;
+        background: linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%);
+        border-radius: 50%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        margin: 0 auto 1rem;
+    }
+    
+    .empty-state-icon i {
+        font-size: 2rem;
+        color: #adb5bd;
+    }
+    
+    .empty-state h6 {
+        color: #6c757d;
+        font-weight: 500;
+        margin-bottom: 0.25rem;
+    }
+    
+    .empty-state p {
+        color: #adb5bd;
+        font-size: 0.875rem;
+        margin: 0;
+    }
+    
+    /* Buttons */
+    .btn-danger {
+        background: linear-gradient(135deg, #dc3545 0%, #c82333 100%);
+        border: none;
+        box-shadow: 0 2px 8px rgba(220, 53, 69, 0.3);
+        transition: all 0.3s ease;
+    }
+    
+    .btn-danger:hover {
+        transform: translateY(-1px);
+        box-shadow: 0 4px 12px rgba(220, 53, 69, 0.4);
+    }
+    
+    /* Staff Checkbox Container */
+    .staff-checkbox-container {
+        border: 1px solid #dee2e6;
+        border-radius: 10px;
+        padding: 0;
+        max-height: 220px;
+        overflow-y: auto;
+    }
+    
+    .staff-checkbox-container .staff-item {
+        padding: 10px 15px;
+        border-bottom: 1px solid #f0f0f0;
+        transition: background 0.2s ease;
+    }
+    
+    .staff-checkbox-container .staff-item:last-child {
+        border-bottom: none;
+    }
+    
+    .staff-checkbox-container .staff-item:hover {
+        background: #f8f9fa;
+    }
+    
+    .staff-checkbox-container .form-check-input:checked ~ .form-check-label {
+        color: #dc3545;
+        font-weight: 500;
+    }
+    
+    /* Search Input */
+    .search-input {
+        border-radius: 8px;
+        border: 1px solid #dee2e6;
+        padding: 8px 12px;
+        transition: all 0.2s ease;
+    }
+    
+    .search-input:focus {
+        border-color: #dc3545;
+        box-shadow: 0 0 0 3px rgba(220, 53, 69, 0.1);
+    }
+    
+    /* Page Header */
+    .page-header {
+        background: linear-gradient(135deg, #fff 0%, #f8f9fa 100%);
+        padding: 1.5rem;
+        border-radius: 12px;
+        box-shadow: 0 2px 8px rgba(0,0,0,0.05);
+    }
+    
+    .page-header h4 {
+        color: #333;
+        font-weight: 600;
+    }
+    
+    /* Modal Styling */
+    .modal-content {
+        border: none;
+        border-radius: 12px;
+        box-shadow: 0 10px 40px rgba(0,0,0,0.15);
+    }
+    
+    .modal-header {
+        background: linear-gradient(135deg, #fff 0%, #f8f9fa 100%);
+        border-bottom: 1px solid #eee;
+        border-radius: 12px 12px 0 0;
+    }
+    
+    .modal-footer {
+        border-top: 1px solid #eee;
+        background: #f8f9fa;
+        border-radius: 0 0 12px 12px;
+    }
+    
+    /* Form Labels */
+    .form-label.fw-bold {
+        color: #333;
+        font-size: 0.9rem;
+        margin-bottom: 0.5rem;
+    }
+    
+    /* Selected count badge */
+    .selected-count-badge {
+        background: #dc3545;
+        color: #fff;
+        padding: 2px 10px;
+        border-radius: 20px;
+        font-size: 0.8rem;
+        font-weight: 500;
+    }
+</style>
+
 <div class="container-fluid">
     <!-- Header -->
     <div class="page-header d-flex justify-content-between align-items-center mb-4">
         <div>
-            <h4 class="mb-1"><i class="fas fa-cog me-2"></i>Branch Settings</h4>
+            <h4 class="mb-1"><i class="fas fa-cog me-2 text-danger"></i>Branch Settings</h4>
             <p class="text-muted mb-0">{{ school.name }}</p>
         </div>
         <a href="{{ url_for('schools') }}" class="btn btn-outline-secondary">
@@ -19,8 +392,8 @@
         <!-- Left Column: General Settings -->
         <div class="col-lg-6">
             <!-- Time & Schedule Settings -->
-            <div class="card mb-4">
-                <div class="card-header bg-white">
+            <div class="card settings-card mb-4">
+                <div class="card-header">
                     <h5 class="mb-0"><i class="fas fa-clock me-2 text-danger"></i>Time & Schedule Settings</h5>
                 </div>
                 <div class="card-body">
@@ -54,42 +427,34 @@
                         <!-- Grace Period -->
                         <div class="mb-4">
                             <label class="form-label fw-bold">Grace Period (minutes)</label>
-                            <input type="number" class="form-control" name="grace_period_minutes" value="{{ school.grace_period_minutes or 0 }}" min="0" max="60">
+                            <input type="number" class="form-control" name="grace_period_minutes" value="{{ school.grace_period_minutes or 0 }}" min="0" max="60" style="max-width: 120px;">
                             <small class="text-muted">Staff arriving within this time after scheduled start won't be marked late.</small>
                         </div>
 
-                        <!-- Work Days -->
+                        <!-- Work Days - Pill Style -->
                         <div class="mb-4">
                             <label class="form-label fw-bold">Work Days</label>
-                            <div class="d-flex flex-wrap gap-3">
-                                <div class="form-check">
-                                    <input class="form-check-input" type="checkbox" name="work_days" value="mon" id="day_mon" {{ 'checked' if 'mon' in work_days_list else '' }}>
-                                    <label class="form-check-label" for="day_mon">Mon</label>
-                                </div>
-                                <div class="form-check">
-                                    <input class="form-check-input" type="checkbox" name="work_days" value="tue" id="day_tue" {{ 'checked' if 'tue' in work_days_list else '' }}>
-                                    <label class="form-check-label" for="day_tue">Tue</label>
-                                </div>
-                                <div class="form-check">
-                                    <input class="form-check-input" type="checkbox" name="work_days" value="wed" id="day_wed" {{ 'checked' if 'wed' in work_days_list else '' }}>
-                                    <label class="form-check-label" for="day_wed">Wed</label>
-                                </div>
-                                <div class="form-check">
-                                    <input class="form-check-input" type="checkbox" name="work_days" value="thu" id="day_thu" {{ 'checked' if 'thu' in work_days_list else '' }}>
-                                    <label class="form-check-label" for="day_thu">Thu</label>
-                                </div>
-                                <div class="form-check">
-                                    <input class="form-check-input" type="checkbox" name="work_days" value="fri" id="day_fri" {{ 'checked' if 'fri' in work_days_list else '' }}>
-                                    <label class="form-check-label" for="day_fri">Fri</label>
-                                </div>
-                                <div class="form-check">
-                                    <input class="form-check-input" type="checkbox" name="work_days" value="sat" id="day_sat" {{ 'checked' if 'sat' in work_days_list else '' }}>
-                                    <label class="form-check-label" for="day_sat">Sat</label>
-                                </div>
-                                <div class="form-check">
-                                    <input class="form-check-input" type="checkbox" name="work_days" value="sun" id="day_sun" {{ 'checked' if 'sun' in work_days_list else '' }}>
-                                    <label class="form-check-label" for="day_sun">Sun</label>
-                                </div>
+                            <div class="work-days-container">
+                                <input class="day-toggle" type="checkbox" name="work_days" value="mon" id="day_mon" {{ 'checked' if 'mon' in work_days_list else '' }}>
+                                <label for="day_mon">Mon</label>
+                                
+                                <input class="day-toggle" type="checkbox" name="work_days" value="tue" id="day_tue" {{ 'checked' if 'tue' in work_days_list else '' }}>
+                                <label for="day_tue">Tue</label>
+                                
+                                <input class="day-toggle" type="checkbox" name="work_days" value="wed" id="day_wed" {{ 'checked' if 'wed' in work_days_list else '' }}>
+                                <label for="day_wed">Wed</label>
+                                
+                                <input class="day-toggle" type="checkbox" name="work_days" value="thu" id="day_thu" {{ 'checked' if 'thu' in work_days_list else '' }}>
+                                <label for="day_thu">Thu</label>
+                                
+                                <input class="day-toggle" type="checkbox" name="work_days" value="fri" id="day_fri" {{ 'checked' if 'fri' in work_days_list else '' }}>
+                                <label for="day_fri">Fri</label>
+                                
+                                <input class="day-toggle" type="checkbox" name="work_days" value="sat" id="day_sat" {{ 'checked' if 'sat' in work_days_list else '' }}>
+                                <label for="day_sat">Sat</label>
+                                
+                                <input class="day-toggle" type="checkbox" name="work_days" value="sun" id="day_sun" {{ 'checked' if 'sun' in work_days_list else '' }}>
+                                <label for="day_sun">Sun</label>
                             </div>
                         </div>
 
@@ -97,7 +462,7 @@
                         <div class="mb-4">
                             <label class="form-label fw-bold">Regular Schedule</label>
                             <div class="table-responsive">
-                                <table class="table table-sm">
+                                <table class="table schedule-table mb-0">
                                     <thead>
                                         <tr>
                                             <th>Day</th>
@@ -107,37 +472,37 @@
                                     </thead>
                                     <tbody>
                                         <tr>
-                                            <td>Monday</td>
+                                            <td><strong>Monday</strong></td>
                                             <td><input type="time" class="form-control form-control-sm" name="schedule_mon_start" value="{{ school.schedule_mon_start or '08:00' }}"></td>
                                             <td><input type="time" class="form-control form-control-sm" name="schedule_mon_end" value="{{ school.schedule_mon_end or '17:00' }}"></td>
                                         </tr>
                                         <tr>
-                                            <td>Tuesday</td>
+                                            <td><strong>Tuesday</strong></td>
                                             <td><input type="time" class="form-control form-control-sm" name="schedule_tue_start" value="{{ school.schedule_tue_start or '08:00' }}"></td>
                                             <td><input type="time" class="form-control form-control-sm" name="schedule_tue_end" value="{{ school.schedule_tue_end or '17:00' }}"></td>
                                         </tr>
                                         <tr>
-                                            <td>Wednesday</td>
+                                            <td><strong>Wednesday</strong></td>
                                             <td><input type="time" class="form-control form-control-sm" name="schedule_wed_start" value="{{ school.schedule_wed_start or '08:00' }}"></td>
                                             <td><input type="time" class="form-control form-control-sm" name="schedule_wed_end" value="{{ school.schedule_wed_end or '17:00' }}"></td>
                                         </tr>
                                         <tr>
-                                            <td>Thursday</td>
+                                            <td><strong>Thursday</strong></td>
                                             <td><input type="time" class="form-control form-control-sm" name="schedule_thu_start" value="{{ school.schedule_thu_start or '08:00' }}"></td>
                                             <td><input type="time" class="form-control form-control-sm" name="schedule_thu_end" value="{{ school.schedule_thu_end or '17:00' }}"></td>
                                         </tr>
                                         <tr>
-                                            <td>Friday</td>
+                                            <td><strong>Friday</strong></td>
                                             <td><input type="time" class="form-control form-control-sm" name="schedule_fri_start" value="{{ school.schedule_fri_start or '08:00' }}"></td>
                                             <td><input type="time" class="form-control form-control-sm" name="schedule_fri_end" value="{{ school.schedule_fri_end or '17:00' }}"></td>
                                         </tr>
                                         <tr>
-                                            <td>Saturday</td>
+                                            <td><strong>Saturday</strong></td>
                                             <td><input type="time" class="form-control form-control-sm" name="schedule_sat_start" value="{{ school.schedule_sat_start or '08:00' }}"></td>
                                             <td><input type="time" class="form-control form-control-sm" name="schedule_sat_end" value="{{ school.schedule_sat_end or '17:00' }}"></td>
                                         </tr>
                                         <tr>
-                                            <td>Sunday</td>
+                                            <td><strong>Sunday</strong></td>
                                             <td><input type="time" class="form-control form-control-sm" name="schedule_sun_start" value="{{ school.schedule_sun_start or '08:00' }}"></td>
                                             <td><input type="time" class="form-control form-control-sm" name="schedule_sun_end" value="{{ school.schedule_sun_end or '17:00' }}"></td>
                                         </tr>
@@ -155,8 +520,8 @@
 
             <!-- API Key Section (Super Admin Only) -->
             {% if show_api_section %}
-            <div class="card mb-4">
-                <div class="card-header bg-white">
+            <div class="card settings-card mb-4">
+                <div class="card-header">
                     <h5 class="mb-0"><i class="fas fa-key me-2 text-danger"></i>API Configuration</h5>
                 </div>
                 <div class="card-body">
@@ -180,8 +545,8 @@
         <!-- Right Column: Shift Management -->
         <div class="col-lg-6">
             <!-- Create Shift -->
-            <div class="card mb-4" id="shiftSection">
-                <div class="card-header bg-white d-flex justify-content-between align-items-center">
+            <div class="card settings-card mb-4" id="shiftSection">
+                <div class="card-header d-flex justify-content-between align-items-center">
                     <h5 class="mb-0"><i class="fas fa-business-time me-2 text-danger"></i>Shifts</h5>
                     <button class="btn btn-danger btn-sm" data-bs-toggle="modal" data-bs-target="#addShiftModal">
                         <i class="fas fa-plus me-1"></i>Add Shift
@@ -189,53 +554,51 @@
                 </div>
                 <div class="card-body">
                     {% if shifts %}
-                    <div class="table-responsive">
-                        <table class="table table-hover">
-                            <thead>
-                                <tr>
-                                    <th>Shift Name</th>
-                                    <th>Time</th>
-                                    <th>Grace</th>
-                                    <th>Actions</th>
-                                </tr>
-                            </thead>
-                            <tbody>
-                                {% for shift in shifts %}
-                                <tr>
-                                    <td><strong>{{ shift.name }}</strong></td>
-                                    <td>
+                        {% for shift in shifts %}
+                        <div class="shift-card">
+                            <div class="shift-info">
+                                <div class="shift-icon">
+                                    <i class="fas fa-clock"></i>
+                                </div>
+                                <div class="shift-details">
+                                    <h6>{{ shift.name }}</h6>
+                                    <small>
                                         {% if school.time_format_24h %}
                                             {{ shift.start_time }} - {{ shift.end_time }}
                                         {% else %}
                                             {{ shift.start_time | convert_to_12h }} - {{ shift.end_time | convert_to_12h }}
                                         {% endif %}
-                                    </td>
-                                    <td>{{ shift.grace_period_minutes }} mins</td>
-                                    <td>
-                                        <button class="btn btn-sm btn-outline-primary me-1" onclick="editShift({{ shift.id }}, '{{ shift.name }}', '{{ shift.start_time }}', '{{ shift.end_time }}', {{ shift.grace_period_minutes }})">
-                                            <i class="fas fa-edit"></i>
-                                        </button>
-                                        <a href="{{ url_for('delete_shift', id=school.id, shift_id=shift.id) }}" class="btn btn-sm btn-outline-danger" onclick="return confirm('Delete this shift?')">
-                                            <i class="fas fa-trash"></i>
-                                        </a>
-                                    </td>
-                                </tr>
-                                {% endfor %}
-                            </tbody>
-                        </table>
-                    </div>
+                                    </small>
+                                </div>
+                            </div>
+                            <div class="d-flex align-items-center gap-3">
+                                <span class="shift-badge">{{ shift.grace_period_minutes }} mins grace</span>
+                                <div class="shift-actions">
+                                    <button class="btn btn-outline-primary" onclick="editShift({{ shift.id }}, '{{ shift.name }}', '{{ shift.start_time }}', '{{ shift.end_time }}', {{ shift.grace_period_minutes }})">
+                                        <i class="fas fa-edit"></i>
+                                    </button>
+                                    <a href="{{ url_for('delete_shift', id=school.id, shift_id=shift.id) }}" class="btn btn-outline-danger" onclick="return confirm('Delete this shift?')">
+                                        <i class="fas fa-trash"></i>
+                                    </a>
+                                </div>
+                            </div>
+                        </div>
+                        {% endfor %}
                     {% else %}
-                    <div class="text-center py-4 text-muted">
-                        <i class="fas fa-clock fa-3x mb-3"></i>
-                        <p>No shifts created yet.<br>Click "Add Shift" to create one.</p>
+                    <div class="empty-state">
+                        <div class="empty-state-icon">
+                            <i class="fas fa-clock"></i>
+                        </div>
+                        <h6>No shifts created yet</h6>
+                        <p>Click "Add Shift" to create your first shift</p>
                     </div>
                     {% endif %}
                 </div>
             </div>
 
-            <!-- Assign Staff to Shift - UPDATED WITH CHECKBOXES -->
-            <div class="card mb-4">
-                <div class="card-header bg-white">
+            <!-- Assign Staff to Shift -->
+            <div class="card settings-card mb-4">
+                <div class="card-header">
                     <h5 class="mb-0"><i class="fas fa-user-clock me-2 text-danger"></i>Assign Staff to Shift</h5>
                 </div>
                 <div class="card-body">
@@ -251,104 +614,98 @@
                             </select>
                         </div>
                         <div class="mb-3">
-                            <label class="form-label fw-bold">Select Staff</label>
+                            <label class="form-label fw-bold d-flex justify-content-between align-items-center">
+                                <span>Select Staff</span>
+                                <span class="selected-count-badge"><span id="selectedCount">0</span> selected</span>
+                            </label>
                             
                             <!-- Search and Select All/Clear All -->
                             <div class="d-flex gap-2 mb-2">
-                                <input type="text" class="form-control form-control-sm" id="staffSearch" placeholder="Search staff..." onkeyup="filterStaff()">
-                                <button type="button" class="btn btn-outline-secondary btn-sm" onclick="selectAllStaff()">Select All</button>
-                                <button type="button" class="btn btn-outline-secondary btn-sm" onclick="clearAllStaff()">Clear All</button>
+                                <input type="text" class="form-control search-input" id="staffSearch" placeholder="🔍 Search staff..." onkeyup="filterStaff()">
+                                <button type="button" class="btn btn-outline-secondary btn-sm" onclick="selectAllStaff()">All</button>
+                                <button type="button" class="btn btn-outline-secondary btn-sm" onclick="clearAllStaff()">Clear</button>
                             </div>
                             
                             <!-- Staff Checkboxes -->
-                            <div class="border rounded p-2" style="max-height: 200px; overflow-y: auto;" id="staffCheckboxContainer">
+                            <div class="staff-checkbox-container" id="staffCheckboxContainer">
                                 {% for staff in staff_list %}
                                 <div class="form-check staff-item">
                                     <input class="form-check-input staff-checkbox" type="checkbox" name="staff_ids" value="{{ staff.id }}" id="staff_{{ staff.id }}">
                                     <label class="form-check-label" for="staff_{{ staff.id }}">
-                                        {{ staff.name }} <span class="text-muted">({{ staff.staff_id }})</span> - <small class="text-secondary">{{ staff.department }}</small>
+                                        {{ staff.name }} <span class="text-muted">({{ staff.staff_id }})</span> 
+                                        <small class="text-secondary">- {{ staff.department }}</small>
                                     </label>
                                 </div>
                                 {% endfor %}
                             </div>
-                            
-                            <!-- Selected Count -->
-                            <small class="text-muted"><span id="selectedCount">0</span> staff selected</small>
                         </div>
                         <div class="row mb-3">
                             <div class="col-6">
-                                <label class="form-label">Effective From</label>
+                                <label class="form-label fw-bold">Effective From</label>
                                 <input type="date" class="form-control" name="effective_from" required>
                             </div>
                             <div class="col-6">
-                                <label class="form-label">Effective To (Optional)</label>
+                                <label class="form-label fw-bold">Effective To <small class="text-muted">(Optional)</small></label>
                                 <input type="date" class="form-control" name="effective_to">
                             </div>
                         </div>
-                        <button type="submit" class="btn btn-danger">
-                            <i class="fas fa-user-plus me-2"></i>Assign Staff
+                        <button type="submit" class="btn btn-danger w-100">
+                            <i class="fas fa-user-plus me-2"></i>Assign Staff to Shift
                         </button>
                     </form>
                     {% else %}
-                    <div class="text-center py-3 text-muted">
-                        <p>Create a shift first before assigning staff.</p>
+                    <div class="empty-state">
+                        <div class="empty-state-icon">
+                            <i class="fas fa-user-clock"></i>
+                        </div>
+                        <h6>Create a shift first</h6>
+                        <p>Add a shift before assigning staff</p>
                     </div>
                     {% endif %}
                 </div>
             </div>
 
             <!-- Current Shift Assignments -->
-            <div class="card mb-4">
-                <div class="card-header bg-white">
+            <div class="card settings-card mb-4">
+                <div class="card-header">
                     <h5 class="mb-0"><i class="fas fa-users me-2 text-danger"></i>Current Shift Assignments</h5>
                 </div>
                 <div class="card-body">
                     {% if assignments %}
-                    <div class="table-responsive">
-                        <table class="table table-hover">
-                            <thead>
-                                <tr>
-                                    <th>Staff</th>
-                                    <th>Shift</th>
-                                    <th>Effective</th>
-                                    <th>Action</th>
-                                </tr>
-                            </thead>
-                            <tbody>
-                                {% for assignment, staff, shift in assignments %}
-                                <tr>
-                                    <td>
-                                        <strong>{{ staff.name }}</strong><br>
-                                        <small class="text-muted">{{ staff.staff_id }}</small>
-                                    </td>
-                                    <td>
-                                        <span class="badge bg-primary">{{ shift.name }}</span><br>
-                                        <small>{{ shift.start_time }} - {{ shift.end_time }}</small>
-                                    </td>
-                                    <td>
-                                        <small>
-                                            From: {{ assignment.effective_from.strftime('%d/%m/%Y') }}<br>
-                                            {% if assignment.effective_to %}
-                                            To: {{ assignment.effective_to.strftime('%d/%m/%Y') }}
-                                            {% else %}
-                                            <span class="text-success">Ongoing</span>
-                                            {% endif %}
-                                        </small>
-                                    </td>
-                                    <td>
-                                        <a href="{{ url_for('unassign_shift', id=school.id, assignment_id=assignment.id) }}" class="btn btn-sm btn-outline-danger" onclick="return confirm('Remove this staff from shift?')">
-                                            <i class="fas fa-times"></i>
-                                        </a>
-                                    </td>
-                                </tr>
-                                {% endfor %}
-                            </tbody>
-                        </table>
-                    </div>
+                        {% for assignment, staff, shift in assignments %}
+                        <div class="assignment-card">
+                            <div class="assignment-info">
+                                <div class="staff-avatar">
+                                    {{ staff.name[:2]|upper }}
+                                </div>
+                                <div class="staff-details">
+                                    <h6>{{ staff.name }}</h6>
+                                    <small>{{ staff.staff_id }}</small>
+                                </div>
+                            </div>
+                            <div class="assignment-meta">
+                                <span class="badge bg-primary mb-1">{{ shift.name }}</span><br>
+                                <small class="text-muted">
+                                    {{ assignment.effective_from.strftime('%d/%m/%Y') }}
+                                    {% if assignment.effective_to %}
+                                    - {{ assignment.effective_to.strftime('%d/%m/%Y') }}
+                                    {% else %}
+                                    <span class="text-success">→ Ongoing</span>
+                                    {% endif %}
+                                </small>
+                            </div>
+                            <a href="{{ url_for('unassign_shift', id=school.id, assignment_id=assignment.id) }}" class="btn btn-outline-danger btn-sm ms-3" onclick="return confirm('Remove this staff from shift?')">
+                                <i class="fas fa-times"></i>
+                            </a>
+                        </div>
+                        {% endfor %}
                     {% else %}
-                    <div class="text-center py-4 text-muted">
-                        <i class="fas fa-users fa-3x mb-3"></i>
-                        <p>No staff assigned to shifts yet.</p>
+                    <div class="empty-state">
+                        <div class="empty-state-icon">
+                            <i class="fas fa-users"></i>
+                        </div>
+                        <h6>No staff assigned yet</h6>
+                        <p>Assign staff to shifts above</p>
                     </div>
                     {% endif %}
                 </div>
@@ -362,27 +719,27 @@
     <div class="modal-dialog">
         <div class="modal-content">
             <div class="modal-header">
-                <h5 class="modal-title"><i class="fas fa-plus me-2"></i>Add New Shift</h5>
+                <h5 class="modal-title"><i class="fas fa-plus me-2 text-danger"></i>Add New Shift</h5>
                 <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
             </div>
             <form method="POST" action="{{ url_for('add_shift', id=school.id) }}">
                 <div class="modal-body">
                     <div class="mb-3">
-                        <label class="form-label">Shift Name</label>
+                        <label class="form-label fw-bold">Shift Name</label>
                         <input type="text" class="form-control" name="shift_name" placeholder="e.g., Morning, Night, Rotational" required>
                     </div>
                     <div class="row mb-3">
                         <div class="col-6">
-                            <label class="form-label">Start Time</label>
+                            <label class="form-label fw-bold">Start Time</label>
                             <input type="time" class="form-control" name="shift_start_time" required>
                         </div>
                         <div class="col-6">
-                            <label class="form-label">End Time</label>
+                            <label class="form-label fw-bold">End Time</label>
                             <input type="time" class="form-control" name="shift_end_time" required>
                         </div>
                     </div>
                     <div class="mb-3">
-                        <label class="form-label">Grace Period (minutes)</label>
+                        <label class="form-label fw-bold">Grace Period (minutes)</label>
                         <input type="number" class="form-control" name="shift_grace_period" value="0" min="0" max="60">
                     </div>
                 </div>
@@ -400,27 +757,27 @@
     <div class="modal-dialog">
         <div class="modal-content">
             <div class="modal-header">
-                <h5 class="modal-title"><i class="fas fa-edit me-2"></i>Edit Shift</h5>
+                <h5 class="modal-title"><i class="fas fa-edit me-2 text-danger"></i>Edit Shift</h5>
                 <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
             </div>
             <form method="POST" id="editShiftForm">
                 <div class="modal-body">
                     <div class="mb-3">
-                        <label class="form-label">Shift Name</label>
+                        <label class="form-label fw-bold">Shift Name</label>
                         <input type="text" class="form-control" name="shift_name" id="editShiftName" required>
                     </div>
                     <div class="row mb-3">
                         <div class="col-6">
-                            <label class="form-label">Start Time</label>
+                            <label class="form-label fw-bold">Start Time</label>
                             <input type="time" class="form-control" name="shift_start_time" id="editShiftStart" required>
                         </div>
                         <div class="col-6">
-                            <label class="form-label">End Time</label>
+                            <label class="form-label fw-bold">End Time</label>
                             <input type="time" class="form-control" name="shift_end_time" id="editShiftEnd" required>
                         </div>
                     </div>
                     <div class="mb-3">
-                        <label class="form-label">Grace Period (minutes)</label>
+                        <label class="form-label fw-bold">Grace Period (minutes)</label>
                         <input type="number" class="form-control" name="shift_grace_period" id="editShiftGrace" min="0" max="60">
                     </div>
                 </div>
