@@ -114,10 +114,11 @@
         border-radius: 6px;
     }
     
-    /* Shift Cards */
+    /* Shift Cards - UPDATED */
     .shift-card {
         background: #fff;
-        border: 1px solid #eee;
+        border: 1px solid #e0e0e0;
+        border-top: 3px solid #dc3545;
         border-radius: 10px;
         padding: 1rem;
         margin-bottom: 0.75rem;
@@ -125,11 +126,13 @@
         align-items: center;
         justify-content: space-between;
         transition: all 0.2s ease;
+        box-shadow: 0 2px 6px rgba(0,0,0,0.06);
     }
     
     .shift-card:hover {
         border-color: #dc3545;
-        box-shadow: 0 2px 8px rgba(220, 53, 69, 0.1);
+        box-shadow: 0 4px 12px rgba(220, 53, 69, 0.15);
+        transform: translateY(-2px);
     }
     
     .shift-info {
@@ -183,10 +186,11 @@
         border-radius: 8px;
     }
     
-    /* Assignment Cards */
+    /* Assignment Cards - UPDATED */
     .assignment-card {
         background: #fff;
-        border: 1px solid #eee;
+        border: 1px solid #e0e0e0;
+        border-top: 3px solid #007bff;
         border-radius: 10px;
         padding: 1rem;
         margin-bottom: 0.75rem;
@@ -194,15 +198,13 @@
         align-items: center;
         justify-content: space-between;
         transition: all 0.2s ease;
+        box-shadow: 0 2px 6px rgba(0,0,0,0.06);
     }
     
     .assignment-card:hover {
         border-color: #007bff;
-        box-shadow: 0 2px 8px rgba(0, 123, 255, 0.1);
-    }
-    
-    .assignment-card:nth-child(even) {
-        background: #f8f9fa;
+        box-shadow: 0 4px 12px rgba(0, 123, 255, 0.15);
+        transform: translateY(-2px);
     }
     
     .assignment-info {
@@ -214,7 +216,7 @@
     .staff-avatar {
         width: 45px;
         height: 45px;
-        background: linear-gradient(135deg, #6c757d 0%, #495057 100%);
+        background: linear-gradient(135deg, #007bff 0%, #0056b3 100%);
         border-radius: 50%;
         display: flex;
         align-items: center;
@@ -296,12 +298,12 @@
         padding: 0;
         max-height: 220px;
         overflow-y: auto;
-        background: #f8f9fa;
+        background: #f0f2f5;
     }
     
     .staff-checkbox-container .staff-item {
         padding: 10px 15px 10px 30px;
-        border-bottom: 1px solid #eee;
+        border-bottom: 1px solid #e0e0e0;
         transition: background 0.2s ease;
         background: #fff;
     }
@@ -385,17 +387,17 @@
         font-weight: 500;
     }
     
-    /* Right column subtle backgrounds */
+    /* Right column darker backgrounds - UPDATED */
     #shiftSection .card-body {
-        background: #fafbfc;
+        background: #f0f2f5;
     }
     
     .assign-staff-card .card-body {
-        background: #fafbfc;
+        background: #f0f2f5;
     }
     
     .assignments-card .card-body {
-        background: #fafbfc;
+        background: #f0f2f5;
     }
 </style>
 
