@@ -3330,21 +3330,20 @@ def analytics_pdf():
     pdf_output.seek(0)
     return Response(pdf_output.getvalue(), mimetype='application/pdf',
         headers={'Content-Disposition': f'attachment; filename=analytics_{today}.pdf'})
-# ============================================
-# ============== ANALYTICS DOWNLOAD ROUTES (FIXED) ==============
+
+
+# ============== ANALYTICS DOWNLOAD ROUTES=================
 
 @app.route('/analytics/top-performers/download')
 @login_required
 def analytics_download_top_performers():
     """Download Top Performers as Excel"""
     try:
-        # Get filter parameters
         period = request.args.get('period', 'today')
         school_id = request.args.get('school_id', '')
         organization_id = request.args.get('organization_id', '')
-        department = request.args.get('department', '')
+        department_filter = request.args.get('department', '')
         
-        # Calculate date range
         today = date.today()
         if period == 'today':
             start_date = today
@@ -3375,84 +3374,73 @@ def analytics_download_top_performers():
             start_date = today - timedelta(days=30)
             end_date = today
         
-        # Build staff query based on user role
-        if current_user.role == 'super_admin':
-            staff_query = Staff.query.filter_by(is_active=True)
-        elif current_user.role in ['hr_viewer', 'ceo_viewer'] and current_user.organization_id:
-            staff_query = Staff.query.join(School).filter(
-                School.organization_id == current_user.organization_id,
-                Staff.is_active == True
-            )
-        else:
-            accessible_school_ids = [s.id for s in current_user.schools]
-            staff_query = Staff.query.filter(
-                Staff.school_id.in_(accessible_school_ids),
-                Staff.is_active == True
-            )
+        # Build staff query - match main analytics route logic
+        accessible_school_ids = current_user.get_accessible_school_ids()
+        staff_query = Staff.query.filter_by(is_active=True)
         
-        # Apply filters
-        if school_id:
-            staff_query = staff_query.filter(Staff.school_id == int(school_id))
         if organization_id:
-            staff_query = staff_query.join(School).filter(School.organization_id == int(organization_id))
-        if department:
-            staff_query = staff_query.filter(Staff.department == department)
+            org_school_ids = [s.id for s in School.query.filter_by(organization_id=int(organization_id)).all()]
+            staff_query = staff_query.filter(Staff.school_id.in_(org_school_ids))
+        elif school_id:
+            staff_query = staff_query.filter_by(school_id=int(school_id))
+        elif current_user.role != 'super_admin' and accessible_school_ids:
+            staff_query = staff_query.filter(Staff.school_id.in_(accessible_school_ids))
+        
+        if department_filter:
+            staff_query = staff_query.filter_by(department=department_filter)
         
         all_staff = staff_query.all()
+        staff_ids = [s.id for s in all_staff]
         
-        # Calculate top performers
+        # Get attendance for period
+        current_attendance = Attendance.query.filter(
+            Attendance.staff_id.in_(staff_ids),
+            Attendance.date >= start_date,
+            Attendance.date <= end_date
+        ).all() if staff_ids else []
+        
+        # Calculate top performers - same logic as main analytics route
         performers = []
-        for staff in all_staff:
-            if staff.department == 'Management':
+        for s in all_staff:
+            if s.department == 'Management':
                 continue
-                
-            records = Attendance.query.filter(
-                Attendance.staff_id == staff.id,
-                Attendance.date >= start_date,
-                Attendance.date <= end_date
-            ).all()
-            
-            if not records:
-                continue
-            
-            total = len(records)
-            on_time = sum(1 for r in records if not r.is_late)
-            punctuality = round((on_time / total) * 100, 1) if total > 0 else 0
-            
-            performers.append({
-                'staff': staff,
-                'punctuality': punctuality,
-                'on_time': on_time,
-                'total': total
-            })
+            staff_attendance = [a for a in current_attendance if a.staff_id == s.id]
+            if len(staff_attendance) >= 1:
+                on_time = sum(1 for a in staff_attendance if not a.is_late)
+                punctuality = round((on_time / len(staff_attendance)) * 100, 1)
+                performers.append({
+                    'name': s.name,
+                    'staff_id': s.staff_id,
+                    'branch': s.school.short_name or s.school.name if s.school else 'N/A',
+                    'department': s.department or '',
+                    'punctuality': punctuality,
+                    'on_time': on_time,
+                    'total': len(staff_attendance)
+                })
         
-        # Sort by punctuality descending
         performers.sort(key=lambda x: x['punctuality'], reverse=True)
         
-        # Create Excel file
+        # Create Excel
         output = io.BytesIO()
         workbook = xlsxwriter.Workbook(output)
         worksheet = workbook.add_worksheet('Top Performers')
         
-        # Headers
         headers = ['Rank', 'Staff ID', 'Name', 'Branch', 'Department', 'Punctuality %', 'On Time', 'Total Records']
         header_format = workbook.add_format({'bold': True, 'bg_color': '#4CAF50', 'font_color': 'white'})
         
         for col, header in enumerate(headers):
             worksheet.write(0, col, header, header_format)
         
-        # Data rows
         for idx, p in enumerate(performers, 1):
             worksheet.write(idx, 0, idx)
-            worksheet.write(idx, 1, p['staff'].staff_id or '')
-            worksheet.write(idx, 2, p['staff'].name)
-            worksheet.write(idx, 3, p['staff'].school.name if p['staff'].school else '')
-            worksheet.write(idx, 4, p['staff'].department or '')
+            worksheet.write(idx, 1, p['staff_id'] or '')
+            worksheet.write(idx, 2, p['name'])
+            worksheet.write(idx, 3, p['branch'])
+            worksheet.write(idx, 4, p['department'])
             worksheet.write(idx, 5, p['punctuality'])
             worksheet.write(idx, 6, p['on_time'])
             worksheet.write(idx, 7, p['total'])
         
-        # Adjust column widths
         worksheet.set_column(0, 0, 8)
         worksheet.set_column(1, 1, 15)
         worksheet.set_column(2, 2, 25)
@@ -3479,7 +3467,7 @@ def analytics_download_needs_attention():
         period = request.args.get('period', 'today')
         school_id = request.args.get('school_id', '')
         organization_id = request.args.get('organization_id', '')
-        department = request.args.get('department', '')
+        department_filter = request.args.get('department', '')
         
         today = date.today()
         if period == 'today':
@@ -3511,47 +3499,43 @@ def analytics_download_needs_attention():
             start_date = today - timedelta(days=30)
             end_date = today
         
-        if current_user.role == 'super_admin':
-            staff_query = Staff.query.filter_by(is_active=True)
-        elif current_user.role in ['hr_viewer', 'ceo_viewer'] and current_user.organization_id:
-            staff_query = Staff.query.join(School).filter(
-                School.organization_id == current_user.organization_id,
-                Staff.is_active == True
-            )
-        else:
-            accessible_school_ids = [s.id for s in current_user.schools]
-            staff_query = Staff.query.filter(
-                Staff.school_id.in_(accessible_school_ids),
-                Staff.is_active == True
-            )
+        accessible_school_ids = current_user.get_accessible_school_ids()
+        staff_query = Staff.query.filter_by(is_active=True)
         
-        if school_id:
-            staff_query = staff_query.filter(Staff.school_id == int(school_id))
         if organization_id:
-            staff_query = staff_query.join(School).filter(School.organization_id == int(organization_id))
-        if department:
-            staff_query = staff_query.filter(Staff.department == department)
+            org_school_ids = [s.id for s in School.query.filter_by(organization_id=int(organization_id)).all()]
+            staff_query = staff_query.filter(Staff.school_id.in_(org_school_ids))
+        elif school_id:
+            staff_query = staff_query.filter_by(school_id=int(school_id))
+        elif current_user.role != 'super_admin' and accessible_school_ids:
+            staff_query = staff_query.filter(Staff.school_id.in_(accessible_school_ids))
+        
+        if department_filter:
+            staff_query = staff_query.filter_by(department=department_filter)
         
         all_staff = staff_query.all()
+        staff_ids = [s.id for s in all_staff]
+        
+        current_attendance = Attendance.query.filter(
+            Attendance.staff_id.in_(staff_ids),
+            Attendance.date >= start_date,
+            Attendance.date <= end_date
+        ).all() if staff_ids else []
         
         attention_list = []
-        for staff in all_staff:
-            if staff.department == 'Management':
+        for s in all_staff:
+            if s.department == 'Management':
                 continue
-                
-            records = Attendance.query.filter(
-                Attendance.staff_id == staff.id,
-                Attendance.date >= start_date,
-                Attendance.date <= end_date
-            ).all()
-            
-            late_count = sum(1 for r in records if r.is_late)
-            
-            if late_count > 0:
+            staff_attendance = [a for a in current_attendance if a.staff_id == s.id]
+            late_cnt = sum(1 for a in staff_attendance if a.is_late)
+            if late_cnt > 0:
                 attention_list.append({
-                    'staff': staff,
-                    'late_count': late_count,
-                    'total': len(records)
+                    'name': s.name,
+                    'staff_id': s.staff_id,
+                    'branch': s.school.short_name or s.school.name if s.school else 'N/A',
+                    'department': s.department or '',
+                    'late_count': late_cnt,
+                    'total': len(staff_attendance)
                 })
         
         attention_list.sort(key=lambda x: x['late_count'], reverse=True)
@@ -3568,10 +3552,10 @@ def analytics_download_needs_attention():
         
         for idx, item in enumerate(attention_list, 1):
             worksheet.write(idx, 0, idx)
-            worksheet.write(idx, 1, item['staff'].staff_id or '')
-            worksheet.write(idx, 2, item['staff'].name)
-            worksheet.write(idx, 3, item['staff'].school.name if item['staff'].school else '')
-            worksheet.write(idx, 4, item['staff'].department or '')
+            worksheet.write(idx, 1, item['staff_id'] or '')
+            worksheet.write(idx, 2, item['name'])
+            worksheet.write(idx, 3, item['branch'])
+            worksheet.write(idx, 4, item['department'])
             worksheet.write(idx, 5, item['late_count'])
             worksheet.write(idx, 6, item['total'])
         
@@ -3601,7 +3585,7 @@ def analytics_download_early_arrivals():
         period = request.args.get('period', 'today')
         school_id = request.args.get('school_id', '')
         organization_id = request.args.get('organization_id', '')
-        department = request.args.get('department', '')
+        department_filter = request.args.get('department', '')
         
         today = date.today()
         if period == 'today':
@@ -3633,69 +3617,61 @@ def analytics_download_early_arrivals():
             start_date = today - timedelta(days=30)
             end_date = today
         
-        if current_user.role == 'super_admin':
-            staff_query = Staff.query.filter_by(is_active=True)
-        elif current_user.role in ['hr_viewer', 'ceo_viewer'] and current_user.organization_id:
-            staff_query = Staff.query.join(School).filter(
-                School.organization_id == current_user.organization_id,
-                Staff.is_active == True
-            )
-        else:
-            accessible_school_ids = [s.id for s in current_user.schools]
-            staff_query = Staff.query.filter(
-                Staff.school_id.in_(accessible_school_ids),
-                Staff.is_active == True
-            )
+        accessible_school_ids = current_user.get_accessible_school_ids()
+        staff_query = Staff.query.filter_by(is_active=True)
         
-        if school_id:
-            staff_query = staff_query.filter(Staff.school_id == int(school_id))
         if organization_id:
-            staff_query = staff_query.join(School).filter(School.organization_id == int(organization_id))
-        if department:
-            staff_query = staff_query.filter(Staff.department == department)
+            org_school_ids = [s.id for s in School.query.filter_by(organization_id=int(organization_id)).all()]
+            staff_query = staff_query.filter(Staff.school_id.in_(org_school_ids))
+        elif school_id:
+            staff_query = staff_query.filter_by(school_id=int(school_id))
+        elif current_user.role != 'super_admin' and accessible_school_ids:
+            staff_query = staff_query.filter(Staff.school_id.in_(accessible_school_ids))
+        
+        if department_filter:
+            staff_query = staff_query.filter_by(department=department_filter)
         
         all_staff = staff_query.all()
+        staff_ids = [s.id for s in all_staff]
+        
+        current_attendance = Attendance.query.filter(
+            Attendance.staff_id.in_(staff_ids),
+            Attendance.date >= start_date,
+            Attendance.date <= end_date
+        ).all() if staff_ids else []
         
         early_list = []
-        for staff in all_staff:
-            if staff.department == 'Management':
+        for s in all_staff:
+            if s.department == 'Management':
                 continue
-            
-            records = Attendance.query.filter(
-                Attendance.staff_id == staff.id,
-                Attendance.date >= start_date,
-                Attendance.date <= end_date
-            ).all()
-            
-            early_minutes_total = 0
-            early_count = 0
-            
-            for record in records:
-                if record.sign_in_time:
-                    schedule = get_staff_schedule_for_date(staff, record.date)
-                    if schedule and schedule.get('start_time'):
-                        try:
-                            scheduled_start = datetime.strptime(schedule['start_time'], '%H:%M').time()
-                            sign_in_time = datetime.strptime(record.sign_in_time, '%H:%M:%S').time() if isinstance(record.sign_in_time, str) else record.sign_in_time
-                            
-                            scheduled_minutes = scheduled_start.hour * 60 + scheduled_start.minute
-                            actual_minutes = sign_in_time.hour * 60 + sign_in_time.minute
-                            
-                            if actual_minutes < scheduled_minutes:
-                                early_minutes_total += (scheduled_minutes - actual_minutes)
-                                early_count += 1
-                        except:
-                            pass
-            
-            if early_count > 0:
-                avg_early = round(early_minutes_total / early_count, 1)
-                early_list.append({
-                    'staff': staff,
-                    'avg_early': avg_early,
-                    'early_count': early_count
-                })
+            staff_att = [a for a in current_attendance if a.staff_id == s.id and a.sign_in_time and not a.is_late]
+            if len(staff_att) >= 1:
+                early_mins_list = []
+                for a in staff_att:
+                    if a.sign_in_time and s.school:
+                        # get_staff_schedule_for_date returns tuple: (start_time, end_time, grace_mins, is_shift)
+                        start_time, end_time, grace_mins, is_shift = get_staff_schedule_for_date(s, a.date)
+                        if start_time:
+                            try:
+                                scheduled = datetime.strptime(start_time, '%H:%M').time()
+                                actual = a.sign_in_time.time()
+                                if actual < scheduled:
+                                    delta = datetime.combine(a.date, scheduled) - datetime.combine(a.date, actual)
+                                    early_mins_list.append(int(delta.total_seconds() / 60))
+                            except:
+                                pass
+                if early_mins_list:
+                    avg_early = round(sum(early_mins_list) / len(early_mins_list), 0)
+                    early_list.append({
+                        'name': s.name,
+                        'staff_id': s.staff_id,
+                        'branch': s.school.short_name or s.school.name if s.school else 'N/A',
+                        'department': s.department or '',
+                        'avg_early_mins': int(avg_early),
+                        'early_count': len(early_mins_list)
+                    })
         
-        early_list.sort(key=lambda x: x['avg_early'], reverse=True)
+        early_list.sort(key=lambda x: x['avg_early_mins'], reverse=True)
         
         output = io.BytesIO()
         workbook = xlsxwriter.Workbook(output)
@@ -3709,11 +3685,11 @@ def analytics_download_early_arrivals():
         
         for idx, item in enumerate(early_list, 1):
             worksheet.write(idx, 0, idx)
-            worksheet.write(idx, 1, item['staff'].staff_id or '')
-            worksheet.write(idx, 2, item['staff'].name)
-            worksheet.write(idx, 3, item['staff'].school.name if item['staff'].school else '')
-            worksheet.write(idx, 4, item['staff'].department or '')
-            worksheet.write(idx, 5, item['avg_early'])
+            worksheet.write(idx, 1, item['staff_id'] or '')
+            worksheet.write(idx, 2, item['name'])
+            worksheet.write(idx, 3, item['branch'])
+            worksheet.write(idx, 4, item['department'])
+            worksheet.write(idx, 5, item['avg_early_mins'])
             worksheet.write(idx, 6, item['early_count'])
         
         worksheet.set_column(0, 0, 8)
@@ -3742,7 +3718,7 @@ def analytics_download_perfect_attendance():
         period = request.args.get('period', 'today')
         school_id = request.args.get('school_id', '')
         organization_id = request.args.get('organization_id', '')
-        department = request.args.get('department', '')
+        department_filter = request.args.get('department', '')
         
         today = date.today()
         if period == 'today':
@@ -3774,53 +3750,50 @@ def analytics_download_perfect_attendance():
             start_date = today - timedelta(days=30)
             end_date = today
         
-        if current_user.role == 'super_admin':
-            staff_query = Staff.query.filter_by(is_active=True)
-        elif current_user.role in ['hr_viewer', 'ceo_viewer'] and current_user.organization_id:
-            staff_query = Staff.query.join(School).filter(
-                School.organization_id == current_user.organization_id,
-                Staff.is_active == True
-            )
-        else:
-            accessible_school_ids = [s.id for s in current_user.schools]
-            staff_query = Staff.query.filter(
-                Staff.school_id.in_(accessible_school_ids),
-                Staff.is_active == True
-            )
+        # Calculate working days
+        period_days = (end_date - start_date).days + 1
+        working_days = sum(1 for i in range(period_days) if (start_date + timedelta(days=i)).weekday() < 5)
         
-        if school_id:
-            staff_query = staff_query.filter(Staff.school_id == int(school_id))
+        accessible_school_ids = current_user.get_accessible_school_ids()
+        staff_query = Staff.query.filter_by(is_active=True)
+        
         if organization_id:
-            staff_query = staff_query.join(School).filter(School.organization_id == int(organization_id))
-        if department:
-            staff_query = staff_query.filter(Staff.department == department)
+            org_school_ids = [s.id for s in School.query.filter_by(organization_id=int(organization_id)).all()]
+            staff_query = staff_query.filter(Staff.school_id.in_(org_school_ids))
+        elif school_id:
+            staff_query = staff_query.filter_by(school_id=int(school_id))
+        elif current_user.role != 'super_admin' and accessible_school_ids:
+            staff_query = staff_query.filter(Staff.school_id.in_(accessible_school_ids))
+        
+        if department_filter:
+            staff_query = staff_query.filter_by(department=department_filter)
         
         all_staff = staff_query.all()
+        staff_ids = [s.id for s in all_staff]
+        
+        current_attendance = Attendance.query.filter(
+            Attendance.staff_id.in_(staff_ids),
+            Attendance.date >= start_date,
+            Attendance.date <= end_date
+        ).all() if staff_ids else []
         
         perfect_list = []
-        for staff in all_staff:
-            if staff.department == 'Management':
+        for s in all_staff:
+            if s.department == 'Management':
                 continue
-            
-            records = Attendance.query.filter(
-                Attendance.staff_id == staff.id,
-                Attendance.date >= start_date,
-                Attendance.date <= end_date
-            ).all()
-            
-            if not records:
-                continue
-            
-            # Perfect = no late arrivals
-            has_late = any(r.is_late for r in records)
-            
-            if not has_late:
+            staff_att = [a for a in current_attendance if a.staff_id == s.id]
+            staff_on_time = [a for a in staff_att if not a.is_late]
+            # Perfect = attended all working days with no late
+            if len(staff_att) >= working_days and len(staff_on_time) == len(staff_att) and len(staff_att) > 0:
                 perfect_list.append({
-                    'staff': staff,
-                    'days_present': len(records)
+                    'name': s.name,
+                    'staff_id': s.staff_id,
+                    'branch': s.school.short_name or s.school.name if s.school else 'N/A',
+                    'department': s.department or '',
+                    'days': len(staff_att)
                 })
         
-        perfect_list.sort(key=lambda x: x['days_present'], reverse=True)
+        perfect_list.sort(key=lambda x: x['days'], reverse=True)
         
         output = io.BytesIO()
         workbook = xlsxwriter.Workbook(output)
@@ -3834,11 +3807,11 @@ def analytics_download_perfect_attendance():
         
         for idx, item in enumerate(perfect_list, 1):
             worksheet.write(idx, 0, idx)
-            worksheet.write(idx, 1, item['staff'].staff_id or '')
-            worksheet.write(idx, 2, item['staff'].name)
-            worksheet.write(idx, 3, item['staff'].school.name if item['staff'].school else '')
-            worksheet.write(idx, 4, item['staff'].department or '')
-            worksheet.write(idx, 5, item['days_present'])
+            worksheet.write(idx, 1, item['staff_id'] or '')
+            worksheet.write(idx, 2, item['name'])
+            worksheet.write(idx, 3, item['branch'])
+            worksheet.write(idx, 4, item['department'])
+            worksheet.write(idx, 5, item['days'])
         
         worksheet.set_column(0, 0, 8)
         worksheet.set_column(1, 1, 15)
@@ -3866,111 +3839,103 @@ def analytics_download_most_improved():
         period = request.args.get('period', 'today')
         school_id = request.args.get('school_id', '')
         organization_id = request.args.get('organization_id', '')
-        department = request.args.get('department', '')
+        department_filter = request.args.get('department', '')
         
         today = date.today()
         if period == 'today':
             start_date = today
             end_date = today
+            period_days = 1
         elif period == '7':
             start_date = today - timedelta(days=7)
             end_date = today
+            period_days = 7
         elif period == '14':
             start_date = today - timedelta(days=14)
             end_date = today
+            period_days = 14
         elif period == '30':
             start_date = today - timedelta(days=30)
             end_date = today
+            period_days = 30
         elif period == 'this_week':
             start_date = today - timedelta(days=today.weekday())
             end_date = today
+            period_days = (end_date - start_date).days + 1
         elif period == 'last_week':
             start_date = today - timedelta(days=today.weekday() + 7)
             end_date = start_date + timedelta(days=6)
+            period_days = 7
         elif period == 'this_month':
             start_date = today.replace(day=1)
             end_date = today
+            period_days = (end_date - start_date).days + 1
         elif period == 'last_month':
             first_of_this_month = today.replace(day=1)
             end_date = first_of_this_month - timedelta(days=1)
             start_date = end_date.replace(day=1)
+            period_days = (end_date - start_date).days + 1
         else:
             start_date = today - timedelta(days=30)
             end_date = today
+            period_days = 30
         
-        # Previous period (same length)
-        period_length = (end_date - start_date).days + 1
-        prev_end_date = start_date - timedelta(days=1)
-        prev_start_date = prev_end_date - timedelta(days=period_length - 1)
+        previous_start = start_date - timedelta(days=period_days)
         
-        if current_user.role == 'super_admin':
-            staff_query = Staff.query.filter_by(is_active=True)
-        elif current_user.role in ['hr_viewer', 'ceo_viewer'] and current_user.organization_id:
-            staff_query = Staff.query.join(School).filter(
-                School.organization_id == current_user.organization_id,
-                Staff.is_active == True
-            )
-        else:
-            accessible_school_ids = [s.id for s in current_user.schools]
-            staff_query = Staff.query.filter(
-                Staff.school_id.in_(accessible_school_ids),
-                Staff.is_active == True
-            )
+        accessible_school_ids = current_user.get_accessible_school_ids()
+        staff_query = Staff.query.filter_by(is_active=True)
         
-        if school_id:
-            staff_query = staff_query.filter(Staff.school_id == int(school_id))
         if organization_id:
-            staff_query = staff_query.join(School).filter(School.organization_id == int(organization_id))
-        if department:
-            staff_query = staff_query.filter(Staff.department == department)
+            org_school_ids = [s.id for s in School.query.filter_by(organization_id=int(organization_id)).all()]
+            staff_query = staff_query.filter(Staff.school_id.in_(org_school_ids))
+        elif school_id:
+            staff_query = staff_query.filter_by(school_id=int(school_id))
+        elif current_user.role != 'super_admin' and accessible_school_ids:
+            staff_query = staff_query.filter(Staff.school_id.in_(accessible_school_ids))
+        
+        if department_filter:
+            staff_query = staff_query.filter_by(department=department_filter)
         
         all_staff = staff_query.all()
+        staff_ids = [s.id for s in all_staff]
+        
+        current_attendance = Attendance.query.filter(
+            Attendance.staff_id.in_(staff_ids),
+            Attendance.date >= start_date,
+            Attendance.date <= end_date
+        ).all() if staff_ids else []
+        
+        previous_attendance = Attendance.query.filter(
+            Attendance.staff_id.in_(staff_ids),
+            Attendance.date >= previous_start,
+            Attendance.date < start_date
+        ).all() if staff_ids else []
         
         improved_list = []
-        for staff in all_staff:
-            if staff.department == 'Management':
+        for s in all_staff:
+            if s.department == 'Management':
                 continue
-            
-            # Current period
-            current_records = Attendance.query.filter(
-                Attendance.staff_id == staff.id,
-                Attendance.date >= start_date,
-                Attendance.date <= end_date
-            ).all()
-            
-            # Previous period
-            prev_records = Attendance.query.filter(
-                Attendance.staff_id == staff.id,
-                Attendance.date >= prev_start_date,
-                Attendance.date <= prev_end_date
-            ).all()
-            
-            if not current_records or not prev_records:
-                continue
-            
-            current_on_time = sum(1 for r in current_records if not r.is_late)
-            prev_on_time = sum(1 for r in prev_records if not r.is_late)
-            
-            current_pct = (current_on_time / len(current_records)) * 100
-            prev_pct = (prev_on_time / len(prev_records)) * 100
-            
-            improvement = current_pct - prev_pct
-            
-            if improvement > 0:
+            current_late = sum(1 for a in current_attendance if a.staff_id == s.id and a.is_late)
+            prev_late = sum(1 for a in previous_attendance if a.staff_id == s.id and a.is_late)
+            if prev_late > current_late and prev_late > 0:
+                reduction = prev_late - current_late
                 improved_list.append({
-                    'staff': staff,
-                    'improvement': round(improvement, 1),
-                    'current_pct': round(current_pct, 1),
-                    'prev_pct': round(prev_pct, 1)
+                    'name': s.name,
+                    'staff_id': s.staff_id,
+                    'branch': s.school.short_name or s.school.name if s.school else 'N/A',
+                    'department': s.department or '',
+                    'reduction': reduction,
+                    'current_late': current_late,
+                    'prev_late': prev_late
                 })
         
-        improved_list.sort(key=lambda x: x['improvement'], reverse=True)
+        improved_list.sort(key=lambda x: x['reduction'], reverse=True)
         
         output = io.BytesIO()
         workbook = xlsxwriter.Workbook(output)
         worksheet = workbook.add_worksheet('Most Improved')
         
-        headers = ['Rank', 'Staff ID', 'Name', 'Branch', 'Department', 'Improvement %', 'Current %', 'Previous %']
+        headers = ['Rank', 'Staff ID', 'Name', 'Branch', 'Department', 'Reduction', 'Current Late', 'Previous Late']
         header_format = workbook.add_format({'bold': True, 'bg_color': '#FF9800', 'font_color': 'white'})
         
         for col, header in enumerate(headers):
@@ -3978,13 +3943,13 @@ def analytics_download_most_improved():
         
         for idx, item in enumerate(improved_list, 1):
             worksheet.write(idx, 0, idx)
-            worksheet.write(idx, 1, item['staff'].staff_id or '')
-            worksheet.write(idx, 2, item['staff'].name)
-            worksheet.write(idx, 3, item['staff'].school.name if item['staff'].school else '')
-            worksheet.write(idx, 4, item['staff'].department or '')
-            worksheet.write(idx, 5, item['improvement'])
-            worksheet.write(idx, 6, item['current_pct'])
-            worksheet.write(idx, 7, item['prev_pct'])
+            worksheet.write(idx, 1, item['staff_id'] or '')
+            worksheet.write(idx, 2, item['name'])
+            worksheet.write(idx, 3, item['branch'])
+            worksheet.write(idx, 4, item['department'])
+            worksheet.write(idx, 5, item['reduction'])
+            worksheet.write(idx, 6, item['current_late'])
+            worksheet.write(idx, 7, item['prev_late'])
         
         worksheet.set_column(0, 0, 8)
         worksheet.set_column(1, 1, 15)
@@ -4012,57 +3977,46 @@ def analytics_download_streaks():
         period = request.args.get('period', 'today')
         school_id = request.args.get('school_id', '')
         organization_id = request.args.get('organization_id', '')
-        department = request.args.get('department', '')
+        department_filter = request.args.get('department', '')
         
         today = date.today()
         
-        if current_user.role == 'super_admin':
-            staff_query = Staff.query.filter_by(is_active=True)
-        elif current_user.role in ['hr_viewer', 'ceo_viewer'] and current_user.organization_id:
-            staff_query = Staff.query.join(School).filter(
-                School.organization_id == current_user.organization_id,
-                Staff.is_active == True
-            )
-        else:
-            accessible_school_ids = [s.id for s in current_user.schools]
-            staff_query = Staff.query.filter(
-                Staff.school_id.in_(accessible_school_ids),
-                Staff.is_active == True
-            )
+        accessible_school_ids = current_user.get_accessible_school_ids()
+        staff_query = Staff.query.filter_by(is_active=True)
         
-        if school_id:
-            staff_query = staff_query.filter(Staff.school_id == int(school_id))
         if organization_id:
-            staff_query = staff_query.join(School).filter(School.organization_id == int(organization_id))
-        if department:
-            staff_query = staff_query.filter(Staff.department == department)
+            org_school_ids = [s.id for s in School.query.filter_by(organization_id=int(organization_id)).all()]
+            staff_query = staff_query.filter(Staff.school_id.in_(org_school_ids))
+        elif school_id:
+            staff_query = staff_query.filter_by(school_id=int(school_id))
+        elif current_user.role != 'super_admin' and accessible_school_ids:
+            staff_query = staff_query.filter(Staff.school_id.in_(accessible_school_ids))
+        
+        if department_filter:
+            staff_query = staff_query.filter_by(department=department_filter)
         
         all_staff = staff_query.all()
         
         streaks_list = []
-        for staff in all_staff:
-            if staff.department == 'Management':
+        for s in all_staff:
+            if s.department == 'Management':
                 continue
+            # Get attendance sorted by date descending
+            staff_att = Attendance.query.filter_by(staff_id=s.id).order_by(Attendance.date.desc()).limit(60).all()
             
-            # Get recent records ordered by date descending
-            records = Attendance.query.filter(
-                Attendance.staff_id == staff.id
-            ).order_by(Attendance.date.desc()).limit(60).all()
-            
-            if not records:
-                continue
-            
-            # Calculate current streak
             streak = 0
-            for record in records:
-                if not record.is_late:
+            for a in staff_att:
+                if not a.is_late:
                     streak += 1
                 else:
                     break
             
-            if streak > 0:
+            if streak >= 3:
                 streaks_list.append({
-                    'staff': staff,
+                    'name': s.name,
+                    'staff_id': s.staff_id,
+                    'branch': s.school.short_name or s.school.name if s.school else 'N/A',
+                    'department': s.department or '',
                     'streak': streak
                 })
         
@@ -4080,10 +4034,10 @@ def analytics_download_streaks():
         
         for idx, item in enumerate(streaks_list, 1):
             worksheet.write(idx, 0, idx)
-            worksheet.write(idx, 1, item['staff'].staff_id or '')
-            worksheet.write(idx, 2, item['staff'].name)
-            worksheet.write(idx, 3, item['staff'].school.name if item['staff'].school else '')
-            worksheet.write(idx, 4, item['staff'].department or '')
+            worksheet.write(idx, 1, item['staff_id'] or '')
+            worksheet.write(idx, 2, item['name'])
+            worksheet.write(idx, 3, item['branch'])
+            worksheet.write(idx, 4, item['department'])
             worksheet.write(idx, 5, item['streak'])
         
         worksheet.set_column(0, 0, 8)
@@ -4102,6 +4056,7 @@ def analytics_download_streaks():
     except Exception as e:
         flash(f'Error generating report: {str(e)}', 'error')
         return redirect(url_for('analytics'))
+
 
 
 
@@ -4453,6 +4408,7 @@ if __name__ == '__main__':
     with app.app_context():
         db.create_all()
     app.run(debug=True, host='0.0.0.0', port=int(os.environ.get('PORT', 5000)))
+
 
 
 
