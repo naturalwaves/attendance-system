@@ -60,43 +60,357 @@
     .metric-trend.up { background: rgba(40, 167, 69, 0.15); color: #1e7e34; }
     .metric-trend.down { background: rgba(220, 53, 69, 0.15); color: #c82333; }
     .metric-card .metric-subtitle { font-size: 0.8rem; color: #6c757d; font-weight: 500; }
-    .chart-card { border: none; border-radius: 16px; box-shadow: 0 4px 20px rgba(0,0,0,0.08); background: #fff; overflow: hidden; }
-    .chart-card .card-header { background: linear-gradient(135deg, #f8f9fa 0%, #fff 100%); border-bottom: 1px solid #eee; padding: 1.15rem 1.5rem; }
-    .chart-card .card-header h5 { font-weight: 600; font-size: 0.95rem; margin: 0; color: #333; }
-    .chart-card .card-header .header-icon { width: 36px; height: 36px; border-radius: 10px; display: inline-flex; align-items: center; justify-content: center; margin-right: 10px; font-size: 1rem; color: #fff; }
-    .chart-card .card-body { padding: 1.5rem; }
-    .ranking-card { border: none; border-radius: 16px; overflow: hidden; box-shadow: 0 4px 20px rgba(0,0,0,0.08); background: #fff; }
-    .ranking-card .card-header { padding: 1.15rem 1.5rem; border: none; position: relative; overflow: hidden; }
-    .ranking-card .card-header::before { content: ''; position: absolute; top: 0; right: 0; width: 100px; height: 100%; background: rgba(255,255,255,0.1); transform: skewX(-20deg); }
-    .ranking-card .card-header h5 { font-weight: 600; font-size: 0.95rem; margin: 0; position: relative; z-index: 1; }
-    .ranking-card .table { margin: 0; }
-    .ranking-card .table th { border-top: none; font-weight: 600; font-size: 0.7rem; text-transform: uppercase; letter-spacing: 0.5px; color: #6c757d; padding: 0.9rem 1.25rem; background: #fafbfc; }
-    .ranking-card .table td { padding: 0.9rem 1.25rem; vertical-align: middle; border-color: #f3f3f3; font-size: 0.875rem; }
-    .ranking-card .table tbody tr { transition: background 0.2s ease; }
-    .ranking-card .table tbody tr:hover { background: #f8f9fa; }
-    .ranking-card .empty-state { padding: 2.5rem 1rem; }
-    .ranking-card .empty-state i { font-size: 2.5rem; opacity: 0.2; margin-bottom: 0.75rem; }
-    .rank-badge { width: 32px; height: 32px; border-radius: 50%; display: inline-flex; align-items: center; justify-content: center; font-weight: 700; font-size: 0.75rem; }
-    .rank-gold { background: linear-gradient(135deg, #ffd700 0%, #ffb800 100%); color: #664d00; box-shadow: 0 3px 10px rgba(255, 184, 0, 0.4); }
-    .rank-silver { background: linear-gradient(135deg, #e8e8e8 0%, #c0c0c0 100%); color: #555; box-shadow: 0 3px 10px rgba(192, 192, 192, 0.4); }
-    .rank-bronze { background: linear-gradient(135deg, #cd7f32 0%, #b8722c 100%); color: #fff; box-shadow: 0 3px 10px rgba(205, 127, 50, 0.4); }
-    .rank-default { background: #f1f3f4; color: #5f6368; }
-    .filter-card { border: none; border-radius: 16px; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); box-shadow: 0 4px 20px rgba(102, 126, 234, 0.3); }
-    .filter-card .card-body { padding: 1.25rem 1.5rem; }
-    .filter-card .form-label { font-size: 0.7rem; text-transform: uppercase; letter-spacing: 0.5px; color: rgba(255,255,255,0.85); font-weight: 600; margin-bottom: 0.4rem; }
-    .filter-card .form-select, .filter-card .form-control { background: rgba(255,255,255,0.95); border: none; font-size: 0.875rem; padding: 0.5rem 0.75rem; }
-    .filter-card .form-select:focus, .filter-card .form-control:focus { box-shadow: 0 0 0 3px rgba(255,255,255,0.3); }
-    .filter-card .btn-filter { background: #fff; color: #667eea; border: none; font-weight: 600; padding: 0.5rem 1rem; transition: all 0.2s ease; }
-    .filter-card .btn-filter:hover { background: #f8f9fa; transform: translateY(-1px); box-shadow: 0 4px 12px rgba(0,0,0,0.15); }
-    .filter-card .btn-pdf { background: #dc3545; color: #fff; border: none; font-weight: 600; padding: 0.5rem 1rem; transition: all 0.2s ease; text-decoration: none; display: inline-flex; align-items: center; justify-content: center; }
-    .filter-card .btn-pdf:hover { background: #c82333; color: #fff; transform: translateY(-1px); box-shadow: 0 4px 12px rgba(0,0,0,0.15); }
-    .branch-badge { background: linear-gradient(135deg, #f1f3f4 0%, #e8eaed 100%); color: #5f6368; font-weight: 500; padding: 4px 10px; border-radius: 6px; font-size: 0.75rem; }
-    .score-badge { padding: 5px 12px; border-radius: 20px; font-weight: 600; font-size: 0.8rem; }
-    .score-badge.success { background: linear-gradient(135deg, #d4edda 0%, #c3e6cb 100%); color: #155724; }
-    .score-badge.danger { background: linear-gradient(135deg, #f8d7da 0%, #f5c6cb 100%); color: #721c24; }
-    .score-badge.info { background: linear-gradient(135deg, #d1ecf1 0%, #bee5eb 100%); color: #0c5460; }
-    .score-badge.purple { background: linear-gradient(135deg, #e2d9f3 0%, #d4c4ed 100%); color: #4a2c82; }
-    .score-badge.orange { background: linear-gradient(135deg, #ffecd2 0%, #fcb69f 100%); color: #8a4500; }
+    
+    /* Chart Cards - IMPROVED */
+    .chart-card {
+        border: none;
+        border-radius: 16px;
+        box-shadow: 0 4px 20px rgba(0,0,0,0.08);
+        background: #fff;
+        overflow: hidden;
+        transition: all 0.3s ease;
+    }
+    
+    .chart-card:hover {
+        transform: translateY(-4px);
+        box-shadow: 0 8px 30px rgba(0,0,0,0.12);
+    }
+    
+    .chart-card.border-red { border-left: 4px solid #dc3545; }
+    .chart-card.border-yellow { border-left: 4px solid #ffc107; }
+    .chart-card.border-blue { border-left: 4px solid #007bff; }
+    .chart-card.border-green { border-left: 4px solid #28a745; }
+    .chart-card.border-purple { border-left: 4px solid #6f42c1; }
+    .chart-card.border-teal { border-left: 4px solid #17a2b8; }
+    .chart-card.border-orange { border-left: 4px solid #fd7e14; }
+    
+    .chart-card .card-header {
+        background: linear-gradient(135deg, #f8f9fa 0%, #fff 100%);
+        border-bottom: 1px solid #eee;
+        padding: 1.25rem 1.5rem;
+    }
+    
+    .chart-card .card-header h5 {
+        font-weight: 600;
+        font-size: 1rem;
+        margin: 0;
+        color: #333;
+    }
+    
+    .chart-card .card-header .header-icon {
+        width: 42px;
+        height: 42px;
+        border-radius: 12px;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        margin-right: 12px;
+        font-size: 1.1rem;
+        color: #fff;
+        box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+    }
+    
+    .chart-card .card-body {
+        padding: 1.5rem;
+    }
+    
+    .chart-card .chart-empty-state {
+        padding: 3rem 1rem;
+        text-align: center;
+    }
+    
+    .chart-card .chart-empty-state i {
+        font-size: 3rem;
+        opacity: 0.15;
+        margin-bottom: 1rem;
+        display: block;
+    }
+    
+    .chart-card .chart-empty-state p {
+        color: #6c757d;
+        margin: 0;
+    }
+    
+    /* Ranking Cards - IMPROVED */
+    .ranking-card {
+        border: none;
+        border-radius: 16px;
+        overflow: hidden;
+        box-shadow: 0 4px 20px rgba(0,0,0,0.08);
+        background: #fff;
+        transition: all 0.3s ease;
+    }
+    
+    .ranking-card:hover {
+        transform: translateY(-4px);
+        box-shadow: 0 8px 30px rgba(0,0,0,0.12);
+    }
+    
+    .ranking-card .card-header {
+        padding: 1.25rem 1.5rem;
+        border: none;
+        position: relative;
+        overflow: hidden;
+    }
+    
+    .ranking-card .card-header::before {
+        content: '';
+        position: absolute;
+        top: 0;
+        right: 0;
+        width: 150px;
+        height: 100%;
+        background: rgba(255,255,255,0.1);
+        transform: skewX(-20deg);
+    }
+    
+    .ranking-card .card-header h5 {
+        font-weight: 600;
+        font-size: 1rem;
+        margin: 0;
+        position: relative;
+        z-index: 1;
+    }
+    
+    .ranking-card .card-header .header-actions {
+        position: relative;
+        z-index: 1;
+    }
+    
+    .ranking-card .card-header .btn-view-all {
+        background: rgba(255,255,255,0.2);
+        border: 1px solid rgba(255,255,255,0.3);
+        color: #fff;
+        font-size: 0.75rem;
+        padding: 4px 12px;
+        border-radius: 20px;
+        transition: all 0.2s ease;
+        text-decoration: none;
+    }
+    
+    .ranking-card .card-header .btn-view-all:hover {
+        background: rgba(255,255,255,0.3);
+        transform: translateY(-1px);
+    }
+    
+    .ranking-card .card-header .btn-download-excel {
+        background: rgba(255,255,255,0.2);
+        border: 1px solid rgba(255,255,255,0.3);
+        color: #fff;
+        font-size: 0.75rem;
+        padding: 4px 10px;
+        border-radius: 20px;
+        transition: all 0.2s ease;
+        text-decoration: none;
+        margin-left: 6px;
+    }
+    
+    .ranking-card .card-header .btn-download-excel:hover {
+        background: rgba(255,255,255,0.3);
+        transform: translateY(-1px);
+    }
+    
+    .ranking-card .table {
+        margin: 0;
+    }
+    
+    .ranking-card .table th {
+        border-top: none;
+        font-weight: 600;
+        font-size: 0.7rem;
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+        color: #6c757d;
+        padding: 1rem 1.25rem;
+        background: linear-gradient(135deg, #f8f9fa 0%, #fff 100%);
+    }
+    
+    .ranking-card .table td {
+        padding: 1rem 1.25rem;
+        vertical-align: middle;
+        border-color: #f0f0f0;
+        font-size: 0.875rem;
+    }
+    
+    .ranking-card .table tbody tr {
+        transition: all 0.2s ease;
+        border-left: 3px solid transparent;
+    }
+    
+    .ranking-card .table tbody tr:hover {
+        background: #f8f9fa;
+        border-left: 3px solid currentColor;
+    }
+    
+    .ranking-card.ranking-green .table tbody tr:hover { border-left-color: #28a745; }
+    .ranking-card.ranking-red .table tbody tr:hover { border-left-color: #dc3545; }
+    .ranking-card.ranking-teal .table tbody tr:hover { border-left-color: #17a2b8; }
+    .ranking-card.ranking-purple .table tbody tr:hover { border-left-color: #6f42c1; }
+    .ranking-card.ranking-orange .table tbody tr:hover { border-left-color: #fd7e14; }
+    .ranking-card.ranking-cyan .table tbody tr:hover { border-left-color: #20c997; }
+    
+    .ranking-card .empty-state {
+        padding: 3rem 1rem;
+        text-align: center;
+    }
+    
+    .ranking-card .empty-state i {
+        font-size: 3rem;
+        opacity: 0.15;
+        margin-bottom: 1rem;
+        display: block;
+    }
+    
+    .ranking-card .empty-state p {
+        color: #6c757d;
+        margin: 0;
+    }
+    
+    .rank-badge {
+        width: 34px;
+        height: 34px;
+        border-radius: 50%;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        font-weight: 700;
+        font-size: 0.75rem;
+    }
+    
+    .rank-gold {
+        background: linear-gradient(135deg, #ffd700 0%, #ffb800 100%);
+        color: #664d00;
+        box-shadow: 0 4px 12px rgba(255, 184, 0, 0.4);
+    }
+    
+    .rank-silver {
+        background: linear-gradient(135deg, #e8e8e8 0%, #c0c0c0 100%);
+        color: #555;
+        box-shadow: 0 4px 12px rgba(192, 192, 192, 0.4);
+    }
+    
+    .rank-bronze {
+        background: linear-gradient(135deg, #cd7f32 0%, #b8722c 100%);
+        color: #fff;
+        box-shadow: 0 4px 12px rgba(205, 127, 50, 0.4);
+    }
+    
+    .rank-default {
+        background: linear-gradient(135deg, #f1f3f4 0%, #e8eaed 100%);
+        color: #5f6368;
+    }
+    
+    .filter-card {
+        border: none;
+        border-radius: 16px;
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        box-shadow: 0 4px 20px rgba(102, 126, 234, 0.3);
+    }
+    
+    .filter-card .card-body {
+        padding: 1.25rem 1.5rem;
+    }
+    
+    .filter-card .form-label {
+        font-size: 0.7rem;
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+        color: rgba(255,255,255,0.85);
+        font-weight: 600;
+        margin-bottom: 0.4rem;
+    }
+    
+    .filter-card .form-select,
+    .filter-card .form-control {
+        background: rgba(255,255,255,0.95);
+        border: none;
+        font-size: 0.875rem;
+        padding: 0.5rem 0.75rem;
+        border-radius: 8px;
+    }
+    
+    .filter-card .form-select:focus,
+    .filter-card .form-control:focus {
+        box-shadow: 0 0 0 3px rgba(255,255,255,0.3);
+    }
+    
+    .filter-card .btn-filter {
+        background: #fff;
+        color: #667eea;
+        border: none;
+        font-weight: 600;
+        padding: 0.5rem 1rem;
+        border-radius: 8px;
+        transition: all 0.2s ease;
+    }
+    
+    .filter-card .btn-filter:hover {
+        background: #f8f9fa;
+        transform: translateY(-1px);
+        box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+    }
+    
+    .filter-card .btn-pdf {
+        background: linear-gradient(135deg, #dc3545 0%, #c82333 100%);
+        color: #fff;
+        border: none;
+        font-weight: 600;
+        padding: 0.5rem 1rem;
+        border-radius: 8px;
+        transition: all 0.2s ease;
+        text-decoration: none;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+    }
+    
+    .filter-card .btn-pdf:hover {
+        background: linear-gradient(135deg, #c82333 0%, #bd2130 100%);
+        color: #fff;
+        transform: translateY(-1px);
+        box-shadow: 0 4px 12px rgba(220, 53, 69, 0.3);
+    }
+    
+    .branch-badge {
+        background: linear-gradient(135deg, #f1f3f4 0%, #e8eaed 100%);
+        color: #5f6368;
+        font-weight: 500;
+        padding: 5px 12px;
+        border-radius: 20px;
+        font-size: 0.75rem;
+    }
+    
+    .score-badge {
+        padding: 6px 14px;
+        border-radius: 20px;
+        font-weight: 600;
+        font-size: 0.8rem;
+    }
+    
+    .score-badge.success {
+        background: linear-gradient(135deg, #d4edda 0%, #c3e6cb 100%);
+        color: #155724;
+    }
+    
+    .score-badge.danger {
+        background: linear-gradient(135deg, #f8d7da 0%, #f5c6cb 100%);
+        color: #721c24;
+    }
+    
+    .score-badge.info {
+        background: linear-gradient(135deg, #d1ecf1 0%, #bee5eb 100%);
+        color: #0c5460;
+    }
+    
+    .score-badge.purple {
+        background: linear-gradient(135deg, #e2d9f3 0%, #d4c4ed 100%);
+        color: #4a2c82;
+    }
+    
+    .score-badge.orange {
+        background: linear-gradient(135deg, #ffecd2 0%, #fcb69f 100%);
+        color: #8a4500;
+    }
 </style>
 
 <div class="container-fluid">
@@ -316,7 +630,7 @@
     <!-- Charts Row 1 -->
     <div class="row mb-4 g-4">
         <div class="col-lg-8">
-            <div class="card chart-card h-100">
+            <div class="card chart-card border-red h-100">
                 <div class="card-header d-flex align-items-center">
                     <span class="header-icon" style="background: linear-gradient(135deg, #dc3545 0%, #c82333 100%);"><i class="fas fa-chart-area"></i></span>
                     <h5 class="mb-0">Attendance & Punctuality Trend</h5>
@@ -327,7 +641,7 @@
             </div>
         </div>
         <div class="col-lg-4">
-            <div class="card chart-card h-100">
+            <div class="card chart-card border-yellow h-100">
                 <div class="card-header d-flex align-items-center">
                     <span class="header-icon" style="background: linear-gradient(135deg, #ffc107 0%, #e0a800 100%);"><i class="fas fa-calendar-week"></i></span>
                     <h5 class="mb-0">Late by Day of Week</h5>
@@ -342,7 +656,7 @@
     <!-- Charts Row 2 -->
     <div class="row mb-4 g-4">
         <div class="col-lg-5">
-            <div class="card chart-card h-100">
+            <div class="card chart-card border-blue h-100">
                 <div class="card-header d-flex align-items-center">
                     <span class="header-icon" style="background: linear-gradient(135deg, #007bff 0%, #0056b3 100%);"><i class="fas fa-sitemap"></i></span>
                     <h5 class="mb-0">Department Performance</h5>
@@ -351,16 +665,16 @@
                     {% if department_labels %}
                     <canvas id="departmentChart"></canvas>
                     {% else %}
-                    <div class="text-center text-muted">
-                        <i class="fas fa-chart-pie fa-3x mb-3" style="opacity: 0.2;"></i>
-                        <p class="mb-0">No department data available</p>
+                    <div class="chart-empty-state">
+                        <i class="fas fa-chart-pie"></i>
+                        <p>No department data available</p>
                     </div>
                     {% endif %}
                 </div>
             </div>
         </div>
         <div class="col-lg-7">
-            <div class="card chart-card h-100">
+            <div class="card chart-card border-green h-100">
                 <div class="card-header d-flex align-items-center">
                     <span class="header-icon" style="background: linear-gradient(135deg, #28a745 0%, #1e7e34 100%);"><i class="fas fa-code-branch"></i></span>
                     <h5 class="mb-0">Branch Comparison</h5>
@@ -369,9 +683,9 @@
                     {% if branch_labels %}
                     <canvas id="branchChart" height="160"></canvas>
                     {% else %}
-                    <div class="text-center text-muted py-5">
-                        <i class="fas fa-code-branch fa-3x mb-3" style="opacity: 0.2;"></i>
-                        <p class="mb-0">No branch data available</p>
+                    <div class="chart-empty-state">
+                        <i class="fas fa-code-branch"></i>
+                        <p>No branch data available</p>
                     </div>
                     {% endif %}
                 </div>
@@ -382,7 +696,7 @@
     <!-- Three Summary Charts Row -->
     <div class="row mb-4 g-4">
         <div class="col-lg-4">
-            <div class="card chart-card h-100">
+            <div class="card chart-card border-purple h-100">
                 <div class="card-header d-flex align-items-center">
                     <span class="header-icon" style="background: linear-gradient(135deg, #6f42c1 0%, #59359a 100%);"><i class="fas fa-chart-pie"></i></span>
                     <h5 class="mb-0">Arrival Distribution</h5>
@@ -391,16 +705,16 @@
                     {% if total_records > 0 %}
                     <canvas id="distributionChart"></canvas>
                     {% else %}
-                    <div class="text-center text-muted">
-                        <i class="fas fa-chart-pie fa-3x mb-3" style="opacity: 0.2;"></i>
-                        <p class="mb-0">No data available</p>
+                    <div class="chart-empty-state">
+                        <i class="fas fa-chart-pie"></i>
+                        <p>No data available</p>
                     </div>
                     {% endif %}
                 </div>
             </div>
         </div>
         <div class="col-lg-4">
-            <div class="card chart-card h-100">
+            <div class="card chart-card border-teal h-100">
                 <div class="card-header d-flex align-items-center">
                     <span class="header-icon" style="background: linear-gradient(135deg, #17a2b8 0%, #117a8b 100%);"><i class="fas fa-user-check"></i></span>
                     <h5 class="mb-0">Present vs Absent</h5>
@@ -409,16 +723,16 @@
                     {% if total_records > 0 or presence_data[1] > 0 %}
                     <canvas id="presenceChart"></canvas>
                     {% else %}
-                    <div class="text-center text-muted">
-                        <i class="fas fa-users fa-3x mb-3" style="opacity: 0.2;"></i>
-                        <p class="mb-0">No data available</p>
+                    <div class="chart-empty-state">
+                        <i class="fas fa-users"></i>
+                        <p>No data available</p>
                     </div>
                     {% endif %}
                 </div>
             </div>
         </div>
         <div class="col-lg-4">
-            <div class="card chart-card h-100">
+            <div class="card chart-card border-orange h-100">
                 <div class="card-header d-flex align-items-center">
                     <span class="header-icon" style="background: linear-gradient(135deg, #fd7e14 0%, #e06b0a 100%);"><i class="fas fa-balance-scale"></i></span>
                     <h5 class="mb-0">This Week vs Last Week</h5>
@@ -433,9 +747,17 @@
     <!-- Rankings Row 1 -->
     <div class="row mb-4 g-4">
         <div class="col-lg-6">
-            <div class="card ranking-card h-100">
-                <div class="card-header text-white" style="background: linear-gradient(135deg, #28a745 0%, #20c997 100%);">
+            <div class="card ranking-card ranking-green h-100">
+                <div class="card-header text-white d-flex justify-content-between align-items-center" style="background: linear-gradient(135deg, #28a745 0%, #20c997 100%);">
                     <h5><i class="fas fa-trophy me-2"></i>Top Performers</h5>
+                    <div class="header-actions">
+                        <a href="{{ url_for('analytics_top_performers', period=request.args.get('period', 'today'), school_id=request.args.get('school_id', ''), organization_id=request.args.get('organization_id', ''), department=request.args.get('department', '')) }}" class="btn-view-all">
+                            <i class="fas fa-list me-1"></i>View All
+                        </a>
+                        <a href="{{ url_for('analytics_download_top_performers', period=request.args.get('period', 'today'), school_id=request.args.get('school_id', ''), organization_id=request.args.get('organization_id', ''), department=request.args.get('department', '')) }}" class="btn-download-excel">
+                            <i class="fas fa-file-excel"></i>
+                        </a>
+                    </div>
                 </div>
                 {% if top_performers %}
                 <div class="table-responsive">
@@ -454,14 +776,25 @@
                     </table>
                 </div>
                 {% else %}
-                <div class="empty-state text-center text-muted"><i class="fas fa-trophy d-block"></i><p class="mb-0">No performance data available</p></div>
+                <div class="empty-state">
+                    <i class="fas fa-trophy"></i>
+                    <p>No performance data available</p>
+                </div>
                 {% endif %}
             </div>
         </div>
         <div class="col-lg-6">
-            <div class="card ranking-card h-100">
-                <div class="card-header text-white" style="background: linear-gradient(135deg, #dc3545 0%, #c82333 100%);">
+            <div class="card ranking-card ranking-red h-100">
+                <div class="card-header text-white d-flex justify-content-between align-items-center" style="background: linear-gradient(135deg, #dc3545 0%, #c82333 100%);">
                     <h5><i class="fas fa-exclamation-circle me-2"></i>Needs Attention</h5>
+                    <div class="header-actions">
+                        <a href="{{ url_for('analytics_needs_attention', period=request.args.get('period', 'today'), school_id=request.args.get('school_id', ''), organization_id=request.args.get('organization_id', ''), department=request.args.get('department', '')) }}" class="btn-view-all">
+                            <i class="fas fa-list me-1"></i>View All
+                        </a>
+                        <a href="{{ url_for('analytics_download_needs_attention', period=request.args.get('period', 'today'), school_id=request.args.get('school_id', ''), organization_id=request.args.get('organization_id', ''), department=request.args.get('department', '')) }}" class="btn-download-excel">
+                            <i class="fas fa-file-excel"></i>
+                        </a>
+                    </div>
                 </div>
                 {% if needs_attention %}
                 <div class="table-responsive">
@@ -480,7 +813,10 @@
                     </table>
                 </div>
                 {% else %}
-                <div class="empty-state text-center text-muted"><i class="fas fa-exclamation-circle d-block"></i><p class="mb-0">No attention needed</p></div>
+                <div class="empty-state">
+                    <i class="fas fa-exclamation-circle"></i>
+                    <p>No attention needed</p>
+                </div>
                 {% endif %}
             </div>
         </div>
@@ -489,9 +825,17 @@
     <!-- Rankings Row 2 -->
     <div class="row mb-4 g-4">
         <div class="col-lg-6">
-            <div class="card ranking-card h-100">
-                <div class="card-header text-white" style="background: linear-gradient(135deg, #17a2b8 0%, #138496 100%);">
+            <div class="card ranking-card ranking-teal h-100">
+                <div class="card-header text-white d-flex justify-content-between align-items-center" style="background: linear-gradient(135deg, #17a2b8 0%, #138496 100%);">
                     <h5><i class="fas fa-sun me-2"></i>Early Arrivals Champions</h5>
+                    <div class="header-actions">
+                        <a href="{{ url_for('analytics_early_arrivals', period=request.args.get('period', 'today'), school_id=request.args.get('school_id', ''), organization_id=request.args.get('organization_id', ''), department=request.args.get('department', '')) }}" class="btn-view-all">
+                            <i class="fas fa-list me-1"></i>View All
+                        </a>
+                        <a href="{{ url_for('analytics_download_early_arrivals', period=request.args.get('period', 'today'), school_id=request.args.get('school_id', ''), organization_id=request.args.get('organization_id', ''), department=request.args.get('department', '')) }}" class="btn-download-excel">
+                            <i class="fas fa-file-excel"></i>
+                        </a>
+                    </div>
                 </div>
                 {% if early_arrivals %}
                 <div class="table-responsive">
@@ -510,14 +854,25 @@
                     </table>
                 </div>
                 {% else %}
-                <div class="empty-state text-center text-muted"><i class="fas fa-sun d-block"></i><p class="mb-0">No early arrival data</p></div>
+                <div class="empty-state">
+                    <i class="fas fa-sun"></i>
+                    <p>No early arrival data</p>
+                </div>
                 {% endif %}
             </div>
         </div>
         <div class="col-lg-6">
-            <div class="card ranking-card h-100">
-                <div class="card-header text-white" style="background: linear-gradient(135deg, #6f42c1 0%, #59359a 100%);">
+            <div class="card ranking-card ranking-purple h-100">
+                <div class="card-header text-white d-flex justify-content-between align-items-center" style="background: linear-gradient(135deg, #6f42c1 0%, #59359a 100%);">
                     <h5><i class="fas fa-award me-2"></i>Perfect Attendance</h5>
+                    <div class="header-actions">
+                        <a href="{{ url_for('analytics_perfect_attendance', period=request.args.get('period', 'today'), school_id=request.args.get('school_id', ''), organization_id=request.args.get('organization_id', ''), department=request.args.get('department', '')) }}" class="btn-view-all">
+                            <i class="fas fa-list me-1"></i>View All
+                        </a>
+                        <a href="{{ url_for('analytics_download_perfect_attendance', period=request.args.get('period', 'today'), school_id=request.args.get('school_id', ''), organization_id=request.args.get('organization_id', ''), department=request.args.get('department', '')) }}" class="btn-download-excel">
+                            <i class="fas fa-file-excel"></i>
+                        </a>
+                    </div>
                 </div>
                 {% if perfect_attendance %}
                 <div class="table-responsive">
@@ -536,7 +891,10 @@
                     </table>
                 </div>
                 {% else %}
-                <div class="empty-state text-center text-muted"><i class="fas fa-award d-block"></i><p class="mb-0">No perfect attendance records</p></div>
+                <div class="empty-state">
+                    <i class="fas fa-award"></i>
+                    <p>No perfect attendance records</p>
+                </div>
                 {% endif %}
             </div>
         </div>
@@ -545,9 +903,17 @@
     <!-- Rankings Row 3 -->
     <div class="row mb-4 g-4">
         <div class="col-lg-6">
-            <div class="card ranking-card h-100">
-                <div class="card-header text-white" style="background: linear-gradient(135deg, #fd7e14 0%, #e06b0a 100%);">
+            <div class="card ranking-card ranking-orange h-100">
+                <div class="card-header text-white d-flex justify-content-between align-items-center" style="background: linear-gradient(135deg, #fd7e14 0%, #e06b0a 100%);">
                     <h5><i class="fas fa-chart-line me-2"></i>Most Improved</h5>
+                    <div class="header-actions">
+                        <a href="{{ url_for('analytics_most_improved', period=request.args.get('period', 'today'), school_id=request.args.get('school_id', ''), organization_id=request.args.get('organization_id', ''), department=request.args.get('department', '')) }}" class="btn-view-all">
+                            <i class="fas fa-list me-1"></i>View All
+                        </a>
+                        <a href="{{ url_for('analytics_download_most_improved', period=request.args.get('period', 'today'), school_id=request.args.get('school_id', ''), organization_id=request.args.get('organization_id', ''), department=request.args.get('department', '')) }}" class="btn-download-excel">
+                            <i class="fas fa-file-excel"></i>
+                        </a>
+                    </div>
                 </div>
                 {% if most_improved %}
                 <div class="table-responsive">
@@ -566,14 +932,25 @@
                     </table>
                 </div>
                 {% else %}
-                <div class="empty-state text-center text-muted"><i class="fas fa-chart-line d-block"></i><p class="mb-0">No improvement data available</p></div>
+                <div class="empty-state">
+                    <i class="fas fa-chart-line"></i>
+                    <p>No improvement data available</p>
+                </div>
                 {% endif %}
             </div>
         </div>
         <div class="col-lg-6">
-            <div class="card ranking-card h-100">
-                <div class="card-header text-white" style="background: linear-gradient(135deg, #20c997 0%, #17a2b8 100%);">
+            <div class="card ranking-card ranking-cyan h-100">
+                <div class="card-header text-white d-flex justify-content-between align-items-center" style="background: linear-gradient(135deg, #20c997 0%, #17a2b8 100%);">
                     <h5><i class="fas fa-fire me-2"></i>On-Time Streaks</h5>
+                    <div class="header-actions">
+                        <a href="{{ url_for('analytics_streaks', period=request.args.get('period', 'today'), school_id=request.args.get('school_id', ''), organization_id=request.args.get('organization_id', ''), department=request.args.get('department', '')) }}" class="btn-view-all">
+                            <i class="fas fa-list me-1"></i>View All
+                        </a>
+                        <a href="{{ url_for('analytics_download_streaks', period=request.args.get('period', 'today'), school_id=request.args.get('school_id', ''), organization_id=request.args.get('organization_id', ''), department=request.args.get('department', '')) }}" class="btn-download-excel">
+                            <i class="fas fa-file-excel"></i>
+                        </a>
+                    </div>
                 </div>
                 {% if attendance_streaks %}
                 <div class="table-responsive">
@@ -592,7 +969,10 @@
                     </table>
                 </div>
                 {% else %}
-                <div class="empty-state text-center text-muted"><i class="fas fa-fire d-block"></i><p class="mb-0">No streak data available</p></div>
+                <div class="empty-state">
+                    <i class="fas fa-fire"></i>
+                    <p>No streak data available</p>
+                </div>
                 {% endif %}
             </div>
         </div>
@@ -614,27 +994,20 @@ function filterByOrganization(orgId) {
     var departmentSelect = document.getElementById('departmentSelect');
     var options = branchSelect.querySelectorAll('option');
     
-    // Reset branch selection
     branchSelect.value = '';
     
-    // Show/hide branch options based on organization
     options.forEach(function(option) {
         if (option.value === '') {
-            // Always show "All Branches" option
             option.style.display = '';
         } else if (!orgId) {
-            // Show all if no org selected
             option.style.display = '';
         } else if (option.getAttribute('data-org') === orgId) {
-            // Show if matches org
             option.style.display = '';
         } else {
-            // Hide if doesn't match
             option.style.display = 'none';
         }
     });
     
-    // Load departments for selected organization
     if (orgId) {
         departmentSelect.innerHTML = '<option value="">Loading...</option>';
         
@@ -658,7 +1031,6 @@ function filterByOrganization(orgId) {
         };
         xhr.send();
     } else {
-        // Reset to all departments - reload page or show all
         departmentSelect.innerHTML = '<option value="">All Departments</option>';
         {% for dept in departments %}
         var opt = document.createElement('option');
@@ -703,7 +1075,8 @@ new Chart(dayCtx, {
         datasets: [{
             label: 'Late Count',
             data: {{ late_by_day|tojson }},
-            backgroundColor: ['#ff6384', '#ff9f40', '#ffcd56', '#4bc0c0', '#36a2eb', '#9966ff', '#c9cbcf']
+            backgroundColor: ['#ff6384', '#ff9f40', '#ffcd56', '#4bc0c0', '#36a2eb', '#9966ff', '#c9cbcf'],
+            borderRadius: 8
         }]
     },
     options: { responsive: true, plugins: { legend: { display: false } } }
@@ -735,18 +1108,20 @@ new Chart(branchCtx, {
         datasets: [{
             label: 'Attendance %',
             data: {{ branch_attendance|tojson }},
-            backgroundColor: 'rgba(40, 167, 69, 0.8)'
+            backgroundColor: 'rgba(40, 167, 69, 0.8)',
+            borderRadius: 6
         }, {
             label: 'Punctuality %',
             data: {{ branch_punctuality|tojson }},
-            backgroundColor: 'rgba(0, 123, 255, 0.8)'
+            backgroundColor: 'rgba(0, 123, 255, 0.8)',
+            borderRadius: 6
         }]
     },
     options: { responsive: true, plugins: { legend: { position: 'bottom' } }, scales: { y: { beginAtZero: true, max: 100 } } }
 });
 {% endif %}
 
-// Distribution Chart (Arrival Distribution)
+// Distribution Chart
 {% if total_records > 0 %}
 const distCtx = document.getElementById('distributionChart').getContext('2d');
 new Chart(distCtx, {
@@ -762,7 +1137,7 @@ new Chart(distCtx, {
 });
 {% endif %}
 
-// Presence Chart (Present vs Absent)
+// Presence Chart
 {% if total_records > 0 or presence_data[1] > 0 %}
 const presenceCtx = document.getElementById('presenceChart').getContext('2d');
 new Chart(presenceCtx, {
@@ -787,11 +1162,13 @@ new Chart(weeklyCtx, {
         datasets: [{
             label: 'This Week',
             data: {{ weekly_this_week|tojson }},
-            backgroundColor: 'rgba(253, 126, 20, 0.8)'
+            backgroundColor: 'rgba(253, 126, 20, 0.8)',
+            borderRadius: 6
         }, {
             label: 'Last Week',
             data: {{ weekly_last_week|tojson }},
-            backgroundColor: 'rgba(108, 117, 125, 0.6)'
+            backgroundColor: 'rgba(108, 117, 125, 0.6)',
+            borderRadius: 6
         }]
     },
     options: { responsive: true, plugins: { legend: { position: 'bottom' } }, scales: { y: { beginAtZero: true, max: 100 } } }
