@@ -201,6 +201,10 @@
         box-shadow: 0 2px 8px rgba(0, 123, 255, 0.1);
     }
     
+    .assignment-card:nth-child(even) {
+        background: #f8f9fa;
+    }
+    
     .assignment-info {
         display: flex;
         align-items: center;
@@ -292,21 +296,26 @@
         padding: 0;
         max-height: 220px;
         overflow-y: auto;
+        background: #f8f9fa;
     }
     
     .staff-checkbox-container .staff-item {
-    padding: 10px 15px 10px 30px;
-    border-bottom: 1px solid #f0f0f0;
-    transition: background 0.2s ease;
+        padding: 10px 15px 10px 30px;
+        border-bottom: 1px solid #eee;
+        transition: background 0.2s ease;
+        background: #fff;
     }
-
+    
+    .staff-checkbox-container .staff-item:nth-child(even) {
+        background: #f8f9fa;
+    }
     
     .staff-checkbox-container .staff-item:last-child {
         border-bottom: none;
     }
     
     .staff-checkbox-container .staff-item:hover {
-        background: #f8f9fa;
+        background: #fff3f4;
     }
     
     .staff-checkbox-container .form-check-input:checked ~ .form-check-label {
@@ -374,6 +383,19 @@
         border-radius: 20px;
         font-size: 0.8rem;
         font-weight: 500;
+    }
+    
+    /* Right column subtle backgrounds */
+    #shiftSection .card-body {
+        background: #fafbfc;
+    }
+    
+    .assign-staff-card .card-body {
+        background: #fafbfc;
+    }
+    
+    .assignments-card .card-body {
+        background: #fafbfc;
     }
 </style>
 
@@ -598,7 +620,7 @@
             </div>
 
             <!-- Assign Staff to Shift -->
-            <div class="card settings-card mb-4">
+            <div class="card settings-card assign-staff-card mb-4">
                 <div class="card-header">
                     <h5 class="mb-0"><i class="fas fa-user-clock me-2 text-danger"></i>Assign Staff to Shift</h5>
                 </div>
@@ -667,7 +689,7 @@
             </div>
 
             <!-- Current Shift Assignments -->
-            <div class="card settings-card mb-4">
+            <div class="card settings-card assignments-card mb-4">
                 <div class="card-header">
                     <h5 class="mb-0"><i class="fas fa-users me-2 text-danger"></i>Current Shift Assignments</h5>
                 </div>
