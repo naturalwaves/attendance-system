@@ -3,37 +3,351 @@
 {% block title %}Absent Report - Attendance System{% endblock %}
 
 {% block content %}
-<div class="d-flex justify-content-between align-items-center mb-4">
-    <h2>
-        <i class="fas fa-user-times me-2"></i>Absent Staff Report
-        {% if school_id %}
-            {% for s in schools %}
-                {% if s.id|string == school_id|string %}
-                    <span class="text-muted fs-5 fw-normal">— {{ s.name }}</span>
-                {% endif %}
-            {% endfor %}
-        {% endif %}
-    </h2>
-    <a href="{{ url_for('download_absent_report', date_from=date_from, date_to=date_to, school_id=school_id or '', organization_id=organization_id or '') }}" class="btn btn-success">
-        <i class="fas fa-download me-2"></i>Download CSV
-    </a>
+<style>
+    /* Page Header */
+    .page-header-card {
+        border: none;
+        border-radius: 12px;
+        overflow: hidden;
+        box-shadow: 0 4px 15px rgba(0,0,0,0.1);
+    }
+    
+    /* Filter Card */
+    .filter-card {
+        border: none;
+        border-left: 4px solid #dc3545;
+        border-radius: 12px;
+        box-shadow: 0 2px 12px rgba(0,0,0,0.08);
+        transition: all 0.3s ease;
+    }
+    
+    .filter-card:hover {
+        box-shadow: 0 4px 20px rgba(0,0,0,0.12);
+    }
+    
+    .filter-card .card-body {
+        padding: 1.5rem;
+    }
+    
+    /* Summary Card */
+    .summary-card {
+        border: none;
+        border-radius: 12px;
+        overflow: hidden;
+        box-shadow: 0 4px 15px rgba(220, 53, 69, 0.3);
+        background: linear-gradient(135deg, #dc3545 0%, #c82333 100%);
+        transition: all 0.3s ease;
+    }
+    
+    .summary-card:hover {
+        transform: translateY(-3px);
+        box-shadow: 0 6px 20px rgba(220, 53, 69, 0.4);
+    }
+    
+    .summary-card .card-body {
+        padding: 2rem;
+    }
+    
+    .summary-icon {
+        width: 60px;
+        height: 60px;
+        background: rgba(255,255,255,0.2);
+        border-radius: 50%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        margin: 0 auto 1rem;
+    }
+    
+    .summary-icon i {
+        font-size: 1.5rem;
+        color: #fff;
+    }
+    
+    .summary-count {
+        font-size: 3rem;
+        font-weight: 700;
+        color: #fff;
+        line-height: 1;
+        margin-bottom: 0.5rem;
+    }
+    
+    .summary-label {
+        color: rgba(255,255,255,0.8);
+        font-size: 0.95rem;
+        margin: 0;
+    }
+    
+    .summary-dates {
+        background: rgba(255,255,255,0.15);
+        padding: 4px 12px;
+        border-radius: 20px;
+        font-size: 0.85rem;
+        color: #fff;
+        display: inline-block;
+        margin-top: 0.75rem;
+    }
+    
+    /* Form Controls */
+    .form-label {
+        font-weight: 600;
+        font-size: 0.85rem;
+        color: #495057;
+        margin-bottom: 0.4rem;
+    }
+    
+    .form-control,
+    .form-select {
+        border-radius: 8px;
+        border: 1px solid #e0e0e0;
+        padding: 10px 14px;
+        transition: all 0.2s ease;
+    }
+    
+    .form-control:focus,
+    .form-select:focus {
+        border-color: #dc3545;
+        box-shadow: 0 0 0 3px rgba(220, 53, 69, 0.15);
+    }
+    
+    /* Buttons */
+    .btn-filter {
+        background: linear-gradient(135deg, #dc3545 0%, #c82333 100%);
+        border: none;
+        color: #fff;
+        padding: 10px 20px;
+        border-radius: 8px;
+        font-weight: 500;
+        box-shadow: 0 2px 8px rgba(220, 53, 69, 0.3);
+        transition: all 0.3s ease;
+    }
+    
+    .btn-filter:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 4px 12px rgba(220, 53, 69, 0.4);
+        color: #fff;
+    }
+    
+    .btn-today {
+        border-radius: 8px;
+        padding: 10px 20px;
+        font-weight: 500;
+        transition: all 0.2s ease;
+    }
+    
+    .btn-today:hover {
+        background: #6c757d;
+        color: #fff;
+    }
+    
+    .btn-download {
+        background: linear-gradient(135deg, #28a745 0%, #20863d 100%);
+        border: none;
+        color: #fff;
+        padding: 10px 20px;
+        border-radius: 8px;
+        font-weight: 500;
+        box-shadow: 0 2px 8px rgba(40, 167, 69, 0.3);
+        transition: all 0.3s ease;
+    }
+    
+    .btn-download:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 4px 12px rgba(40, 167, 69, 0.4);
+        color: #fff;
+    }
+    
+    /* Table Card */
+    .table-card {
+        border: none;
+        border-left: 4px solid #667eea;
+        border-radius: 12px;
+        box-shadow: 0 2px 12px rgba(0,0,0,0.08);
+        overflow: hidden;
+    }
+    
+    .table-card .card-header {
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        color: #fff;
+        font-weight: 600;
+        padding: 1rem 1.25rem;
+        border: none;
+    }
+    
+    .table-card .card-header i {
+        opacity: 0.8;
+    }
+    
+    /* Table Styling */
+    .absent-table {
+        margin-bottom: 0;
+    }
+    
+    .absent-table thead {
+        background: linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%);
+    }
+    
+    .absent-table thead th {
+        font-weight: 600;
+        color: #495057;
+        padding: 14px 12px;
+        border: none;
+        text-transform: uppercase;
+        font-size: 0.75rem;
+        letter-spacing: 0.5px;
+    }
+    
+    .absent-table tbody tr {
+        transition: all 0.2s ease;
+        border-left: 3px solid transparent;
+    }
+    
+    .absent-table tbody tr:hover {
+        background-color: #fff3f4 !important;
+        border-left: 3px solid #dc3545;
+    }
+    
+    .absent-table td {
+        padding: 14px 12px;
+        vertical-align: middle;
+        border-bottom: 1px solid #f0f0f0;
+    }
+    
+    /* Staff Info */
+    .staff-name {
+        font-weight: 600;
+        color: #333;
+    }
+    
+    .staff-id-badge {
+        background: #f0f0f0;
+        padding: 4px 10px;
+        border-radius: 6px;
+        font-family: monospace;
+        font-size: 0.85rem;
+        color: #495057;
+    }
+    
+    .org-badge {
+        background: linear-gradient(135deg, rgba(40, 167, 69, 0.1) 0%, rgba(40, 167, 69, 0.05) 100%);
+        color: #28a745;
+        padding: 4px 10px;
+        border-radius: 20px;
+        font-size: 0.8rem;
+        font-weight: 500;
+        border: 1px solid rgba(40, 167, 69, 0.2);
+    }
+    
+    .branch-badge {
+        background: linear-gradient(135deg, rgba(102, 126, 234, 0.1) 0%, rgba(102, 126, 234, 0.05) 100%);
+        color: #667eea;
+        padding: 4px 10px;
+        border-radius: 20px;
+        font-size: 0.8rem;
+        font-weight: 500;
+        border: 1px solid rgba(102, 126, 234, 0.2);
+    }
+    
+    .dept-badge {
+        background: #f8f9fa;
+        color: #6c757d;
+        padding: 4px 10px;
+        border-radius: 20px;
+        font-size: 0.8rem;
+    }
+    
+    .date-cell {
+        font-weight: 600;
+        color: #333;
+    }
+    
+    /* Empty State */
+    .empty-state {
+        padding: 3rem 1rem;
+        text-align: center;
+    }
+    
+    .empty-state-icon {
+        width: 80px;
+        height: 80px;
+        background: linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%);
+        border-radius: 50%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        margin: 0 auto 1rem;
+    }
+    
+    .empty-state-icon i {
+        font-size: 2rem;
+        color: #adb5bd;
+    }
+    
+    .empty-state h6 {
+        color: #6c757d;
+        font-weight: 500;
+    }
+    
+    .empty-state p {
+        color: #adb5bd;
+        font-size: 0.9rem;
+        margin: 0;
+    }
+</style>
+
+<!-- Page Header -->
+<div class="row mb-4">
+    <div class="col-12">
+        <div class="card page-header-card" style="background: linear-gradient(135deg, #1e3c72 0%, #2a5298 100%);">
+            <div class="card-body py-4">
+                <div class="d-flex justify-content-between align-items-center flex-wrap gap-3">
+                    <div>
+                        <h3 class="mb-1 fw-bold text-white">
+                            <i class="fas fa-user-times me-2"></i>Absent Staff Report
+                            {% if school_id %}
+                                {% for s in schools %}
+                                    {% if s.id|string == school_id|string %}
+                                        <span class="fw-normal text-white-50">/ {{ s.name }}</span>
+                                    {% endif %}
+                                {% endfor %}
+                            {% endif %}
+                        </h3>
+                        <p class="mb-0 text-white-50">
+                            <i class="fas fa-calendar-times me-1"></i> 
+                            Track staff absences and patterns
+                        </p>
+                    </div>
+                    <a href="{{ url_for('download_absent_report', date_from=date_from, date_to=date_to, school_id=school_id or '', organization_id=organization_id or '') }}" class="btn btn-download">
+                        <i class="fas fa-download me-2"></i>Download CSV
+                    </a>
+                </div>
+            </div>
+        </div>
+    </div>
 </div>
 
-<div class="card mb-4">
+<!-- Filter Card -->
+<div class="card filter-card mb-4">
     <div class="card-body">
         <form method="GET" class="row g-3 align-items-end">
             <div class="col-md-2">
-                <label class="form-label">From</label>
+                <label class="form-label">
+                    <i class="fas fa-calendar me-1 text-muted"></i> From
+                </label>
                 <input type="date" name="date_from" class="form-control" value="{{ date_from }}">
             </div>
             <div class="col-md-2">
-                <label class="form-label">To</label>
+                <label class="form-label">
+                    <i class="fas fa-calendar me-1 text-muted"></i> To
+                </label>
                 <input type="date" name="date_to" class="form-control" value="{{ date_to }}">
             </div>
             
             {% if current_user.role in ['super_admin', 'hr_viewer', 'ceo_viewer'] %}
             <div class="col-md-2">
-                <label class="form-label">Organization</label>
+                <label class="form-label">
+                    <i class="fas fa-sitemap me-1 text-muted"></i> Organization
+                </label>
                 <select name="organization_id" id="organizationFilter" class="form-select">
                     <option value="">All Organizations</option>
                     {% for org in organizations %}
@@ -43,7 +357,9 @@
             </div>
             
             <div class="col-md-2">
-                <label class="form-label">Branch</label>
+                <label class="form-label">
+                    <i class="fas fa-building me-1 text-muted"></i> Branch
+                </label>
                 <select name="school_id" id="branchFilter" class="form-select">
                     <option value="">All Branches</option>
                     {% for s in schools %}
@@ -54,54 +370,96 @@
             {% endif %}
             
             <div class="col-md-2">
-                <button type="submit" class="btn btn-primary w-100">
+                <button type="submit" class="btn btn-filter w-100">
                     <i class="fas fa-filter me-2"></i>Filter
                 </button>
             </div>
             <div class="col-md-2">
-                <a href="{{ url_for('absent_report', today=1) }}" class="btn btn-outline-secondary w-100">Today</a>
+                <a href="{{ url_for('absent_report', today=1) }}" class="btn btn-today btn-outline-secondary w-100">
+                    <i class="fas fa-clock me-1"></i> Today
+                </a>
             </div>
         </form>
     </div>
 </div>
 
-<div class="card mb-4 bg-danger text-white">
+<!-- Summary Card -->
+<div class="card summary-card mb-4">
     <div class="card-body text-center">
-        <h3>{{ absent_records|length }}</h3>
-        <p class="mb-0">Absent Records ({{ date_from }} to {{ date_to }})</p>
+        <div class="summary-icon">
+            <i class="fas fa-user-times"></i>
+        </div>
+        <div class="summary-count">{{ absent_records|length }}</div>
+        <p class="summary-label">Absent Records</p>
+        <span class="summary-dates">
+            <i class="fas fa-calendar-alt me-1"></i> {{ date_from }} to {{ date_to }}
+        </span>
     </div>
 </div>
 
-<div class="card">
+<!-- Absent Staff Table -->
+<div class="card table-card">
     <div class="card-header">
         <i class="fas fa-table me-2"></i>Absent Staff Details
     </div>
-    <div class="card-body">
+    <div class="card-body p-0">
         <div class="table-responsive">
-            <table class="table table-hover">
+            <table class="table absent-table">
                 <thead>
                     <tr>
-                        <th>Date</th>
+                        <th class="ps-4">Date</th>
                         <th>Staff ID</th>
                         <th>Name</th>
                         <th>Organization</th>
                         <th>Branch</th>
-                        <th>Department</th>
+                        <th class="pe-4">Department</th>
                     </tr>
                 </thead>
                 <tbody>
                     {% for record in absent_records %}
                     <tr>
-                        <td>{{ record.date.strftime('%d/%m/%Y') }}</td>
-                        <td>{{ record.staff.staff_id }}</td>
-                        <td>{{ record.staff.name }}</td>
-                        <td>{{ record.staff.school.organization.name if record.staff.school and record.staff.school.organization else 'N/A' }}</td>
-                        <td>{{ record.staff.school.name if record.staff.school else 'N/A' }}</td>
-                        <td>{{ record.staff.department or 'N/A' }}</td>
+                        <td class="ps-4">
+                            <span class="date-cell">{{ record.date.strftime('%d/%m/%Y') }}</span>
+                        </td>
+                        <td>
+                            <span class="staff-id-badge">{{ record.staff.staff_id }}</span>
+                        </td>
+                        <td>
+                            <span class="staff-name">{{ record.staff.name }}</span>
+                        </td>
+                        <td>
+                            {% if record.staff.school and record.staff.school.organization %}
+                            <span class="org-badge">{{ record.staff.school.organization.name }}</span>
+                            {% else %}
+                            <span class="text-muted">N/A</span>
+                            {% endif %}
+                        </td>
+                        <td>
+                            {% if record.staff.school %}
+                            <span class="branch-badge">{{ record.staff.school.name }}</span>
+                            {% else %}
+                            <span class="text-muted">N/A</span>
+                            {% endif %}
+                        </td>
+                        <td class="pe-4">
+                            {% if record.staff.department %}
+                            <span class="dept-badge">{{ record.staff.department }}</span>
+                            {% else %}
+                            <span class="text-muted">N/A</span>
+                            {% endif %}
+                        </td>
                     </tr>
                     {% else %}
                     <tr>
-                        <td colspan="6" class="text-center text-muted py-4">No absent staff for this period</td>
+                        <td colspan="6">
+                            <div class="empty-state">
+                                <div class="empty-state-icon">
+                                    <i class="fas fa-user-check"></i>
+                                </div>
+                                <h6>No Absent Records</h6>
+                                <p>No staff absences found for this period - great news!</p>
+                            </div>
+                        </td>
                     </tr>
                     {% endfor %}
                 </tbody>
